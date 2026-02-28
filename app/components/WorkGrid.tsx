@@ -9,6 +9,7 @@
  */
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -67,6 +68,7 @@ function FullscreenViewer({
   const overlayRef    = useRef<HTMLDivElement>(null);
   const hovRef        = useRef(true);
   const canvasWrapRef = useRef<HTMLDivElement>(null);
+  const [mobile, setMobile] = useState(false);
 
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -92,34 +94,43 @@ function FullscreenViewer({
     return () => window.removeEventListener("keydown", fn);
   }, [close]);
 
-  return (
-    <div
-      ref={overlayRef}
-      style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(0,0,3,0.94)", opacity: 0 }}
-    >
-      <div ref={canvasWrapRef} style={{ position: "absolute", inset: 0 }}>
-        <WorkItemCanvas
-          modelPath={project.modelPath}
-          textures={project.textures}
-          hoveredRef={hovRef}
-          containerRef={canvasWrapRef}
-          fullscreen
-          labelSet={labelSet}
-        />
-      </div>
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 768px)");
+    const on = () => setMobile(mq.matches);
+    on();
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
 
-      {/* HUD bar */}
-      <div style={{
-        position: "absolute", top: 0, left: 0, right: 0,
-        padding: "1.4rem 2rem",
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        pointerEvents: "none", zIndex: 101,
-      }}>
-        <div style={{ ...MON, fontSize: "0.58rem", letterSpacing: "0.38em", color: "rgba(184,240,255,0.32)" }}>
-          {project.category} — {project.title}
+  const infoPanel = (
+    <div style={{
+      padding: mobile ? "1.5rem 1.25rem 2rem" : "2.5rem 2rem",
+      display: "flex", flexDirection: "column", gap: "1.5rem",
+      background: "rgba(0,5,15,0.85)",
+      borderLeft: mobile ? "none" : "1px solid rgba(184,240,255,0.08)",
+      borderTop: mobile ? "1px solid rgba(184,240,255,0.08)" : "none",
+    }}>
+      <div>
+        <p style={{ ...MON, fontSize: "0.5rem", letterSpacing: "0.32em", color: "rgba(184,240,255,0.4)", marginBottom: "0.5rem" }}>{project.category}</p>
+        <h2 style={{ fontFamily: "var(--font-geist-sans), sans-serif", fontSize: mobile ? "1.25rem" : "1.5rem", fontWeight: 400, letterSpacing: "0.02em", color: "var(--text-primary)", margin: 0 }}>{project.title}</h2>
+        <p style={{ ...MON, fontSize: "0.52rem", letterSpacing: "0.2em", color: "rgba(184,240,255,0.35)", marginTop: "0.35rem" }}>{project.year}</p>
+      </div>
+      <p style={{ color: "var(--text-secondary)", fontSize: "0.8rem", lineHeight: 1.7, margin: 0 }}>PBR real-time asset. Drag to orbit, scroll to zoom.</p>
+      <div style={{ ...MON, fontSize: "0.5rem", letterSpacing: "0.22em", color: "rgba(184,240,255,0.3)" }}>FBX · WebGL · React Three Fiber</div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem", marginTop: "auto", paddingTop: "1rem" }}>
+        <a href="https://x.com/multiscatter" target="_blank" rel="noopener noreferrer" style={{ ...MON, fontSize: "0.55rem", letterSpacing: "0.24em", color: "rgba(184,240,255,0.7)", textDecoration: "none", borderBottom: "1px solid rgba(184,240,255,0.4)", paddingBottom: "0.15rem" }}>View on X ↑</a>
+      </div>
+    </div>
+  );
+
+  return (
+    <div ref={overlayRef} style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(0,0,3,0.96)", opacity: 0 }}>
+      <div style={{ display: "flex", flexDirection: mobile ? "column" : "row", width: "100%", height: "100%", overflow: "hidden" }}>
+        <div ref={canvasWrapRef} style={{ flex: mobile ? "none" : 1, height: mobile ? "55vh" : "100%", minHeight: 0, position: "relative" }}>
+          <WorkItemCanvas modelPath={project.modelPath} textures={project.textures} hoveredRef={hovRef} containerRef={canvasWrapRef} fullscreen labelSet={labelSet} />
         </div>
-        <div style={{ ...MON, fontSize: "0.52rem", letterSpacing: "0.22em", color: "rgba(184,240,255,0.18)" }}>
-          DRAG TO ORBIT · SCROLL TO ZOOM
+        <div style={{ flex: mobile ? "1 1 auto" : "0 0 340px", overflowY: "auto", position: mobile ? "relative" : "sticky", top: 0, alignSelf: "stretch" }}>
+          {infoPanel}
         </div>
       </div>
 
@@ -410,6 +421,8 @@ function ImagesContent() {
 export default function WorkGrid() {
   const sectionRef  = useRef<HTMLElement>(null);
   const dragZoneRef = useRef<HTMLDivElement>(null);
+  const searchParams = useSearchParams();
+  const router = useRouter();
 
   const [projects,   setProjects]   = useState<Project[]>([]);
   const [activeId,   setActiveId]   = useState<string | null>(null);
@@ -420,6 +433,31 @@ export default function WorkGrid() {
   const [activeTab,  setActiveTab]  = useState<WorkTab>('models');
 
   const dragRef = useRef({ active: false, x: 0, y: 0, moved: false });
+
+  // ── Deep link: open viewer from ?model=id and sync URL on open/close ───────
+  useEffect(() => {
+    const modelId = searchParams.get("model");
+    if (!modelId || projects.length === 0) return;
+    const project = projects.find(p => p.id === modelId || p.title.toLowerCase().replace(/\s+/g, "-") === modelId.toLowerCase());
+    if (!project) return;
+    if (viewer && viewer.project.id === project.id) return;
+    const idx = projects.findIndex(p => p.id === project.id);
+    setViewer({ project, labelSet: idx >= 0 ? idx : 0 });
+    setActiveTab("models");
+    setActiveId(project.id);
+    workModels.activeModelId = project.id;
+    workModels.version++;
+    document.getElementById("work")?.scrollIntoView({ behavior: "smooth" });
+  }, [searchParams, projects, viewer]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onPopState = () => {
+      if (!new URLSearchParams(window.location.search).has("model")) setViewer(null);
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
 
   // ── Read pendingTab from nav ──────────────────────────────────────────────
   useEffect(() => {
@@ -556,6 +594,7 @@ export default function WorkGrid() {
     if (Math.hypot(dx, dy) > 4) dragRef.current.moved = true;
     dragRef.current.x = ev.clientX;
     dragRef.current.y = ev.clientY;
+    if (ev.pointerType === "touch" && Math.abs(dy) > Math.abs(dx)) return;
     if (activeId) {
       const e = workModels.entries.find(en => en.id === activeId);
       if (e) { const s = 0.007; e.rotY += dx * s; e.rotX += dy * s; e.velY = dx * s; e.velX = dy * s; }
@@ -587,7 +626,7 @@ export default function WorkGrid() {
           style={{
             position: "absolute", inset: 0, zIndex: 1,
             cursor: isDragging ? "grabbing" : "grab",
-            touchAction: "none",
+            touchAction: "pan-y",
           }}
           onMouseEnter={onEnter}
           onMouseLeave={onLeave}
@@ -715,7 +754,10 @@ export default function WorkGrid() {
               onClick={() => {
                 const p   = projects.find(p => p.id === activeId);
                 const idx = projects.findIndex(p => p.id === activeId);
-                if (p) setViewer({ project: p, labelSet: idx });
+                if (p) {
+                  router.push(`/?model=${p.id}`);
+                  setViewer({ project: p, labelSet: idx });
+                }
               }}
               style={{
                 position: "absolute",
@@ -781,7 +823,7 @@ export default function WorkGrid() {
       {viewer && (
         <FullscreenViewer
           project={viewer.project}
-          onClose={() => setViewer(null)}
+          onClose={() => { router.replace("/"); setViewer(null); }}
           labelSet={viewer.labelSet}
         />
       )}

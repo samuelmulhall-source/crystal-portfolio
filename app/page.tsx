@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import VoidBackground from "./components/VoidBackground";
 import EffectsOverlay from "./components/EffectsOverlay";
 import LoadingScreen  from "./components/LoadingScreen";
@@ -17,7 +18,9 @@ export default function Home() {
       <main>
         <Nav />
         <Hero />
-        <WorkGrid />
+        <Suspense fallback={<section id="work" style={{ height: "100vh", background: "transparent" }} />}>
+          <WorkGrid />
+        </Suspense>
         <AboutContact />
       </main>
 
