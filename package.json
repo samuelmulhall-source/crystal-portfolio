@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "generate-data": "node scripts/generate-static-data.mjs",
+    "build": "npm run generate-data && next build",
     "start": "next start",
     "lint": "eslint"
   },
