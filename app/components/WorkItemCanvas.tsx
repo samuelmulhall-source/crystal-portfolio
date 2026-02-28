@@ -105,27 +105,42 @@ function ShowcaseModel({
         const prev = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
         prev.forEach(m => (m as THREE.Material)?.dispose());
         let mat: THREE.Material;
-        if (webgpu && webgpu.MeshPhysicalNodeMaterial) {
-          const W = webgpu as Record<string, unknown>;
-          const MeshPhysicalNodeMaterial = W.MeshPhysicalNodeMaterial as new (p: object) => THREE.Material;
-          const texture = W.texture as (tex: THREE.Texture, uv?: unknown) => unknown;
-          const uv = W.uv as (i?: number) => unknown;
-          const vec3 = W.vec3 as (x: number, y?: number, z?: number) => unknown;
-          const float = W.float as (x: number) => unknown;
-          const time = W.time as { mul: (n: number) => unknown };
-          const sin = W.sin as (x: unknown) => { mul: (n: number) => unknown; add: (n: number) => unknown };
-          mat = new MeshPhysicalNodeMaterial({
-            side: T.FrontSide,
-            roughness: 0.72,
-            metalness: 0.05,
-            envMapIntensity: 1.4,
-          });
-          const matNode = mat as { roughnessNode?: unknown; metalnessNode?: unknown; emissiveNode?: unknown; colorNode?: unknown };
-          matNode.roughnessNode = float(0.72);
-          matNode.metalnessNode = float(0.05);
-          const pulse = (sin(time.mul(0.65)) as { mul: (n: number) => { add: (n: number) => unknown } }).mul(0.5).add(0.5);
-          matNode.emissiveNode = (vec3(0.05, 0.07, 0.1) as { mul: (x: unknown) => unknown }).mul(pulse);
-          matNode.colorNode = vec3(1, 1, 1);
+        const useWebGPUMaterial = webgpu && typeof (webgpu as Record<string, unknown>).MeshPhysicalNodeMaterial === "function";
+        if (useWebGPUMaterial) {
+          try {
+            const W = webgpu as Record<string, unknown>;
+            const MeshPhysicalNodeMaterial = W.MeshPhysicalNodeMaterial as new (p: object) => THREE.Material;
+            const vec3 = W.vec3;
+            const float = W.float;
+            const time = W.time;
+            const sin = W.sin;
+            if (typeof float !== "function" || typeof vec3 !== "function" || typeof sin !== "function" || time == null || typeof (time as { mul?: unknown }).mul !== "function") {
+              throw new Error("WebGPU TSL exports missing");
+            }
+            mat = new MeshPhysicalNodeMaterial({
+              side: T.FrontSide,
+              roughness: 0.72,
+              metalness: 0.05,
+              envMapIntensity: 1.4,
+            });
+            const matNode = mat as { roughnessNode?: unknown; metalnessNode?: unknown; emissiveNode?: unknown; colorNode?: unknown };
+            matNode.roughnessNode = (float as (x: number) => unknown)(0.72);
+            matNode.metalnessNode = (float as (x: number) => unknown)(0.05);
+            const timeNode = (time as { mul: (n: number) => unknown }).mul(0.65);
+            const pulse = ((sin as (x: unknown) => { mul: (n: number) => { add: (n: number) => unknown } })(timeNode)).mul(0.5).add(0.5);
+            matNode.emissiveNode = ((vec3 as (a: number, b?: number, c?: number) => { mul: (x: unknown) => unknown })(0.05, 0.07, 0.1)).mul(pulse);
+            matNode.colorNode = (vec3 as (a: number, b?: number, c?: number) => unknown)(1, 1, 1);
+          } catch {
+            mat = new THREE.MeshStandardMaterial({
+              color: 0xffffff,
+              emissive: new THREE.Color(0x000000),
+              emissiveIntensity: 0,
+              roughness: 0.72,
+              metalness: 0.05,
+              envMapIntensity: 1.4,
+              side: THREE.FrontSide,
+            });
+          }
         } else {
           mat = new THREE.MeshStandardMaterial({
             color: 0xffffff,
@@ -393,7 +408,8 @@ export default function WorkItemCanvas({
 
   const camPos: [number, number, number] = fullscreen ? [0, 0, 10] : [0, 0.1, 11.0];
   const camFov = fullscreen ? 44 : 36;
-  const useWebGPU = webgpuModule && typeof webgpuModule.WebGPURenderer === "function";
+  // Use WebGL for expanded view so we never hit WebGPURenderer + MeshStandardMaterial or TSL API issues
+  const useWebGPU = !fullscreen && webgpuModule && typeof webgpuModule.WebGPURenderer === "function";
 
   const glProp = useWebGPU
     ? async (defaultProps: { canvas: HTMLCanvasElement | OffscreenCanvas; antialias?: boolean; alpha?: boolean }) => {
