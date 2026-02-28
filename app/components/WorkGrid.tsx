@@ -162,12 +162,24 @@ function VideosContent({ visible }: { visible: boolean }) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
-    fetch("/api/videos")
-      .then(r => r.json())
-      .then(({ videos: v }: { videos: VideoEntry[] }) => {
-        if (v.length) { setVideos(v); setActiveId(v[0].id); }
+    fetch("/data.json")
+      .then(r => (r.ok ? r.json() : Promise.reject()))
+      .then((data: { videos?: VideoEntry[] }) => {
+        if (Array.isArray(data.videos) && data.videos.length > 0) {
+          setVideos(data.videos);
+          setActiveId(data.videos[0].id);
+          return;
+        }
+        throw new Error("no static videos");
       })
-      .catch(() => {});
+      .catch(() =>
+        fetch("/api/videos")
+          .then(r => r.json())
+          .then(({ videos: v }: { videos: VideoEntry[] }) => {
+            if (v?.length) { setVideos(v); setActiveId(v[0].id); }
+          })
+          .catch(() => {})
+      );
   }, []);
 
   // Pause when tab is hidden; don't autoplay on tab switch
@@ -303,10 +315,21 @@ function ImagesContent() {
   const [lightbox, setLightbox] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/images")
-      .then(r => r.json())
-      .then(({ images: img }: { images: ImageEntry[] }) => setImages(img))
-      .catch(() => {});
+    fetch("/data.json")
+      .then(r => (r.ok ? r.json() : Promise.reject()))
+      .then((data: { images?: ImageEntry[] }) => {
+        if (Array.isArray(data.images) && data.images.length > 0) {
+          setImages(data.images);
+          return;
+        }
+        throw new Error("no static images");
+      })
+      .catch(() =>
+        fetch("/api/images")
+          .then(r => r.json())
+          .then(({ images: img }: { images: ImageEntry[] }) => setImages(img ?? []))
+          .catch(() => {})
+      );
   }, []);
 
   return (
@@ -421,23 +444,35 @@ export default function WorkGrid() {
     // the model — don't force it here, so it only shows when section is in view.
   }, [activeTab]);
 
-  // ── Load models ──────────────────────────────────────────────────────────
+  // ── Load models (static data.json first for static export, else API) ───────
   useEffect(() => {
     gsap.registerPlugin(ScrollTrigger);
-    fetch("/api/models")
-      .then(r => r.json())
-      .then(({ models }: { models: Array<{ path: string; title: string; category: string; year: string; textures: TextureSet }> }) => {
-        setProjects(models.map((m, i) => ({
-          id:        `proj-${i}`,
-          title:     m.title,
-          category:  m.category,
-          modelPath: m.path,
-          year:      m.year,
-          textures:  m.textures ?? {},
-        })));
-        setLoading(false);
+    const applyModels = (models: Array<{ path: string; title: string; category: string; year: string; textures?: TextureSet }>) => {
+      setProjects(models.map((m, i) => ({
+        id:        `proj-${i}`,
+        title:     m.title,
+        category:  m.category,
+        modelPath: m.path,
+        year:      m.year,
+        textures:  m.textures ?? {},
+      })));
+      setLoading(false);
+    };
+    fetch("/data.json")
+      .then(r => (r.ok ? r.json() : Promise.reject()))
+      .then((data: { models?: Array<{ path: string; title: string; category: string; year: string; textures?: TextureSet }> }) => {
+        if (Array.isArray(data.models) && data.models.length > 0) {
+          applyModels(data.models);
+          return;
+        }
+        throw new Error("no static models");
       })
-      .catch(() => setLoading(false));
+      .catch(() =>
+        fetch("/api/models")
+          .then(r => r.json())
+          .then(({ models }: { models: Array<{ path: string; title: string; category: string; year: string; textures: TextureSet }> }) => applyModels(models))
+          .catch(() => setLoading(false))
+      );
   }, []);
 
   // ── Register models + IntersectionObserver ────────────────────────────────
