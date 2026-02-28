@@ -163,7 +163,7 @@ function FullscreenViewer({
 }
 
 // ─── Video player tab ───────────────────────────────────────────────────────
-function VideosContent({ visible }: { visible: boolean }) {
+function VideosContent({ visible, isNarrow }: { visible: boolean; isNarrow?: boolean }) {
   const [videos, setVideos]     = useState<VideoEntry[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -196,17 +196,93 @@ function VideosContent({ visible }: { visible: boolean }) {
   }, [visible]);
 
   const active = videos.find(v => v.id === activeId);
+  const columnLayout = isNarrow;
 
   return (
-    <div style={{ display: "flex", width: "100%", height: "100%", alignItems: "center" }}>
-      {/* Left menu */}
-      <nav style={{
-        flexShrink: 0,
-        width: "clamp(160px, 18vw, 240px)",
-        marginLeft: "2.5rem",
+    <div style={{
+      display: "flex",
+      flexDirection: columnLayout ? "column" : "row",
+      width: "100%",
+      height: "100%",
+      alignItems: "center",
+      overflow: "hidden",
+    }}>
+      {/* Video player first on mobile so it gets maximum space */}
+      <div style={{
+        flex: columnLayout ? "1 1 auto" : 1,
+        minWidth: 0,
+        minHeight: columnLayout ? "min(50vh, 320px)" : 0,
         display: "flex",
         flexDirection: "column",
-        gap: "1.4rem",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: columnLayout ? "0 clamp(1rem, 4vw, 2rem)" : "0 2rem 0 1.5rem",
+        height: columnLayout ? "auto" : "100%",
+        overflow: "hidden",
+      }}>
+        {active && (
+          <div style={{
+            position: "relative",
+            width: "100%",
+            maxHeight: columnLayout ? "min(55vh, 400px)" : "calc(100vh - 200px)",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+          }}>
+            <div style={{
+              position: "absolute", inset: "-1px",
+              border: "1px solid rgba(184,240,255,0.12)",
+              borderRadius: "3px",
+              boxShadow: "0 0 0 1px rgba(184,240,255,0.04) inset, 0 30px 80px rgba(0,0,0,0.85)",
+              pointerEvents: "none",
+            }} />
+            <video
+              ref={videoRef}
+              key={active.path}
+              src={active.path}
+              controls
+              loop
+              playsInline
+              style={{
+                maxWidth: "100%",
+                maxHeight: columnLayout ? "min(50vh, 360px)" : "calc(100vh - 240px)",
+                width: "auto",
+                height: "auto",
+                objectFit: "contain",
+                borderRadius: "2px",
+                display: "block",
+                background: "#000",
+              }}
+            />
+            <div style={{
+              marginTop: "0.6rem",
+              alignSelf: "flex-start",
+              display: "flex", alignItems: "center", gap: "0.6rem", flexWrap: "wrap",
+            }}>
+              <span style={{ ...MON, fontSize: "0.68rem", letterSpacing: "0.18em", color: "rgba(184,240,255,0.6)" }}>
+                {active.title}
+              </span>
+              <span style={{ ...MON, fontSize: "0.58rem", letterSpacing: "0.12em", color: "rgba(184,240,255,0.4)" }}>
+                BLENDER · FINAL RENDER
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Video list: right on desktop, below video on mobile */}
+      <nav style={{
+        flexShrink: 0,
+        width: columnLayout ? "100%" : "clamp(160px, 18vw, 240px)",
+        maxHeight: columnLayout ? "28vh" : "none",
+        overflowY: columnLayout ? "auto" : "visible",
+        overflowX: columnLayout ? "auto" : "visible",
+        marginLeft: columnLayout ? 0 : "2.5rem",
+        marginTop: columnLayout ? "0.5rem" : 0,
+        padding: columnLayout ? "0.5rem clamp(1rem, 4vw, 2rem)" : 0,
+        display: "flex",
+        flexDirection: columnLayout ? "row" : "column",
+        gap: columnLayout ? "0.5rem" : "1.4rem",
         zIndex: 2,
       }}>
         {videos.map((v, i) => {
@@ -216,23 +292,27 @@ function VideosContent({ visible }: { visible: boolean }) {
               key={v.id}
               onClick={() => {
                 setActiveId(v.id);
-                // Manual play after user selects
                 setTimeout(() => videoRef.current?.play().catch(() => {}), 80);
               }}
               style={{
-                background: "none", border: "none", cursor: "pointer",
-                padding: 0, textAlign: "left",
-                display: "flex", flexDirection: "column", gap: "0.22rem",
+                background: "none",
+                border: columnLayout ? `1px solid rgba(184,240,255,${on ? 0.3 : 0.12})` : "none",
+                borderLeft: !columnLayout && on ? "1px solid rgba(184,240,255,0.55)" : undefined,
+                borderRadius: columnLayout ? "3px" : undefined,
+                cursor: "pointer",
+                padding: columnLayout ? "0.5rem 0.75rem" : 0,
+                paddingLeft: !columnLayout ? "0.65rem" : undefined,
+                textAlign: "left",
+                flexShrink: columnLayout ? 0 : undefined,
+                display: "flex", flexDirection: "column", gap: "0.2rem",
               }}
             >
-              <span style={{ ...MON, fontSize: "0.48rem", letterSpacing: "0.22em", color: on ? "rgba(184,240,255,0.55)" : "rgba(184,240,255,0.22)", transition: "color 0.3s" }}>
+              <span style={{ ...MON, fontSize: "0.55rem", letterSpacing: "0.2em", color: on ? "rgba(184,240,255,0.6)" : "rgba(184,240,255,0.4)", transition: "color 0.3s" }}>
                 {String(i + 1).padStart(2, "0")}
               </span>
               <span style={{
-                ...MON, fontSize: "0.75rem", letterSpacing: "0.08em",
-                color: on ? "rgba(220,245,255,0.95)" : "rgba(184,240,255,0.38)",
-                borderLeft: on ? "1px solid rgba(184,240,255,0.55)" : "1px solid rgba(184,240,255,0.10)",
-                paddingLeft: "0.65rem",
+                ...MON, fontSize: columnLayout ? "0.72rem" : "0.75rem", letterSpacing: "0.08em",
+                color: on ? "rgba(220,245,255,0.95)" : "rgba(184,240,255,0.55)",
                 transition: "color 0.3s, border-color 0.3s",
               }}>
                 {v.title}
@@ -241,77 +321,9 @@ function VideosContent({ visible }: { visible: boolean }) {
           );
         })}
         {videos.length === 0 && (
-          <span style={{ ...MON, fontSize: "0.6rem", color: "rgba(184,240,255,0.20)" }}>No videos found</span>
+          <span style={{ ...MON, fontSize: "0.65rem", color: "rgba(184,240,255,0.4)" }}>No videos found</span>
         )}
       </nav>
-
-      {/* Video player — fills remaining space, respects viewport height */}
-      <div style={{
-        flex: 1,
-        minWidth: 0,
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "0 2rem 0 1.5rem",
-        height: "100%",
-        overflow: "hidden",
-      }}>
-        {active && (
-          <div style={{
-            position: "relative",
-            width: "100%",
-            // Constrain height to viewport minus tab header (≈170px) and some padding
-            maxHeight: "calc(100vh - 200px)",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-          }}>
-            {/* Frost border */}
-            <div style={{
-              position: "absolute", inset: "-1px",
-              border: "1px solid rgba(184,240,255,0.12)",
-              borderRadius: "3px",
-              boxShadow: "0 0 0 1px rgba(184,240,255,0.04) inset, 0 30px 80px rgba(0,0,0,0.85)",
-              pointerEvents: "none",
-            }} />
-
-            <video
-              ref={videoRef}
-              key={active.path}
-              src={active.path}
-              controls
-              loop
-              playsInline
-              style={{
-                // Let the browser fit the video naturally within the container
-                maxWidth: "100%",
-                maxHeight: "calc(100vh - 240px)",
-                width: "auto",
-                height: "auto",
-                objectFit: "contain",
-                borderRadius: "2px",
-                display: "block",
-                background: "#000",
-              }}
-            />
-
-            {/* Title */}
-            <div style={{
-              marginTop: "0.8rem",
-              alignSelf: "flex-start",
-              display: "flex", alignItems: "center", gap: "0.9rem",
-            }}>
-              <span style={{ ...MON, fontSize: "0.60rem", letterSpacing: "0.22em", color: "rgba(184,240,255,0.38)" }}>
-                {active.title}
-              </span>
-              <span style={{ ...MON, fontSize: "0.52rem", letterSpacing: "0.15em", color: "rgba(184,240,255,0.18)" }}>
-                BLENDER · FINAL RENDER
-              </span>
-            </div>
-          </div>
-        )}
-      </div>
     </div>
   );
 }
@@ -377,7 +389,7 @@ function ImagesContent() {
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={encodeURI(img.path)} alt={img.title} loading="lazy" style={{ width: "100%", aspectRatio: "16/9", objectFit: "cover", display: "block" }} />
-              <div style={{ padding: "0.6rem 0.8rem", ...MON, fontSize: "0.55rem", letterSpacing: "0.15em", color: "rgba(184,240,255,0.38)" }}>
+              <div style={{ padding: "0.6rem 0.8rem", ...MON, fontSize: "0.65rem", letterSpacing: "0.14em", color: "rgba(184,240,255,0.55)" }}>
                 {img.title}
               </div>
             </div>
@@ -427,8 +439,17 @@ export default function WorkGrid() {
   const [viewer,     setViewer]     = useState<{ project: Project } | null>(null);
   const [loading,    setLoading]    = useState(true);
   const [activeTab,  setActiveTab]  = useState<WorkTab>('models');
+  const [isNarrow,   setIsNarrow]   = useState(false);
 
   const dragRef = useRef({ active: false, x: 0, y: 0, moved: false });
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 768px)");
+    const on = () => setIsNarrow(mq.matches);
+    on();
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
 
   // ── Deep link: open viewer from ?model=slug (e.g. ?model=torch) ─────────────
   // (viewer omitted from deps so closing with setViewer(null) doesn't re-run and re-open)
@@ -644,10 +665,10 @@ export default function WorkGrid() {
 
       {/* ── Header + tab switcher (top-left) ── */}
       <div style={{
-        position: "absolute", top: "clamp(80px, 12vh, 110px)", left: "2.5rem",
+        position: "absolute", top: "clamp(80px, 12vh, 110px)", left: "clamp(1rem, 4vw, 2.5rem)",
         zIndex: 3, pointerEvents: "auto",
       }}>
-        <p className="label" style={{ marginBottom: "1.2rem", opacity: 0.6 }}>01 — Work</p>
+        <p className="label" style={{ marginBottom: "1.2rem", opacity: 0.85 }}>01 — Work</p>
 
         {/* Tab strip */}
         <div style={{ display: "flex", gap: "0", borderBottom: "1px solid rgba(184,240,255,0.10)" }}>
@@ -665,17 +686,17 @@ export default function WorkGrid() {
                 padding:     "0.5rem 1.0rem 0.55rem",
                 cursor:      "pointer",
                 ...MON,
-                fontSize:    "0.58rem",
+                fontSize:    "clamp(0.58rem, 1.5vw, 0.68rem)",
                 letterSpacing: "0.18em",
-                color: activeTab === tab ? "rgba(220,248,255,0.95)" : "rgba(184,240,255,0.35)",
+                color: activeTab === tab ? "rgba(220,248,255,0.95)" : "rgba(184,240,255,0.52)",
                 transition:  "color 0.25s, border-color 0.25s",
                 whiteSpace:  "nowrap",
               }}
               onMouseEnter={e => {
-                if (activeTab !== tab) (e.currentTarget as HTMLButtonElement).style.color = "rgba(184,240,255,0.70)";
+                if (activeTab !== tab) (e.currentTarget as HTMLButtonElement).style.color = "rgba(184,240,255,0.78)";
               }}
               onMouseLeave={e => {
-                if (activeTab !== tab) (e.currentTarget as HTMLButtonElement).style.color = "rgba(184,240,255,0.35)";
+                if (activeTab !== tab) (e.currentTarget as HTMLButtonElement).style.color = "rgba(184,240,255,0.52)";
               }}
             >
               {TAB_LABELS[tab]}
@@ -687,57 +708,93 @@ export default function WorkGrid() {
       {/* ── Models tab content ── */}
       {activeTab === 'models' && (
         <>
-          {/* Left menu — vertically centred */}
+          {/* Model list: on narrow screens horizontal strip at top (no overlap); on desktop left sidebar */}
           <div style={{
-            position: "absolute", left: "2.5rem", top: "50%",
-            transform: "translateY(-50%)",
+            position: "absolute",
+            ...(isNarrow
+              ? { left: "clamp(1rem, 4vw, 2.5rem)", right: "clamp(1rem, 4vw, 2.5rem)", top: "clamp(175px, 26vh, 220px)", height: "auto", maxHeight: "22vh", overflowX: "auto", overflowY: "hidden", display: "flex", flexDirection: "row", gap: 0, alignItems: "stretch", flexWrap: "nowrap" }
+              : { left: "2.5rem", top: "50%", transform: "translateY(-50%)", width: "clamp(160px, 18vw, 240px)" }
+            ),
             zIndex: 2,
-            width: "clamp(160px, 18vw, 240px)",
             pointerEvents: "auto",
           }}>
             {loading ? (
-              <span className="label" style={{ opacity: 0.25 }}>Loading…</span>
-            ) : projects.map((p, i) => {
-              const active = activeId === p.id;
-              return (
-                <div
-                  key={p.id}
-                  onClick={() => selectModel(p.id)}
-                  style={{
-                    cursor: "pointer", padding: "0.8rem 0",
-                    borderTop: `1px solid rgba(184,240,255,${active ? 0.14 : 0.05})`,
-                    display: "flex", alignItems: "center", gap: "0.85rem",
-                    opacity: active ? 1 : 0.38, transition: "opacity 0.25s ease",
-                  }}
-                  onMouseEnter={e => { if (!active) (e.currentTarget as HTMLDivElement).style.opacity = "0.68"; }}
-                  onMouseLeave={e => { if (!active) (e.currentTarget as HTMLDivElement).style.opacity = "0.38"; }}
-                >
-                  <span style={{ ...MON, fontSize: "0.40rem", letterSpacing: "0.30em", color: "rgba(184,240,255,0.28)", flexShrink: 0 }}>
-                    {String(i + 1).padStart(2, "0")}
-                  </span>
-                  <div style={{ flex: 1 }}>
-                    <div style={{
-                      fontFamily: "var(--font-geist-sans), sans-serif",
-                      fontSize: "clamp(0.74rem, 1.2vw, 0.88rem)", fontWeight: active ? 400 : 300,
-                      letterSpacing: "0.03em",
-                      color: active ? "rgba(220,248,255,0.95)" : "rgba(180,220,255,0.60)",
-                      transition: "color 0.25s ease", marginBottom: "0.14rem",
-                    }}>{p.title}</div>
-                    <div style={{ ...MON, fontSize: "0.37rem", letterSpacing: "0.18em", color: active ? "rgba(184,240,255,0.36)" : "rgba(184,240,255,0.14)", transition: "color 0.25s ease" }}>
-                      {p.year}
+              <span className="label" style={{ opacity: 0.4 }}>Loading…</span>
+            ) : isNarrow ? (
+              <div style={{ display: "flex", gap: "0.5rem", paddingBottom: "0.5rem" }}>
+                {projects.map((p, i) => {
+                  const active = activeId === p.id;
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => selectModel(p.id)}
+                      style={{
+                        cursor: "pointer",
+                        flexShrink: 0,
+                        padding: "0.6rem 0.9rem",
+                        border: `1px solid rgba(184,240,255,${active ? 0.35 : 0.12})`,
+                        borderRadius: "3px",
+                        background: active ? "rgba(184,240,255,0.06)" : "transparent",
+                        textAlign: "left",
+                        opacity: active ? 1 : 0.7,
+                        transition: "opacity 0.2s, border-color 0.2s, background 0.2s",
+                      }}
+                    >
+                      <div style={{
+                        fontFamily: "var(--font-geist-sans), sans-serif",
+                        fontSize: "0.8rem", fontWeight: active ? 500 : 400,
+                        color: active ? "rgba(220,248,255,0.98)" : "rgba(184,240,255,0.75)",
+                        marginBottom: "0.15rem",
+                      }}>{p.title}</div>
+                      <div style={{ ...MON, fontSize: "0.6rem", letterSpacing: "0.12em", color: active ? "rgba(184,240,255,0.6)" : "rgba(184,240,255,0.45)" }}>{p.year}</div>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              projects.map((p, i) => {
+                const active = activeId === p.id;
+                return (
+                  <div
+                    key={p.id}
+                    onClick={() => selectModel(p.id)}
+                    style={{
+                      cursor: "pointer", padding: "0.8rem 0",
+                      borderTop: `1px solid rgba(184,240,255,${active ? 0.14 : 0.05})`,
+                      display: "flex", alignItems: "center", gap: "0.85rem",
+                      opacity: active ? 1 : 0.5, transition: "opacity 0.25s ease",
+                    }}
+                    onMouseEnter={e => { if (!active) (e.currentTarget as HTMLDivElement).style.opacity = "0.75"; }}
+                    onMouseLeave={e => { if (!active) (e.currentTarget as HTMLDivElement).style.opacity = "0.5"; }}
+                  >
+                    <span style={{ ...MON, fontSize: "0.52rem", letterSpacing: "0.28em", color: "rgba(184,240,255,0.45)", flexShrink: 0 }}>
+                      {String(i + 1).padStart(2, "0")}
+                    </span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{
+                        fontFamily: "var(--font-geist-sans), sans-serif",
+                        fontSize: "clamp(0.8rem, 1.2vw, 0.92rem)", fontWeight: active ? 400 : 300,
+                        letterSpacing: "0.03em",
+                        color: active ? "rgba(220,248,255,0.95)" : "rgba(184,240,255,0.72)",
+                        transition: "color 0.25s ease", marginBottom: "0.2rem",
+                      }}>{p.title}</div>
+                      <div style={{ ...MON, fontSize: "0.62rem", letterSpacing: "0.16em", color: active ? "rgba(184,240,255,0.55)" : "rgba(184,240,255,0.4)", transition: "color 0.25s ease" }}>
+                        {p.year}
+                      </div>
                     </div>
+                    <div style={{ width: "3px", height: "3px", borderRadius: "50%", flexShrink: 0, background: "rgba(184,240,255,0.72)", opacity: active ? 1 : 0, transition: "opacity 0.25s ease" }} />
                   </div>
-                  <div style={{ width: "3px", height: "3px", borderRadius: "50%", flexShrink: 0, background: "rgba(184,240,255,0.72)", opacity: active ? 1 : 0, transition: "opacity 0.25s ease" }} />
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
 
           {/* Drag hint */}
           <div style={{
-            position: "absolute", bottom: "2rem", right: "2rem", zIndex: 2, pointerEvents: "none",
-            ...MON, fontSize: "0.35rem", letterSpacing: "0.24em",
-            color: isHovered ? "rgba(184,240,255,0.24)" : "rgba(184,240,255,0.08)",
+            position: "absolute", bottom: "2rem", right: "clamp(1rem, 4vw, 2rem)", zIndex: 2, pointerEvents: "none",
+            ...MON, fontSize: "clamp(0.4rem, 1.2vw, 0.5rem)", letterSpacing: "0.22em",
+            color: isHovered ? "rgba(184,240,255,0.4)" : "rgba(184,240,255,0.18)",
             transition: "color 0.4s ease",
           }}>
             DRAG TO ROTATE
@@ -748,7 +805,6 @@ export default function WorkGrid() {
             <button
               onClick={() => {
                 const p   = projects.find(p => p.id === activeId);
-                const idx = projects.findIndex(p => p.id === activeId);
                 if (p) {
                   router.push(`/?model=${slugFromTitle(p.title)}`);
                   setViewer({ project: p });
@@ -762,10 +818,10 @@ export default function WorkGrid() {
                 zIndex:    3,
                 background: "rgba(0,10,25,0.60)",
                 border:   "1px solid rgba(184,240,255,0.28)",
-                color:    "rgba(184,240,255,0.75)",
+                color:    "rgba(184,240,255,0.85)",
                 backdropFilter: "blur(8px)",
-                ...MON, fontSize: "0.60rem", letterSpacing: "0.28em",
-                padding: "0.65rem 1.8rem",
+                ...MON, fontSize: "clamp(0.58rem, 1.5vw, 0.65rem)", letterSpacing: "0.26em",
+                padding: "0.7rem 1.8rem",
                 cursor: "pointer",
                 transition: "border-color 0.2s, color 0.2s, background 0.2s",
               }}
@@ -796,7 +852,7 @@ export default function WorkGrid() {
           alignItems: "center",
           zIndex: 2,
         }}>
-          <VideosContent visible={activeTab === 'videos'} />
+          <VideosContent visible={activeTab === 'videos'} isNarrow={isNarrow} />
         </div>
       )}
 

@@ -70,7 +70,7 @@ export default function AboutContact() {
 
             <p className="reveal" style={{
               color: "var(--text-secondary)", lineHeight: 1.85,
-              fontSize: "0.895rem", marginBottom: "1.35rem",
+              fontSize: "clamp(0.9rem, 1.2vw, 0.95rem)", marginBottom: "1.35rem",
             }}>
               Working across the full production pipeline since 2020. I build
               everything from detailed environments and animated intros to icons
@@ -78,7 +78,7 @@ export default function AboutContact() {
             </p>
             <p className="reveal" style={{
               color: "var(--text-secondary)", lineHeight: 1.85,
-              fontSize: "0.895rem", marginBottom: "2.75rem",
+              fontSize: "clamp(0.9rem, 1.2vw, 0.95rem)", marginBottom: "2.75rem",
             }}>
               While Blender is my primary hub, I&apos;m results-oriented and will
               use any software or technique required to hit the right look.
@@ -109,7 +109,7 @@ export default function AboutContact() {
                 style={{ borderLeft: "1px solid rgba(184,240,255,0.10)", paddingLeft: "1.2rem" }}
               >
                 <p className="label" style={{ marginBottom: "0.5rem" }}>Available for</p>
-                <p style={{ color: "var(--text-secondary)", fontSize: "0.855rem", lineHeight: 1.75, margin: 0 }}>
+                <p style={{ color: "var(--text-secondary)", fontSize: "clamp(0.85rem, 1.1vw, 0.9rem)", lineHeight: 1.75, margin: 0 }}>
                   Commissions, collaborations, discussions, and experiments welcome.
                 </p>
               </div>
