@@ -15,7 +15,7 @@
  * EffectsOverlay can read them without needing Three.js camera access.
  */
 
-import React, { useRef, useMemo, useEffect, useState, Suspense } from "react";
+import React, { useRef, useMemo, useEffect, useState, useCallback, Suspense } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Environment, useFBX } from "@react-three/drei";
 import * as THREE from "three";
@@ -1284,6 +1284,15 @@ export default function VoidBackground() {
     };
   }, []);
 
+  const onCanvasCreated = useCallback((state: { gl: THREE.WebGLRenderer & { domElement?: HTMLCanvasElement } }) => {
+    const canvas = state.gl?.domElement;
+    if (!canvas?.addEventListener) return;
+    const onContextLost = (e: Event) => {
+      (e as { preventDefault?: () => void }).preventDefault?.();
+    };
+    canvas.addEventListener("webglcontextlost", onContextLost, false);
+  }, []);
+
   return (
     <div
       style={{ position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none" }}
@@ -1295,6 +1304,7 @@ export default function VoidBackground() {
         dpr={[1, 1.5]}
         style={{ width: "100%", height: "100%", display: "block" }}
         aria-label="Interactive 3D star field with model viewer"
+        onCreated={onCanvasCreated}
       >
         <VoidScene />
       </Canvas>

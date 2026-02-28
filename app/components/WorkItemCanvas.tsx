@@ -8,7 +8,7 @@
  * WebGPU renderer's node-based post stack if needed. Preview/fullscreen: OrbitControls + auto-rotate.
  */
 
-import { Suspense, useRef, useMemo, useEffect, useState, createContext, useContext } from "react";
+import { Suspense, useRef, useMemo, useEffect, useState, useCallback, createContext, useContext } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { useFBX, Environment, OrbitControls, Bounds } from "@react-three/drei";
 import * as THREE from "three";
@@ -403,11 +403,21 @@ export default function WorkItemCanvas({
       }
     : { alpha: true, premultipliedAlpha: false, antialias: true };
 
+  const onCreated = useCallback((state: { gl: THREE.WebGLRenderer & { domElement?: HTMLCanvasElement } }) => {
+    const canvas = state.gl?.domElement;
+    if (!canvas?.addEventListener) return;
+    const onContextLost = (e: Event) => {
+      (e as { preventDefault?: () => void }).preventDefault?.();
+    };
+    canvas.addEventListener("webglcontextlost", onContextLost, false);
+  }, []);
+
   return (
     <WebGPUContext.Provider value={useWebGPU ? webgpuModule : null}>
       <Canvas
         key={useWebGPU ? "webgpu" : "webgl"}
         gl={glProp as React.ComponentProps<typeof Canvas>["gl"]}
+        onCreated={onCreated}
         camera={{ position: camPos, fov: camFov }}
         dpr={fullscreen ? [1, 2] : [1, 1.5]}
         style={{ width: "100%", height: "100%", display: "block" }}
