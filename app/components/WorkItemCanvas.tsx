@@ -9,7 +9,7 @@
 
 import { Suspense, useRef, useMemo, useEffect, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { useFBX, Environment, OrbitControls, Html, Bounds } from "@react-three/drei";
+import { useFBX, Environment, OrbitControls, Bounds } from "@react-three/drei";
 import * as THREE from "three";
 import type { TextureSet } from "../lib/workModels";
 
@@ -18,25 +18,6 @@ function sr(seed: number) {
   const x = Math.sin(seed * 9301 + 49297) * 233280;
   return x - Math.floor(x);
 }
-
-// ─── Filler label data (per-model index, cycles through 9 presets) ─────────
-const LABEL_SETS = [
-  [
-    { text: "SURFACE ALBEDO",    pos: [ 0.90,  0.45,  0.30] as [number,number,number], sub: "4096px · PBR · SRGB"        },
-    { text: "NORMAL MAP",        pos: [-0.90,  0.10,  0.20] as [number,number,number], sub: "TANGENT SPACE · 16-BIT"      },
-    { text: "ROUGHNESS",         pos: [ 0.20, -0.80,  0.35] as [number,number,number], sub: "R CHANNEL · LINEAR"          },
-  ],
-  [
-    { text: "METALNESS",         pos: [-0.85,  0.55,  0.25] as [number,number,number], sub: "B CHANNEL · 0.0–1.0"         },
-    { text: "GEOMETRY",          pos: [ 0.80, -0.15,  0.20] as [number,number,number], sub: "TRIS OPTIMISED · LOD 0"       },
-    { text: "UV LAYOUT",         pos: [-0.15, -0.75,  0.30] as [number,number,number], sub: "0 OVERLAPS · PACKED"          },
-  ],
-  [
-    { text: "MATERIAL",          pos: [ 0.85,  0.30,  0.25] as [number,number,number], sub: "PRINCIPLED BSDF · BLENDER 4.3"},
-    { text: "POLY COUNT",        pos: [-0.80,  0.20,  0.20] as [number,number,number], sub: "GAME-READY · OPTIMISED"       },
-    { text: "EXPORT",            pos: [ 0.10, -0.85,  0.30] as [number,number,number], sub: "FBX · EMBEDDED NORMALS"       },
-  ],
-] as const;
 
 // ─── Loading fallback ───────────────────────────────────────────────────────
 function ShowcaseLoading() {
@@ -79,210 +60,6 @@ function ShowcaseLoading() {
         depthWrite={false}
       />
     </points>
-  );
-}
-
-// ─── Model labels (HTML text + Three.js line connectors) ─────────────────
-// Labels are placed at bounding-SPHERE radius + margin so they stay outside
-// the model at every rotation angle.  The connector line is a genuine Three.js
-// LINE anchored at the bbox surface — it never passes through the model.
-function ModelLabels({
-  modelPath,
-  hoveredRef,
-  fullscreen,
-  labelSet,
-}: {
-  modelPath:  string;
-  hoveredRef: React.RefObject<boolean>;
-  fullscreen: boolean;
-  labelSet:   number;
-}) {
-  const scene   = useFBX(modelPath);
-  const domRefs = useRef<(HTMLDivElement | null)[]>([]);
-
-  // Compute safe label positions accounting for normScale so labels sit just
-  // outside the VISUAL bounding sphere (post-normalisation), not the raw FBX one.
-  const computedLabels = useMemo(() => {
-    const rawBox = new THREE.Box3().setFromObject(scene);
-    const center = new THREE.Vector3();
-    rawBox.getCenter(center);
-
-    const cBox = new THREE.Box3(
-      rawBox.min.clone().sub(center),
-      rawBox.max.clone().sub(center),
-    );
-    const sphere = new THREE.Sphere();
-    cBox.getBoundingSphere(sphere);
-
-    // Derive the same normScale used by ShowcaseModel so positions match
-    const rawSz  = new THREE.Vector3();
-    rawBox.getSize(rawSz);
-    const maxDim = Math.max(rawSz.x, rawSz.y, rawSz.z);
-    const ns     = maxDim > 0 ? 4.5 / maxDim : 1;
-
-    // Scale bbox to visual size
-    const visualCBox = new THREE.Box3(
-      cBox.min.clone().multiplyScalar(ns),
-      cBox.max.clone().multiplyScalar(ns),
-    );
-    const visualSphere = new THREE.Sphere();
-    visualCBox.getBoundingSphere(visualSphere);
-
-    // Real geometry stats from the loaded scene
-    let tris = 0, verts = 0;
-    scene.traverse((o) => {
-      if ((o as THREE.Mesh).isMesh) {
-        const geo = (o as THREE.Mesh).geometry;
-        if (geo.index)                    tris  += geo.index.count / 3;
-        else if (geo.attributes.position) tris  += geo.attributes.position.count / 3;
-        if (geo.attributes.position)      verts += geo.attributes.position.count;
-      }
-    });
-    const fmtK = (n: number) => n >= 1000 ? `${(n / 1000).toFixed(1)}K` : `${Math.round(n)}`;
-    const fallback = LABEL_SETS[labelSet % LABEL_SETS.length];
-
-    // Two labels: geometry stats top-right, material info bottom-left
-    const templates = [
-      { text: `${fmtK(tris)} TRIS`,              pos: [ 0.90,  0.45, 0.25] as [number,number,number], sub: `${fmtK(verts)} VERTS · FBX` },
-      { text: fallback[1]?.text ?? "PBR SURFACE", pos: [-0.85, -0.35, 0.25] as [number,number,number], sub: fallback[1]?.sub ?? "BLENDER 4.3" },
-    ];
-
-    // Keep labels closer in fullscreen mode so they stay within the viewport
-    const safeR     = visualSphere.radius + (fullscreen ? 1.2 : 1.5);
-    const rayOrigin = new THREE.Vector3(0, 0, 0);
-    const hit       = new THREE.Vector3();
-
-    return templates.map((label) => {
-      const dir    = new THREE.Vector3(...label.pos).normalize();
-      const isLeft = dir.x < -0.10;
-      const ray    = new THREE.Ray(rayOrigin, dir);
-      const result = ray.intersectBox(visualCBox, hit);
-
-      const surfaceD = result ? result.length() : visualSphere.radius * 0.85;
-      const surface: [number, number, number] = [dir.x * surfaceD, dir.y * surfaceD, dir.z * surfaceD];
-      const pos:     [number, number, number] = [dir.x * safeR,    dir.y * safeR,    dir.z * safeR];
-
-      return { ...label, pos, surface, isLeft };
-    });
-  }, [scene, labelSet, fullscreen]);
-
-  // Three.js Line objects — one per label, disposed when computedLabels changes.
-  const lineObjs = useMemo(() =>
-    computedLabels.map(({ surface, pos }) => {
-      const geo = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(...surface),
-        new THREE.Vector3(...pos),
-      ]);
-      const mat = new THREE.LineBasicMaterial({
-        color:      new THREE.Color(0x5fc8e8),
-        transparent: true,
-        opacity:     0,
-        depthWrite:  false,
-      });
-      return new THREE.Line(geo, mat);
-    }),
-  [computedLabels]);
-
-  useEffect(() => () => {
-    lineObjs.forEach(({ geometry, material }) => {
-      geometry.dispose();
-      (material as THREE.LineBasicMaterial).dispose();
-    });
-  }, [lineObjs]);
-
-  // Slide-in animation directions: text slides OUT from the model on reveal.
-  const slideIn = computedLabels.map((l) =>
-    l.isLeft ? "translateX(6px)" : "translateX(-6px)",
-  );
-
-  useFrame(() => {
-    const visible  = hoveredRef.current || fullscreen;
-    const lerpK    = 0.085;
-
-    // Animate text opacity + slide
-    domRefs.current.forEach((el, i) => {
-      if (!el) return;
-      const tgt = visible ? "1" : "0";
-      const shift = visible ? "translateX(0px)" : slideIn[i];
-      if (el.style.opacity !== tgt) {
-        el.style.opacity   = tgt;
-        el.style.transform = shift;
-      }
-    });
-
-    // Animate line opacity (smooth, no snap)
-    const tgtAlpha = visible ? 0.52 : 0;
-    lineObjs.forEach((obj) => {
-      const mat = obj.material as THREE.LineBasicMaterial;
-      const cur = mat.opacity;
-      if (Math.abs(cur - tgtAlpha) > 0.002) {
-        mat.opacity       = cur + (tgtAlpha - cur) * lerpK;
-        mat.needsUpdate   = true;
-      }
-    });
-  });
-
-  const sz    = fullscreen ? 11  : 9;
-  const subSz = fullscreen ? 9   : 7.5;
-
-  return (
-    <>
-      {/* 3D connector lines — anchored at bbox surface, end at text anchor */}
-      {lineObjs.map((obj, i) => (
-        <primitive key={`ln-${i}`} object={obj} />
-      ))}
-
-      {/* HTML text labels — fixed pixel size (no distanceFactor) for legibility.
-          drei's <Html> centers content at the projection: applies translate(-50%,-50%).
-          We counter-shift with an outer wrapper so text extends AWAY from the model:
-            right-side → translateX(+50%) shifts left edge to the anchor point  (extends right)
-            left-side  → translateX(-50%) shifts right edge to the anchor point (extends left)  */}
-      {computedLabels.map((label, i) => {
-        const wrapStyle: React.CSSProperties = label.isLeft
-          ? { transform: "translateX(-50%)", textAlign: "right" as const }
-          : { transform: "translateX(50%)",  textAlign: "left"  as const };
-
-        return (
-          <Html
-            key={`lbl-${i}`}
-            position={label.pos}
-            style={{ pointerEvents: "none" }}
-          >
-            <div style={{ ...wrapStyle, pointerEvents: "none" }}>
-              <div
-                ref={(el) => { domRefs.current[i] = el; }}
-                style={{
-                  opacity:       "0",
-                  transform:     slideIn[i],
-                  transition:    `opacity 0.38s ${i * 0.10}s ease, transform 0.38s ${i * 0.10}s ease`,
-                  fontFamily:    "var(--font-geist-mono), monospace",
-                  fontSize:      `${sz}px`,
-                  fontWeight:    400,
-                  color:         "rgba(255,255,255,0.92)",
-                  letterSpacing: "0.14em",
-                  textTransform: "uppercase",
-                  whiteSpace:    "nowrap",
-                  userSelect:    "none",
-                  lineHeight:    1.45,
-                  textShadow:    "0 0 12px rgba(0,0,0,0.9), 0 1px 3px rgba(0,0,0,0.85)",
-                }}
-              >
-                <div>{label.text}</div>
-                <div style={{
-                  opacity:       0.52,
-                  fontSize:      `${subSz}px`,
-                  letterSpacing: "0.10em",
-                  marginTop:     "3px",
-                  fontWeight:    300,
-                }}>
-                  {label.sub}
-                </div>
-              </div>
-            </div>
-          </Html>
-        );
-      })}
-    </>
   );
 }
 
@@ -461,13 +238,11 @@ function ShowcaseScene({
   textures,
   hoveredRef,
   fullscreen,
-  labelSet,
 }: {
   modelPath:  string;
   textures:   TextureSet;
   hoveredRef: React.RefObject<boolean>;
   fullscreen: boolean;
-  labelSet:   number;
 }) {
   const matRef    = useRef<THREE.MeshStandardMaterial>(null);
   // normScale is computed inside ShowcaseModel; we pass it up so labels can
@@ -498,13 +273,6 @@ function ShowcaseScene({
             onNormScale={setNormScaleState}
           />
         </Bounds>
-        {/* Labels outside Bounds so they don't push the camera back */}
-        <ModelLabels
-          modelPath={modelPath}
-          hoveredRef={hoveredRef}
-          fullscreen={fullscreen}
-          labelSet={labelSet}
-        />
       </Suspense>
     </>
   );
@@ -517,14 +285,12 @@ export default function WorkItemCanvas({
   hoveredRef,
   containerRef,
   fullscreen = false,
-  labelSet   = 0,
 }: {
   modelPath:    string;
   textures?:    TextureSet;
   hoveredRef:   React.RefObject<boolean>;
   containerRef: React.RefObject<HTMLDivElement | null>;
   fullscreen?:  boolean;
-  labelSet?:    number;
 }) {
   const [mounted, setMounted] = useState(fullscreen);
 
@@ -565,7 +331,6 @@ export default function WorkItemCanvas({
         textures={textures}
         hoveredRef={hoveredRef}
         fullscreen={fullscreen}
-        labelSet={labelSet}
       />
       <OrbitControls
         enablePan={false}

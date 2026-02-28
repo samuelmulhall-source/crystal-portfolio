@@ -79,7 +79,7 @@ export default function DiscoverVisit() {
             fontSize: "0.92rem",
             margin: 0,
           }}>
-            Pudgy Penguins, a creative venture founded in 2021, quickly gained attention for its unique IP and engaging community. In 2022, the company was acquired by Igloo Inc., a strategic move aimed at expanding its reach and capabilities. The acquisition by Igloo Inc. was part of a broader vision to transform and reposition Pudgy Penguins as a next-generation entertainment company and the face of Web3 worldwide.
+            Multiscatter is a Melbourne-based 3D artist and real-time technical developer specialising in WebGPU, Three.js, and high-fidelity interactive experiences.
           </p>
           <p style={{
             color: "var(--text-secondary)",
@@ -87,7 +87,7 @@ export default function DiscoverVisit() {
             fontSize: "0.92rem",
             margin: "1.5rem 0 0",
           }}>
-            We believe in a future where intellectual property, digital collectibles, and communities are born and thrive on the blockchain. Since our acquisition, Pudgy Penguins has leveraged its onchain origins to create a new model for consumer brands, shifting from a brand-and-participant model to a brand-and-participant model. Our business strategy focuses on expanding a vast range of content mediums, products, and experiences, driving people onchain into the new era of the internet. By harnessing the power of our vibrant community and the rich and whimsical universe of Pudgy Penguins, we&apos;re revolutionizing the way IP is created and experienced.
+            Crafting digital worlds that blend technical precision with artistic vision.
           </p>
         </div>
 

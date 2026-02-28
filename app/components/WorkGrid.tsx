@@ -30,6 +30,15 @@ interface Project {
 interface VideoEntry { id: string; path: string; title: string; }
 interface ImageEntry { id: string; path: string; title: string; }
 
+/** URL-friendly slug from asset title: "Ornate Dagger" → "ornate-dagger", "AR-15" → "ar-15" */
+function slugFromTitle(title: string): string {
+  return title
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9-]/g, "");
+}
+
 // ─── Corner accent ─────────────────────────────────────────────────────────
 type CP = "tl" | "tr" | "bl" | "br";
 function Corner({ pos, on }: { pos: CP; on: boolean }) {
@@ -59,11 +68,9 @@ const MON: React.CSSProperties = {
 function FullscreenViewer({
   project,
   onClose,
-  labelSet,
 }: {
   project:  Project;
   onClose:  () => void;
-  labelSet: number;
 }) {
   const overlayRef    = useRef<HTMLDivElement>(null);
   const hovRef        = useRef(true);
@@ -104,21 +111,20 @@ function FullscreenViewer({
 
   const infoPanel = (
     <div style={{
-      padding: mobile ? "1.5rem 1.25rem 2rem" : "2.5rem 2rem",
-      display: "flex", flexDirection: "column", gap: "1.5rem",
-      background: "rgba(0,5,15,0.85)",
-      borderLeft: mobile ? "none" : "1px solid rgba(184,240,255,0.08)",
-      borderTop: mobile ? "1px solid rgba(184,240,255,0.08)" : "none",
+      padding: mobile ? "1.5rem 1.25rem 2rem" : "2.25rem 2rem",
+      display: "flex", flexDirection: "column", gap: "1.75rem",
+      background: "rgba(0,5,18,0.92)",
+      borderLeft: mobile ? "none" : "1px solid rgba(184,240,255,0.06)",
+      borderTop: mobile ? "1px solid rgba(184,240,255,0.06)" : "none",
     }}>
       <div>
-        <p style={{ ...MON, fontSize: "0.5rem", letterSpacing: "0.32em", color: "rgba(184,240,255,0.4)", marginBottom: "0.5rem" }}>{project.category}</p>
-        <h2 style={{ fontFamily: "var(--font-geist-sans), sans-serif", fontSize: mobile ? "1.25rem" : "1.5rem", fontWeight: 400, letterSpacing: "0.02em", color: "var(--text-primary)", margin: 0 }}>{project.title}</h2>
-        <p style={{ ...MON, fontSize: "0.52rem", letterSpacing: "0.2em", color: "rgba(184,240,255,0.35)", marginTop: "0.35rem" }}>{project.year}</p>
+        <p style={{ ...MON, fontSize: "0.48rem", letterSpacing: "0.36em", color: "rgba(184,240,255,0.38)", marginBottom: "0.65rem" }}>{project.category} · {project.year}</p>
+        <h2 style={{ fontFamily: "var(--font-geist-sans), sans-serif", fontSize: mobile ? "1.35rem" : "1.75rem", fontWeight: 300, letterSpacing: "0.01em", color: "var(--text-primary)", margin: 0, lineHeight: 1.25 }}>{project.title}</h2>
       </div>
-      <p style={{ color: "var(--text-secondary)", fontSize: "0.8rem", lineHeight: 1.7, margin: 0 }}>PBR real-time asset. Drag to orbit, scroll to zoom.</p>
-      <div style={{ ...MON, fontSize: "0.5rem", letterSpacing: "0.22em", color: "rgba(184,240,255,0.3)" }}>FBX · WebGL · React Three Fiber</div>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem", marginTop: "auto", paddingTop: "1rem" }}>
-        <a href="https://x.com/multiscatter" target="_blank" rel="noopener noreferrer" style={{ ...MON, fontSize: "0.55rem", letterSpacing: "0.24em", color: "rgba(184,240,255,0.7)", textDecoration: "none", borderBottom: "1px solid rgba(184,240,255,0.4)", paddingBottom: "0.15rem" }}>View on X ↑</a>
+      <p style={{ color: "var(--text-secondary)", fontSize: "0.8125rem", lineHeight: 1.78, margin: 0 }}>PBR real-time asset. Drag to orbit, scroll to zoom.</p>
+      <div style={{ ...MON, fontSize: "0.48rem", letterSpacing: "0.24em", color: "rgba(184,240,255,0.28)" }}>FBX · WebGL · React Three Fiber · WebGPU</div>
+      <div style={{ marginTop: "auto", paddingTop: "1.25rem" }}>
+        <a href="https://x.com/multiscatter" target="_blank" rel="noopener noreferrer" style={{ ...MON, fontSize: "0.52rem", letterSpacing: "0.28em", color: "rgba(184,240,255,0.72)", textDecoration: "none", borderBottom: "1px solid rgba(184,240,255,0.35)", paddingBottom: "0.12rem" }}>View on X ↑</a>
       </div>
     </div>
   );
@@ -127,40 +133,29 @@ function FullscreenViewer({
     <div ref={overlayRef} style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(0,0,3,0.96)", opacity: 0 }}>
       <div style={{ display: "flex", flexDirection: mobile ? "column" : "row", width: "100%", height: "100%", overflow: "hidden" }}>
         <div ref={canvasWrapRef} style={{ flex: mobile ? "none" : 1, height: mobile ? "55vh" : "100%", minHeight: 0, position: "relative" }}>
-          <WorkItemCanvas modelPath={project.modelPath} textures={project.textures} hoveredRef={hovRef} containerRef={canvasWrapRef} fullscreen labelSet={labelSet} />
+          <WorkItemCanvas modelPath={project.modelPath} textures={project.textures} hoveredRef={hovRef} containerRef={canvasWrapRef} fullscreen />
         </div>
-        <div style={{ flex: mobile ? "1 1 auto" : "0 0 340px", overflowY: "auto", position: mobile ? "relative" : "sticky", top: 0, alignSelf: "stretch" }}>
+        <div style={{ flex: mobile ? "1 1 auto" : "0 0 360px", overflowY: "auto", position: mobile ? "relative" : "sticky", top: 0, alignSelf: "stretch" }}>
           {infoPanel}
         </div>
       </div>
 
-      {/* Close */}
+      {/* Close — Igloo-style minimal */}
       <button
         onClick={close}
         style={{
-          position: "fixed", top: "1.2rem", right: "1.8rem", zIndex: 102,
-          background: "rgba(0,5,15,0.70)", border: "1px solid rgba(184,240,255,0.35)",
-          color: "rgba(184,240,255,0.85)",
-          ...MON, fontSize: "0.58rem", letterSpacing: "0.30em",
-          padding: "0.6rem 1.2rem", cursor: "pointer",
-          transition: "border-color 0.2s, color 0.2s, background 0.2s",
-          backdropFilter: "blur(8px)",
+          position: "fixed", top: "1.25rem", right: "1.75rem", zIndex: 102,
+          background: "transparent", border: "none",
+          color: "rgba(184,240,255,0.6)",
+          ...MON, fontSize: "0.56rem", letterSpacing: "0.32em",
+          padding: "0.5rem 0", cursor: "pointer",
+          transition: "color 0.2s ease",
         }}
-        onMouseEnter={(e) => {
-          const b = e.currentTarget as HTMLButtonElement;
-          b.style.borderColor = "rgba(184,240,255,0.70)";
-          b.style.color = "#fff";
-          b.style.background = "rgba(0,20,40,0.85)";
-        }}
-        onMouseLeave={(e) => {
-          const b = e.currentTarget as HTMLButtonElement;
-          b.style.borderColor = "rgba(184,240,255,0.35)";
-          b.style.color = "rgba(184,240,255,0.85)";
-          b.style.background = "rgba(0,5,15,0.70)";
-        }}
+        onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "rgba(220,248,255,0.95)"; }}
+        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "rgba(184,240,255,0.6)"; }}
         aria-label="Close viewer"
       >
-        ✕ CLOSE
+        × CLOSE
       </button>
     </div>
   );
@@ -428,21 +423,20 @@ export default function WorkGrid() {
   const [activeId,   setActiveId]   = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isHovered,  setIsHovered]  = useState(false);
-  const [viewer,     setViewer]     = useState<{ project: Project; labelSet: number } | null>(null);
+  const [viewer,     setViewer]     = useState<{ project: Project } | null>(null);
   const [loading,    setLoading]    = useState(true);
   const [activeTab,  setActiveTab]  = useState<WorkTab>('models');
 
   const dragRef = useRef({ active: false, x: 0, y: 0, moved: false });
 
-  // ── Deep link: open viewer from ?model=id and sync URL on open/close ───────
+  // ── Deep link: open viewer from ?model=slug (e.g. ?model=torch) ─────────────
   useEffect(() => {
-    const modelId = searchParams.get("model");
-    if (!modelId || projects.length === 0) return;
-    const project = projects.find(p => p.id === modelId || p.title.toLowerCase().replace(/\s+/g, "-") === modelId.toLowerCase());
+    const slug = searchParams.get("model");
+    if (!slug || projects.length === 0) return;
+    const project = projects.find(p => slugFromTitle(p.title) === slug.toLowerCase());
     if (!project) return;
     if (viewer && viewer.project.id === project.id) return;
-    const idx = projects.findIndex(p => p.id === project.id);
-    setViewer({ project, labelSet: idx >= 0 ? idx : 0 });
+    setViewer({ project });
     setActiveTab("models");
     setActiveId(project.id);
     workModels.activeModelId = project.id;
@@ -755,8 +749,8 @@ export default function WorkGrid() {
                 const p   = projects.find(p => p.id === activeId);
                 const idx = projects.findIndex(p => p.id === activeId);
                 if (p) {
-                  router.push(`/?model=${p.id}`);
-                  setViewer({ project: p, labelSet: idx });
+                  router.push(`/?model=${slugFromTitle(p.title)}`);
+                  setViewer({ project: p });
                 }
               }}
               style={{
@@ -824,7 +818,6 @@ export default function WorkGrid() {
         <FullscreenViewer
           project={viewer.project}
           onClose={() => { router.replace("/"); setViewer(null); }}
-          labelSet={viewer.labelSet}
         />
       )}
     </section>

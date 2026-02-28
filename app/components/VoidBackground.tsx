@@ -17,7 +17,7 @@
 
 import React, { useRef, useMemo, useEffect, useState, Suspense } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { Environment, useFBX, Html } from "@react-three/drei";
+import { Environment, useFBX } from "@react-three/drei";
 import * as THREE from "three";
 import { voidState } from "../lib/voidState";
 import { workModels, WorkModelEntry } from "../lib/workModels";
@@ -891,177 +891,6 @@ function ShootingStars({
   return <group ref={groupRef} />;
 }
 
-// ─── Work model label data ────────────────────────────────────────────────
-// Generate 2 Igloo-style data labels derived from the live scene geometry.
-// Upper-left: poly count.  Lower-right: texture channel inventory.
-function genVoidLabels(entry: WorkModelEntry, scene: THREE.Group) {
-  // Count triangles + vertices from the actual loaded geometry
-  let tris = 0, verts = 0;
-  scene.traverse((o) => {
-    if ((o as THREE.Mesh).isMesh) {
-      const geo = (o as THREE.Mesh).geometry;
-      if (geo.index)               tris  += geo.index.count / 3;
-      else if (geo.attributes.position) tris  += geo.attributes.position.count / 3;
-      if (geo.attributes.position) verts += geo.attributes.position.count;
-    }
-  });
-  const fmtK = (n: number) => n >= 1000 ? `${(n / 1000).toFixed(1)}K` : `${Math.round(n)}`;
-
-  const t    = entry.textures;
-  const maps = [
-    t.normalMap       ? "NRM"   : null,
-    t.roughnessMap    ? "ROUGH" : null,
-    t.metalnessMap    ? "METAL" : null,
-    t.transmissionMap ? "TRANS" : null,
-    t.alphaMap        ? "ALPHA" : null,
-  ].filter(Boolean).join(" · ");
-
-  return [
-    {
-      text: `${fmtK(tris)} TRIS`,
-      sub:  `${fmtK(verts)} VERTS · BLENDER 4.3`,
-      dir:  [-1.0,  0.75, 0.1] as [number, number, number],
-    },
-    {
-      text: maps || "SURFACE",
-      sub:  `${entry.category} · ${entry.year}`,
-      dir:  [ 1.0, -0.65, 0.1] as [number, number, number],
-    },
-  ];
-}
-
-// ─── Labels rendered in the void scene via drei Html ─────────────────────
-// Labels live in posGroupRef space (NOT rotGroupRef) so they never orbit
-// with the spinning model — they stay at consistent screen-edge positions
-// exactly like the Igloo.inc reference.  Connector lines run from a fixed
-// point near the model centre outward to the label anchor.
-function VoidModelLabels({
-  scene,
-  hoveredRef,
-  entry,
-  opacityRef,
-  normScale,
-}: {
-  scene:      THREE.Group;
-  hoveredRef: React.RefObject<boolean>;
-  entry:      WorkModelEntry;
-  opacityRef: React.RefObject<number>;
-  normScale:  number;
-}) {
-  const domRefs = useRef<(HTMLDivElement | null)[]>([]);
-
-  // Compute label anchor positions in posGroupRef world-unit space.
-  // safeR is scaled by normScale so labels sit just outside the normalised
-  // 3-world-unit bounding sphere regardless of the source GLB's raw size.
-  const labels = useMemo(() => {
-    const box = new THREE.Box3().setFromObject(scene);
-    const center = new THREE.Vector3();
-    box.getCenter(center);
-    const cBox = new THREE.Box3(box.min.clone().sub(center), box.max.clone().sub(center));
-    const sphere = new THREE.Sphere();
-    cBox.getBoundingSphere(sphere);
-    const safeR = (sphere.radius + 1.1) * normScale; // anchor outside model
-    const inner = safeR * 0.22;                       // connector line start
-    const set   = genVoidLabels(entry, scene);
-    return set.map((l) => {
-      const dir    = new THREE.Vector3(...l.dir).normalize();
-      const isLeft = dir.x < -0.05;
-      return {
-        ...l,
-        pos:   [dir.x * safeR, dir.y * safeR, dir.z * safeR] as [number,number,number],
-        inner: [dir.x * inner, dir.y * inner, dir.z * inner] as [number,number,number],
-        isLeft,
-      };
-    });
-  }, [scene, entry, normScale]);
-
-  // Three.js Line connectors: inner stub → label anchor
-  const lineObjs = useMemo(() =>
-    labels.map(({ inner, pos }) => {
-      const geo = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(...inner),
-        new THREE.Vector3(...pos),
-      ]);
-      const mat = new THREE.LineBasicMaterial({
-        color: new THREE.Color(0x7ad8f0), transparent: true, opacity: 0, depthWrite: false,
-      });
-      return new THREE.Line(geo, mat);
-    }),
-  [labels]);
-
-  useEffect(() => () => {
-    lineObjs.forEach(({ geometry, material }) => {
-      geometry.dispose();
-      (material as THREE.LineBasicMaterial).dispose();
-    });
-  }, [lineObjs]);
-
-  useFrame(() => {
-    const visible  = hoveredRef.current && opacityRef.current > 0.15;
-    const tgtLine  = visible ? 0.45 : 0;
-    const tgtText  = visible ? "1"  : "0";
-
-    lineObjs.forEach((obj) => {
-      const mat = obj.material as THREE.LineBasicMaterial;
-      if (Math.abs(mat.opacity - tgtLine) > 0.001) {
-        mat.opacity     = mat.opacity + (tgtLine - mat.opacity) * 0.10;
-        mat.needsUpdate = true;
-      }
-    });
-
-    domRefs.current.forEach((el) => {
-      if (el && el.style.opacity !== tgtText) el.style.opacity = tgtText;
-    });
-  });
-
-  return (
-    <>
-      {lineObjs.map((obj, i) => <primitive key={`vln-${i}`} object={obj} />)}
-      {labels.map((label, i) => {
-        // Anchor the Html div so text extends away from the model:
-        // left-side labels: right-align and slide left of anchor
-        // right-side labels: left-align and slide right of anchor
-        const outer: React.CSSProperties = label.isLeft
-          ? { transform: "translateX(-100%)", textAlign: "right" as const }
-          : { transform: "translateX(0%)",    textAlign: "left"  as const };
-        return (
-          <Html key={`vlbl-${i}`} position={label.pos} style={{ pointerEvents: "none" }}>
-            <div style={{ ...outer, pointerEvents: "none" }}>
-              <div
-                ref={(el) => { domRefs.current[i] = el; }}
-                style={{
-                  opacity:       "0",
-                  transition:    `opacity 0.30s ${i * 0.08}s ease`,
-                  fontFamily:    "var(--font-geist-mono), monospace",
-                  fontSize:      "9px",
-                  fontWeight:    400,
-                  color:         "rgba(255,255,255,0.88)",
-                  letterSpacing: "0.16em",
-                  textTransform: "uppercase",
-                  whiteSpace:    "nowrap",
-                  userSelect:    "none",
-                  lineHeight:    1.5,
-                  textShadow:    "0 0 14px rgba(0,0,0,1), 0 1px 4px rgba(0,0,0,0.9)",
-                }}
-              >
-                <div style={{ color: "rgba(184,240,255,0.95)", marginBottom: "3px" }}>
-                  {label.text}
-                </div>
-                <div style={{
-                  opacity: 0.55, fontSize: "7.5px", letterSpacing: "0.12em",
-                  color: "rgba(180,230,255,0.70)",
-                }}>
-                  {label.sub}
-                </div>
-              </div>
-            </div>
-          </Html>
-        );
-      })}
-    </>
-  );
-}
-
 // ─── Mouse-localised wireframe shader ────────────────────────────────────
 // Wireframe edges fade to transparent outside a screen-space radius of the
 // mouse cursor in NDC coords.  This gives a "scan-line" brush effect where
@@ -1338,14 +1167,6 @@ function VoidModel({ entry, idx }: { entry: WorkModelEntry; idx: number }) {
           </group>
         </group>
       </group>
-      {/* Labels sit outside rotGroupRef so they never rotate with the model */}
-      <VoidModelLabels
-        scene={scene}
-        hoveredRef={hoveredRef}
-        entry={entry}
-        opacityRef={opacityRef}
-        normScale={normScale}
-      />
     </group>
   );
 }
