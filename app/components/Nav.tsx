@@ -115,7 +115,9 @@ export default function Nav() {
             position:   "absolute",
             top:        "calc(100% + 8px)",
             left:       "50%",
-            transform:  "translateX(-50%)",
+            transform:  workOpen
+              ? "translateX(-50%) translateY(0)"
+              : "translateX(-50%) translateY(-6px)",
             background: "rgba(5,7,15,0.92)",
             backdropFilter: "blur(20px)",
             WebkitBackdropFilter: "blur(20px)",
@@ -127,9 +129,6 @@ export default function Nav() {
             minWidth:   "148px",
             opacity:    workOpen ? 1 : 0,
             pointerEvents: workOpen ? "auto" : "none",
-            transform:  workOpen
-              ? "translateX(-50%) translateY(0)"
-              : "translateX(-50%) translateY(-6px)",
             transition: "opacity 0.18s ease, transform 0.18s ease",
           }}>
             {WORK_SUBS.map(({ label, tab }) => (
