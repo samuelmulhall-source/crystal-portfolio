@@ -954,9 +954,14 @@ function VoidModel({ entry, idx }: { entry: WorkModelEntry; idx: number }) {
   // normScale is computed from the world-space bounding box (which already
   // accounts for FBXLoader's axis + scale corrections) and is applied as a
   // constant child group, keeping scaleGroupRef free for entrance animation.
+  const labelLike = /(normal\s*map|tangent|tris|polygon|vertex|uv\s*map|specular|roughness\s*map|metalness|debug|label)/i;
   const { normScale, centreOffset } = useMemo(() => {
     allMats.current = [];
     scene.traverse((o) => {
+      if (labelLike.test(o.name)) {
+        o.visible = false;
+        return;
+      }
       if ((o as THREE.Mesh).isMesh) {
         const mesh = o as THREE.Mesh;
         const prev = Array.isArray(mesh.material) ? mesh.material : [mesh.material];

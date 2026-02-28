@@ -95,11 +95,16 @@ function ShowcaseModel({
   const groupRef = useRef<THREE.Group>(null);
   const matRefs  = useRef<THREE.Material[]>([]);
 
-  // ── Replace materials + compute normScale + centreOffset ──────────────────
+  // ── Replace materials + compute normScale + centreOffset; hide any FBX debug labels ──
   const { normScale, centreOffset } = useMemo(() => {
     matRefs.current = [];
     const T = webgpu || THREE;
+    const labelLike = /(normal\s*map|tangent|tris|polygon|vertex|uv\s*map|specular|roughness\s*map|metalness|debug|label)/i;
     scene.traverse((o) => {
+      if (labelLike.test(o.name)) {
+        o.visible = false;
+        return;
+      }
       if ((o as THREE.Mesh).isMesh) {
         const mesh = o as THREE.Mesh;
         const prev = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
@@ -324,10 +329,8 @@ function ShowcaseScene({
   hoveredRef: React.RefObject<boolean>;
   fullscreen: boolean;
 }) {
-  const matRef    = useRef<THREE.MeshStandardMaterial>(null);
-  // normScale is computed inside ShowcaseModel; we pass it up so labels can
-  // place themselves at the correct visual radius.
-  const [normScaleState, setNormScaleState] = useState(1);
+  const matRef = useRef<THREE.MeshStandardMaterial>(null);
+  const [, setNormScaleState] = useState(1);
 
   return (
     <>
@@ -342,8 +345,6 @@ function ShowcaseScene({
       <Environment preset="studio" environmentIntensity={0.85} />
       <AtmosphericParticles hoveredRef={hoveredRef} />
       <Suspense fallback={<ShowcaseLoading />}>
-        {/* Bounds auto-fits camera to the model only — labels are outside so
-            they don't distort the camera framing. */}
         <Bounds fit clip margin={fullscreen ? 1.15 : 1.25}>
           {/* ShowcaseModel now applies centreOffset internally — no <Center> needed */}
           <ShowcaseModel

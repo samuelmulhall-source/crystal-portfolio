@@ -111,20 +111,94 @@ function FullscreenViewer({
 
   const infoPanel = (
     <div style={{
-      padding: mobile ? "1.5rem 1.25rem 2rem" : "2.25rem 2rem",
-      display: "flex", flexDirection: "column", gap: "1.75rem",
-      background: "rgba(0,5,18,0.92)",
+      padding: mobile ? "1.5rem 1.25rem 2rem" : "clamp(32px, 3.5vw, 48px)",
+      display: "flex",
+      flexDirection: "column",
+      gap: "clamp(1.5rem, 2.5vw, 2.25rem)",
+      background: "rgba(0,5,18,0.94)",
       borderLeft: mobile ? "none" : "1px solid rgba(184,240,255,0.06)",
       borderTop: mobile ? "1px solid rgba(184,240,255,0.06)" : "none",
     }}>
       <div>
-        <p style={{ ...MON, fontSize: "0.48rem", letterSpacing: "0.36em", color: "rgba(184,240,255,0.38)", marginBottom: "0.65rem" }}>{project.category} · {project.year}</p>
-        <h2 style={{ fontFamily: "var(--font-geist-sans), sans-serif", fontSize: mobile ? "1.35rem" : "1.75rem", fontWeight: 300, letterSpacing: "0.01em", color: "var(--text-primary)", margin: 0, lineHeight: 1.25 }}>{project.title}</h2>
+        <p style={{
+          ...MON,
+          fontSize: "0.5rem",
+          letterSpacing: "0.32em",
+          color: "rgba(184,240,255,0.42)",
+          marginBottom: "0.5rem",
+        }}>
+          {project.category} · {project.year}
+        </p>
+        <h2 style={{
+          fontFamily: "var(--font-geist-sans), sans-serif",
+          fontSize: mobile ? "1.8rem" : "2.5rem",
+          fontWeight: 600,
+          letterSpacing: "-0.02em",
+          color: "var(--text-primary)",
+          margin: 0,
+          lineHeight: 1.15,
+        }}>
+          {project.title}
+        </h2>
       </div>
-      <p style={{ color: "var(--text-secondary)", fontSize: "0.8125rem", lineHeight: 1.78, margin: 0 }}>PBR real-time asset. Drag to orbit, scroll to zoom.</p>
-      <div style={{ ...MON, fontSize: "0.48rem", letterSpacing: "0.24em", color: "rgba(184,240,255,0.28)" }}>FBX · WebGL · React Three Fiber · WebGPU</div>
-      <div style={{ marginTop: "auto", paddingTop: "1.25rem" }}>
-        <a href="https://x.com/multiscatter" target="_blank" rel="noopener noreferrer" style={{ ...MON, fontSize: "0.52rem", letterSpacing: "0.28em", color: "rgba(184,240,255,0.72)", textDecoration: "none", borderBottom: "1px solid rgba(184,240,255,0.35)", paddingBottom: "0.12rem" }}>View on X ↑</a>
+      <p style={{
+        color: "var(--text-secondary)",
+        fontSize: "0.9375rem",
+        lineHeight: 1.82,
+        margin: 0,
+        maxWidth: "28ch",
+      }}>
+        PBR real-time asset. Drag to orbit, scroll to zoom.
+      </p>
+      <div style={{
+        ...MON,
+        fontSize: "0.5rem",
+        letterSpacing: "0.2em",
+        color: "rgba(184,240,255,0.45)",
+        display: "flex",
+        flexWrap: "wrap",
+        gap: "0.5rem",
+      }}>
+        {["FBX", "WebGL", "React Three Fiber", "WebGPU"].map((tag) => (
+          <span
+            key={tag}
+            style={{
+              padding: "0.35rem 0.65rem",
+              background: "rgba(184,240,255,0.06)",
+              border: "1px solid rgba(184,240,255,0.1)",
+              borderRadius: "2px",
+            }}
+          >
+            {tag}
+          </span>
+        ))}
+      </div>
+      <div style={{ marginTop: "auto", paddingTop: "1.5rem" }}>
+        <a
+          href="https://x.com/multiscatter"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            ...MON,
+            fontSize: "0.55rem",
+            letterSpacing: "0.26em",
+            color: "rgba(184,240,255,0.78)",
+            textDecoration: "none",
+            borderBottom: "1px solid rgba(184,240,255,0.3)",
+            paddingBottom: "0.15rem",
+            transition: "color 0.2s ease, border-color 0.2s ease",
+          }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLAnchorElement).style.color = "rgba(220,248,255,0.98)";
+            (e.currentTarget as HTMLAnchorElement).style.borderColor = "rgba(184,240,255,0.55)";
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLAnchorElement).style.color = "rgba(184,240,255,0.78)";
+            (e.currentTarget as HTMLAnchorElement).style.borderColor = "rgba(184,240,255,0.3)";
+          }}
+        >
+          View on X ↑
+        </a>
       </div>
     </div>
   );
@@ -135,25 +209,35 @@ function FullscreenViewer({
         <div ref={canvasWrapRef} style={{ flex: mobile ? "none" : 1, height: mobile ? "55vh" : "100%", minHeight: 0, position: "relative" }}>
           <WorkItemCanvas modelPath={project.modelPath} textures={project.textures} hoveredRef={hovRef} containerRef={canvasWrapRef} fullscreen />
         </div>
-        <div style={{ flex: mobile ? "1 1 auto" : "0 0 360px", overflowY: "auto", position: mobile ? "relative" : "sticky", top: 0, alignSelf: "stretch" }}>
+        <div style={{ flex: mobile ? "1 1 auto" : "0 0 380px", overflowY: "auto", position: mobile ? "relative" : "sticky", top: 0, alignSelf: "stretch" }}>
           {infoPanel}
         </div>
       </div>
 
-      {/* Close — Igloo-style minimal; 44px touch target on mobile */}
       <button
         onClick={close}
         style={{
-          position: "fixed", top: "1.25rem", right: "clamp(1rem, 4vw, 1.75rem)", zIndex: 102,
-          background: "transparent", border: "none",
-          color: "rgba(184,240,255,0.6)",
-          ...MON, fontSize: "0.56rem", letterSpacing: "0.32em",
-          padding: "0.6rem 0.5rem", minHeight: "44px", minWidth: "44px",
-          cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+          position: "fixed",
+          top: "1.25rem",
+          right: "clamp(1rem, 4vw, 1.75rem)",
+          zIndex: 102,
+          background: "transparent",
+          border: "none",
+          color: "rgba(184,240,255,0.55)",
+          ...MON,
+          fontSize: "0.54rem",
+          letterSpacing: "0.34em",
+          padding: "0.6rem 0.5rem",
+          minHeight: "44px",
+          minWidth: "44px",
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
           transition: "color 0.2s ease",
         }}
         onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "rgba(220,248,255,0.95)"; }}
-        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "rgba(184,240,255,0.6)"; }}
+        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "rgba(184,240,255,0.55)"; }}
         aria-label="Close viewer"
       >
         × CLOSE
