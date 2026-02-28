@@ -1,0 +1,11 @@
+# Cloudflare Pages: apply these headers to static assets.
+# Uses only well-recognized Permissions-Policy directives to avoid
+# "Unrecognized feature" / "Origin trial not enabled" console errors.
+# If you still see those errors, Cloudflare may be injecting a policy
+# elsewhere — use Cloudflare Dashboard → Rules → Transform Rules to
+# remove or replace the Permissions-Policy header for this site.
+/*
+  X-Frame-Options: SAMEORIGIN
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
