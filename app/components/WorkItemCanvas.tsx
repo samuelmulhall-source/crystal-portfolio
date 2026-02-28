@@ -1,17 +1,29 @@
 "use client";
 
 /**
- * WorkItemCanvas — transparent WebGL canvas for each work showcase item.
+ * WorkItemCanvas — 3D canvas for each work showcase item.
  *
- * Preview mode:  OrbitControls (drag + scroll zoom) + auto-rotate + subtle labels on hover.
- * Fullscreen mode: same controls, wider labels, richer lighting.
+ * Uses WebGPURenderer + TSL when supported (better PBR, node materials),
+ * with WebGL fallback. TSL post (vignette/bloom) can be added via the
+ * WebGPU renderer's node-based post stack if needed. Preview/fullscreen: OrbitControls + auto-rotate.
  */
 
-import { Suspense, useRef, useMemo, useEffect, useState } from "react";
+import { Suspense, useRef, useMemo, useEffect, useState, createContext, useContext } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { useFBX, Environment, OrbitControls, Bounds } from "@react-three/drei";
 import * as THREE from "three";
 import type { TextureSet } from "../lib/workModels";
+
+/** When set, renderer is WebGPU and we use node materials from this module. */
+type WebGPUThree = typeof import("three/webgpu") & {
+  texture?: (tex: THREE.Texture, uv?: unknown) => unknown;
+  uv?: (index?: number) => unknown;
+  vec3?: (x: number, y?: number, z?: number) => unknown;
+  float?: (x: number) => unknown;
+  time?: unknown;
+  sin?: (x: unknown) => unknown;
+};
+const WebGPUContext = createContext<WebGPUThree | null>(null);
 
 // ─── Seeded random ─────────────────────────────────────────────────────────
 function sr(seed: number) {
@@ -65,8 +77,7 @@ function ShowcaseLoading() {
 
 // ─── 3D model ──────────────────────────────────────────────────────────────
 // Uses the same primitive+normScale strategy as VoidBackground's VoidModel so
-// FBXLoader's cm→m root transform is preserved and models render at the right
-// size without the blue-emissive "ghost" look of cloned geometries.
+// FBXLoader's cm→m root transform is preserved. With WebGPU: TSL node materials.
 function ShowcaseModel({
   modelPath,
   textures,
@@ -75,36 +86,61 @@ function ShowcaseModel({
 }: {
   modelPath:   string;
   textures:    TextureSet;
-  matRef:      React.RefObject<THREE.MeshStandardMaterial | null>;
+  matRef:      React.RefObject<THREE.MeshStandardMaterial | THREE.Material | null>;
   onNormScale: (n: number) => void;
 }) {
+  const webgpu   = useContext(WebGPUContext);
   const rawScene = useFBX(modelPath);
-  // Clone so VoidBackground and WorkItemCanvas don't share materials
   const scene    = useMemo(() => rawScene.clone(true), [rawScene]);
   const groupRef = useRef<THREE.Group>(null);
-  const matRefs  = useRef<THREE.MeshStandardMaterial[]>([]);
+  const matRefs  = useRef<THREE.Material[]>([]);
 
   // ── Replace materials + compute normScale + centreOffset ──────────────────
   const { normScale, centreOffset } = useMemo(() => {
     matRefs.current = [];
+    const T = webgpu || THREE;
     scene.traverse((o) => {
       if ((o as THREE.Mesh).isMesh) {
         const mesh = o as THREE.Mesh;
         const prev = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
         prev.forEach(m => (m as THREE.Material)?.dispose());
-        const mat = new THREE.MeshStandardMaterial({
-          color:            0xffffff,
-          emissive:         new THREE.Color(0x000000),
-          emissiveIntensity: 0,
-          roughness:        0.72,
-          metalness:        0.05,
-          envMapIntensity:  1.4,
-          side:             THREE.FrontSide,
-        });
+        let mat: THREE.Material;
+        if (webgpu && webgpu.MeshPhysicalNodeMaterial) {
+          const W = webgpu as Record<string, unknown>;
+          const MeshPhysicalNodeMaterial = W.MeshPhysicalNodeMaterial as new (p: object) => THREE.Material;
+          const texture = W.texture as (tex: THREE.Texture, uv?: unknown) => unknown;
+          const uv = W.uv as (i?: number) => unknown;
+          const vec3 = W.vec3 as (x: number, y?: number, z?: number) => unknown;
+          const float = W.float as (x: number) => unknown;
+          const time = W.time as { mul: (n: number) => unknown };
+          const sin = W.sin as (x: unknown) => { mul: (n: number) => unknown; add: (n: number) => unknown };
+          mat = new MeshPhysicalNodeMaterial({
+            side: T.FrontSide,
+            roughness: 0.72,
+            metalness: 0.05,
+            envMapIntensity: 1.4,
+          });
+          const matNode = mat as { roughnessNode?: unknown; metalnessNode?: unknown; emissiveNode?: unknown; colorNode?: unknown };
+          matNode.roughnessNode = float(0.72);
+          matNode.metalnessNode = float(0.05);
+          const pulse = (sin(time.mul(0.65)) as { mul: (n: number) => { add: (n: number) => unknown } }).mul(0.5).add(0.5);
+          matNode.emissiveNode = (vec3(0.05, 0.07, 0.1) as { mul: (x: unknown) => unknown }).mul(pulse);
+          matNode.colorNode = vec3(1, 1, 1);
+        } else {
+          mat = new THREE.MeshStandardMaterial({
+            color: 0xffffff,
+            emissive: new THREE.Color(0x000000),
+            emissiveIntensity: 0,
+            roughness: 0.72,
+            metalness: 0.05,
+            envMapIntensity: 1.4,
+            side: THREE.FrontSide,
+          });
+        }
         mesh.material = mat;
         matRefs.current.push(mat);
         if (matRefs.current.length === 1 && extMatRef) {
-          (extMatRef as React.MutableRefObject<THREE.MeshStandardMaterial | null>).current = mat;
+          (extMatRef as React.MutableRefObject<THREE.Material | null>).current = mat;
         }
       }
     });
@@ -116,11 +152,10 @@ function ShowcaseModel({
     const maxDim = Math.max(sz.x, sz.y, sz.z);
     const ns     = maxDim > 0 ? 4.5 / maxDim : 1;
     onNormScale(ns);
-    // centreOffset in post-normScale world space: moves bounding-box centre to origin
     return { normScale: ns, centreOffset: center.clone().negate().multiplyScalar(ns) };
-  }, [scene]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [scene, webgpu]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── PBR texture loading ──────────────────────────────────────────────────
+  // ── PBR texture loading (WebGL: map/normalMap etc.; WebGPU: colorNode/normalNode) ──
   const texSig = [textures.map, textures.normalMap, textures.roughnessMap, textures.metalnessMap]
     .filter(Boolean).join("|");
 
@@ -128,15 +163,42 @@ function ShowcaseModel({
     if (!texSig) return;
     const loader = new THREE.TextureLoader();
     const t      = textures;
-    const apply  = (fn: (m: THREE.MeshStandardMaterial) => void) =>
-      matRefs.current.forEach(m => { if (m) { fn(m); m.needsUpdate = true; } });
-
-    if (t.map)          loader.loadAsync(t.map).then(tx => { tx.colorSpace = THREE.SRGBColorSpace; apply(m => { m.map = tx; }); }).catch(() => {});
-    if (t.normalMap)    loader.loadAsync(t.normalMap).then(tx => { apply(m => { m.normalMap = tx; }); }).catch(() => {});
-    if (t.roughnessMap) loader.loadAsync(t.roughnessMap).then(tx => { apply(m => { m.roughnessMap = tx; m.roughness = 1; }); }).catch(() => {});
-    if (t.metalnessMap) loader.loadAsync(t.metalnessMap).then(tx => { apply(m => { m.metalnessMap = tx; m.metalness = 1; }); }).catch(() => {});
+    const isNode = webgpu && "colorNode" in (matRefs.current[0] || {});
+    if (isNode && webgpu) {
+      const W = webgpu as Record<string, unknown>;
+      const texture = W.texture as (tex: THREE.Texture, uv?: unknown) => unknown;
+      const uv = W.uv as (i?: number) => unknown;
+      const load = (url: string) => loader.loadAsync(url).catch(() => null);
+      Promise.all([
+        t.map ? load(t.map) : null,
+        t.normalMap ? load(t.normalMap) : null,
+        t.roughnessMap ? load(t.roughnessMap) : null,
+        t.metalnessMap ? load(t.metalnessMap) : null,
+      ]).then(([mapTex, normalTex, roughTex, metalTex]) => {
+        if (!texture || !uv) return;
+        const uvNode = uv();
+        matRefs.current.forEach((m) => {
+          if (!m || !("colorNode" in m)) return;
+          const mat = m as { colorNode?: unknown; normalNode?: unknown; roughnessNode?: unknown; metalnessNode?: unknown };
+          if (mapTex) {
+            mapTex.colorSpace = THREE.SRGBColorSpace;
+            mat.colorNode = texture(mapTex, uvNode);
+          }
+          if (normalTex) mat.normalNode = texture(normalTex, uvNode);
+          if (roughTex) mat.roughnessNode = texture(roughTex, uvNode);
+          if (metalTex) mat.metalnessNode = texture(metalTex, uvNode);
+        });
+      });
+    } else {
+      const apply = (fn: (m: THREE.MeshStandardMaterial) => void) =>
+        matRefs.current.forEach(m => { if (m && "map" in m) { fn(m as THREE.MeshStandardMaterial); (m as THREE.MeshStandardMaterial).needsUpdate = true; } });
+      if (t.map)          loader.loadAsync(t.map).then(tx => { tx.colorSpace = THREE.SRGBColorSpace; apply(m => { m.map = tx; }); }).catch(() => {});
+      if (t.normalMap)    loader.loadAsync(t.normalMap).then(tx => { apply(m => { m.normalMap = tx; }); }).catch(() => {});
+      if (t.roughnessMap) loader.loadAsync(t.roughnessMap).then(tx => { apply(m => { m.roughnessMap = tx; m.roughness = 1; }); }).catch(() => {});
+      if (t.metalnessMap) loader.loadAsync(t.metalnessMap).then(tx => { apply(m => { m.metalnessMap = tx; m.metalness = 1; }); }).catch(() => {});
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [texSig]);
+  }, [texSig, webgpu]);
 
   // ── Scale-in entrance ────────────────────────────────────────────────────
   useEffect(() => {
@@ -153,16 +215,19 @@ function ShowcaseModel({
     requestAnimationFrame(enter);
   }, []);
 
-  // ── Subtle emissive pulse (rim glow when hovered) ────────────────────────
+  // ── Subtle emissive pulse (WebGL only; WebGPU uses TSL time in emissiveNode) ──
   useFrame((s) => {
-    const ref = extMatRef.current as THREE.MeshStandardMaterial | null;
-    if (!ref) return;
-    if (ref.emissive.r === 0 && ref.emissive.g === 0 && ref.emissive.b === 0) {
-      ref.emissive.set(0x112233);
+    const ref = extMatRef.current;
+    if (!ref || "emissiveIntensity" in ref === false) return;
+    const std = ref as THREE.MeshStandardMaterial;
+    if (std.emissive.r === 0 && std.emissive.g === 0 && std.emissive.b === 0) {
+      std.emissive.set(0x112233);
     }
     const t = s.clock.elapsedTime;
-    ref.emissiveIntensity += (0.06 + 0.03 * Math.sin(t * 0.65) - ref.emissiveIntensity) * 0.04;
-    matRefs.current.forEach(m => { if (m && m !== ref) m.emissiveIntensity = ref.emissiveIntensity; });
+    std.emissiveIntensity += (0.06 + 0.03 * Math.sin(t * 0.65) - std.emissiveIntensity) * 0.04;
+    matRefs.current.forEach(m => {
+      if (m && m !== ref && "emissiveIntensity" in m) (m as THREE.MeshStandardMaterial).emissiveIntensity = std.emissiveIntensity;
+    });
   });
 
   return (
@@ -279,6 +344,8 @@ function ShowcaseScene({
 }
 
 // ─── Exported component ────────────────────────────────────────────────────
+type WebGPUModule = typeof import("three/webgpu") | false | null;
+
 export default function WorkItemCanvas({
   modelPath,
   textures   = {},
@@ -293,6 +360,16 @@ export default function WorkItemCanvas({
   fullscreen?:  boolean;
 }) {
   const [mounted, setMounted] = useState(fullscreen);
+  const [webgpuModule, setWebgpuModule] = useState<WebGPUModule>(null);
+
+  useEffect(() => {
+    import("three/webgpu")
+      .then((T) => setWebgpuModule(T))
+      .catch(() => {
+        console.warn("WebGPU not supported, using WebGL.");
+        setWebgpuModule(false);
+      });
+  }, []);
 
   useEffect(() => {
     if (fullscreen) { setMounted(true); return; }
@@ -314,35 +391,45 @@ export default function WorkItemCanvas({
     );
   }
 
-  // In fullscreen, <Bounds> repositions the camera automatically,
-  // so the starting camPos is just an initial guess.
   const camPos: [number, number, number] = fullscreen ? [0, 0, 10] : [0, 0.1, 11.0];
   const camFov = fullscreen ? 44 : 36;
+  const useWebGPU = webgpuModule && typeof webgpuModule.WebGPURenderer === "function";
+
+  const glProp = useWebGPU
+    ? async (defaultProps: { canvas: HTMLCanvasElement | OffscreenCanvas; antialias?: boolean; alpha?: boolean }) => {
+        const r = new webgpuModule!.WebGPURenderer(defaultProps as { canvas: HTMLCanvasElement; antialias?: boolean; alpha?: boolean });
+        await r.init();
+        return r;
+      }
+    : { alpha: true, premultipliedAlpha: false, antialias: true };
 
   return (
-    <Canvas
-      gl={{ alpha: true, premultipliedAlpha: false, antialias: true }}
-      camera={{ position: camPos, fov: camFov }}
-      dpr={fullscreen ? [1, 2] : [1, 1.5]}
-      style={{ width: "100%", height: "100%", display: "block" }}
-    >
-      <ShowcaseScene
-        modelPath={modelPath}
-        textures={textures}
-        hoveredRef={hoveredRef}
-        fullscreen={fullscreen}
-      />
-      <OrbitControls
-        enablePan={false}
-        enableZoom
-        enableRotate
-        autoRotate
-        autoRotateSpeed={fullscreen ? 0.4 : 0.8}
-        dampingFactor={0.08}
-        enableDamping
-        minDistance={fullscreen ? 0.5 : 0.8}
-        maxDistance={fullscreen ? 40  : 35}
-      />
-    </Canvas>
+    <WebGPUContext.Provider value={useWebGPU ? webgpuModule : null}>
+      <Canvas
+        key={useWebGPU ? "webgpu" : "webgl"}
+        gl={glProp as React.ComponentProps<typeof Canvas>["gl"]}
+        camera={{ position: camPos, fov: camFov }}
+        dpr={fullscreen ? [1, 2] : [1, 1.5]}
+        style={{ width: "100%", height: "100%", display: "block" }}
+      >
+        <ShowcaseScene
+          modelPath={modelPath}
+          textures={textures}
+          hoveredRef={hoveredRef}
+          fullscreen={fullscreen}
+        />
+        <OrbitControls
+          enablePan={false}
+          enableZoom
+          enableRotate
+          autoRotate
+          autoRotateSpeed={fullscreen ? 0.4 : 0.8}
+          dampingFactor={0.08}
+          enableDamping
+          minDistance={fullscreen ? 0.5 : 0.8}
+          maxDistance={fullscreen ? 40  : 35}
+        />
+      </Canvas>
+    </WebGPUContext.Provider>
   );
 }
