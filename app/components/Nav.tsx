@@ -12,7 +12,6 @@ const WORK_SUBS: { label: string; tab: WorkTab }[] = [
   { label: "Gallery",       tab: "images" },
 ];
 const LINKS = [
-  { label: "About",   href: "#about"   },
   { label: "Contact", href: "#contact" },
 ];
 
@@ -46,6 +45,7 @@ export default function Nav() {
 
   const openWork  = () => { if (closeTimer.current) clearTimeout(closeTimer.current); setWorkOpen(true);  };
   const closeWork = () => { closeTimer.current = setTimeout(() => setWorkOpen(false), 160); };
+  const toggleWork = () => setWorkOpen((o) => !o);
 
   return (
     <nav
@@ -57,7 +57,7 @@ export default function Nav() {
         display:        "flex",
         alignItems:     "center",
         justifyContent: "space-between",
-        padding:        "0 2.5rem",
+        padding:        "0 clamp(1rem, 4vw, 2.5rem)",
         height:          scrolled ? "50px" : "66px",
         background:     scrolled ? "rgba(5,7,15,0.90)" : "transparent",
         backdropFilter:  scrolled ? "blur(32px) saturate(1.5)" : "none",
@@ -83,6 +83,7 @@ export default function Nav() {
             ? "0 0 18px rgba(184,240,255,0.14)"
             : "0 0 28px rgba(184,240,255,0.22), 0 1px 3px rgba(0,0,0,0.6)",
           transition: "color 0.4s ease, text-shadow 0.4s ease",
+          minHeight: "44px", display: "flex", alignItems: "center",
         }}
       >
         MULTISCATTER
@@ -91,13 +92,23 @@ export default function Nav() {
       {/* Links */}
       <ul style={{ display: "flex", alignItems: "center", gap: "2.2rem", listStyle: "none", margin: 0, padding: 0 }}>
 
-        {/* Work — with hover dropdown */}
+        {/* Work — hover on desktop, tap to toggle on mobile */}
         <li style={{ position: "relative" }} onMouseEnter={openWork} onMouseLeave={closeWork}>
           <a
             href="#work"
             className="frost-link"
-            onClick={(e) => scrollTo(e, "#work")}
-            style={{ color: linkColor, textShadow: linkShadow, display: "flex", alignItems: "center", gap: "0.28rem" }}
+            onClick={(e) => {
+              if (window.matchMedia("(max-width: 768px)").matches) {
+                e.preventDefault();
+                toggleWork();
+              } else {
+                scrollTo(e, "#work");
+              }
+            }}
+            style={{
+              color: linkColor, textShadow: linkShadow, display: "flex", alignItems: "center", gap: "0.28rem",
+              minHeight: "44px", justifyContent: "center", padding: "0 4px",
+            }}
           >
             Work
             <span style={{
@@ -135,10 +146,12 @@ export default function Nav() {
               <li key={tab}>
                 <a
                   href="#work"
-                  onClick={(e) => { workModels.pendingTab = tab; scrollTo(e, "#work"); }}
+                  onClick={(e) => { workModels.pendingTab = tab; scrollTo(e, "#work"); setWorkOpen(false); }}
                   style={{
                     display:       "block",
-                    padding:       "7px 18px",
+                    padding:       "12px 18px",
+                    minHeight:     "44px",
+                    boxSizing:     "border-box",
                     color:         "rgba(184,240,255,0.60)",
                     textDecoration: "none",
                     fontFamily:    "var(--font-geist-mono), monospace",
@@ -164,33 +177,21 @@ export default function Nav() {
           </ul>
         </li>
 
-        {/* Remaining links */}
         {LINKS.map(({ label, href }) => (
           <li key={href}>
             <a
               href={href}
               className="frost-link"
-              onClick={(e) => scrollTo(e, href)}
-              style={{ color: linkColor, textShadow: linkShadow }}
+              onClick={(e) => { scrollTo(e, href); setWorkOpen(false); }}
+              style={{
+                color: linkColor, textShadow: linkShadow,
+                minHeight: "44px", display: "flex", alignItems: "center", padding: "0 4px",
+              }}
             >
               {label}
             </a>
           </li>
         ))}
-
-        <li style={{ width: "1px", height: "13px", background: "rgba(184,240,255,0.14)" }} />
-
-        <li>
-          <a
-            href="https://x.com/multiscatter"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="frost-link"
-            style={{ color: scrolled ? "rgba(184,240,255,0.42)" : "rgba(184,240,255,0.55)" }}
-          >
-            ↗&thinsp;X
-          </a>
-        </li>
       </ul>
     </nav>
   );

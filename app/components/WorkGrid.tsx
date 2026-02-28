@@ -140,15 +140,16 @@ function FullscreenViewer({
         </div>
       </div>
 
-      {/* Close — Igloo-style minimal */}
+      {/* Close — Igloo-style minimal; 44px touch target on mobile */}
       <button
         onClick={close}
         style={{
-          position: "fixed", top: "1.25rem", right: "1.75rem", zIndex: 102,
+          position: "fixed", top: "1.25rem", right: "clamp(1rem, 4vw, 1.75rem)", zIndex: 102,
           background: "transparent", border: "none",
           color: "rgba(184,240,255,0.6)",
           ...MON, fontSize: "0.56rem", letterSpacing: "0.32em",
-          padding: "0.5rem 0", cursor: "pointer",
+          padding: "0.6rem 0.5rem", minHeight: "44px", minWidth: "44px",
+          cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
           transition: "color 0.2s ease",
         }}
         onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "rgba(220,248,255,0.95)"; }}
@@ -430,19 +431,19 @@ export default function WorkGrid() {
   const dragRef = useRef({ active: false, x: 0, y: 0, moved: false });
 
   // ── Deep link: open viewer from ?model=slug (e.g. ?model=torch) ─────────────
+  // (viewer omitted from deps so closing with setViewer(null) doesn't re-run and re-open)
   useEffect(() => {
     const slug = searchParams.get("model");
     if (!slug || projects.length === 0) return;
     const project = projects.find(p => slugFromTitle(p.title) === slug.toLowerCase());
     if (!project) return;
-    if (viewer && viewer.project.id === project.id) return;
     setViewer({ project });
     setActiveTab("models");
     setActiveId(project.id);
     workModels.activeModelId = project.id;
     workModels.version++;
     document.getElementById("work")?.scrollIntoView({ behavior: "smooth" });
-  }, [searchParams, projects, viewer]);
+  }, [searchParams, projects]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;

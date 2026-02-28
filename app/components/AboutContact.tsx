@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import DiscoverVisit from "./DiscoverVisit";
 
 const SKILLS_3D = [
   "Blender", "Geometry Nodes", "Cycles / EEVEE",
@@ -175,9 +174,6 @@ export default function AboutContact() {
           </div>
         </div>
       </div>
-
-      {/* Discover / Visit — full-width section before footer */}
-      <DiscoverVisit />
 
       {/* Footer */}
       <div style={{
