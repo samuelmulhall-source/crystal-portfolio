@@ -303,6 +303,31 @@ main {
 /* ─── Loading screen progress bar ─────────────────────────────────────────── */
 @keyframes ls-bar { from { width: 0%; } to { width: 100%; } }
 
+/* ─── Holographic sheen sweep on tab buttons ──────────────────────────────── */
+@keyframes holo-sweep {
+  from { transform: translateX(-100%) skewX(-15deg); }
+  to   { transform: translateX(200%)  skewX(-15deg); }
+}
+
+.holo-btn {
+  position: relative;
+  overflow: hidden;
+}
+.holo-btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(184,240,255,0.12) 50%,
+    transparent 100%);
+  transform: translateX(-100%) skewX(-15deg);
+  pointer-events: none;
+}
+.holo-btn:hover::after {
+  animation: holo-sweep 0.55s ease forwards;
+}
+
 /* ─── Responsive ──────────────────────────────────────────────────────────── */
 @media (max-width: 700px) {
   .hero-title { letter-spacing: 0.14em; }

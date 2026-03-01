@@ -164,37 +164,64 @@ function makeHoloStarMat(): THREE.ShaderMaterial {
     },
     vertexShader: /* glsl */`
       varying vec3 vColor;
+      varying float vSeed;
       uniform float uSize;
       void main() {
         vColor = color;
+        vSeed = fract(sin(dot(position.xy, vec2(127.1, 311.7))) * 43758.5453123);
         vec4 mv = modelViewMatrix * vec4(position, 1.0);
         gl_Position = projectionMatrix * mv;
         gl_PointSize = uSize * (300.0 / -mv.z);
       }
     `,
     fragmentShader: /* glsl */`
+      #define PI  3.14159265358979
+      #define TAU 6.28318530717959
+
       uniform float uTime;
       uniform float uOpacity;
+      uniform float uScroll;
       varying vec3 vColor;
+      varying float vSeed;
+
       void main() {
-        vec2 uv = gl_PointCoord - 0.5;
-        float dist = length(uv) * 2.0;
-        // Fresnel-like: rim only at edges (pow for trim thickness)
-        float rim = pow(smoothstep(0.25, 0.55, dist), 3.0);
-        // Noise proxy: sin(time + vertex offset) — cheap, no texture
-        float n = sin(uTime * 1.2 + gl_FragCoord.x * 0.02 + gl_FragCoord.y * 0.03) * 0.5 + 0.5;
-        float shimmer = rim * (0.7 + 0.3 * n);
-        // Chromatic shift: hue offset on rim (ice→violet)
-        float hueOff = shimmer * 0.15 * sin(uTime * 0.8);
-        vec3 base = vColor;
-        vec3 chroma = vec3(
-          base.r + hueOff * 0.5,
-          base.g,
-          base.b + hueOff
-        );
-        float core = 1.0 - smoothstep(0.0, 0.4, dist);
-        vec3 col = mix(base, chroma, shimmer) + vec3(0.08, 0.12, 0.18) * shimmer;
-        float a = uOpacity * (core * 0.6 + 0.4 + shimmer * 0.3);
+        vec2 uv = gl_PointCoord * 2.0 - 1.0;
+        float r = length(uv);
+        if (r > 1.0) discard;
+
+        float angle = atan(uv.y, uv.x);
+        float phase = uTime * 0.25 + vSeed * TAU;
+
+        // Pattern A: 4-fold diffraction cross
+        float foldA = mod(angle + PI, TAU / 4.0) - PI / 4.0;
+        float spikes4 = pow(max(0.0, cos(foldA * 4.0)), 14.0);
+        float patA = spikes4 * exp(-r * r * 5.0);
+
+        // Pattern B: 6-fold star (slow per-star rotation)
+        float rotB = phase * 0.04;
+        float foldB = mod(angle + rotB, TAU / 6.0) - PI / 6.0;
+        float spikes6 = pow(max(0.0, cos(foldB * 6.0)), 10.0);
+        float patB = spikes6 * exp(-r * r * 3.5);
+
+        // Morph A↔B per star
+        float morphT = sin(phase * 0.18) * 0.5 + 0.5;
+        float rayPat = mix(patA, patB, morphT);
+
+        // Core glow + soft halo
+        float core = exp(-r * r * 18.0);
+        float halo = exp(-r * r * 2.8) * (0.22 - uScroll * 0.05);
+
+        // Chromatic aberration: R/G/B rings at different radii along rays
+        float rRing = exp(-pow(r - 0.38, 2.0) * 18.0) * rayPat * 0.45;
+        float gRing = exp(-pow(r - 0.22, 2.0) * 22.0) * rayPat * 0.18;
+        float bRing = exp(-pow(r - 0.12, 2.0) * 28.0) * rayPat * 0.35;
+
+        vec3 base   = vColor;
+        vec3 chroma = vec3(rRing, gRing, bRing) * vec3(1.1, 0.7, 1.6);
+        vec3 col    = base * (core + halo) + chroma + vec3(0.04, 0.07, 0.14) * rayPat;
+
+        float a = uOpacity * (core * 0.75 + halo + rayPat * 0.22);
+        if (a < 0.005) discard;
         gl_FragColor = vec4(col, a);
       }
     `,
@@ -1128,7 +1155,7 @@ function VoidModel({ entry }: { entry: WorkModelEntry }) {
   const posGroupRef   = useRef<THREE.Group>(null);  // world position + depth offset
   const rotGroupRef   = useRef<THREE.Group>(null);  // user/auto rotation
   const scaleGroupRef = useRef<THREE.Group>(null);  // entrance animation (0→1)
-  const allMats       = useRef<THREE.MeshStandardMaterial[]>([]);
+  const allMats       = useRef<THREE.MeshPhysicalMaterial[]>([]);
   const wireMatRefs   = useRef<THREE.ShaderMaterial[]>([]);
   const hoveredRef    = useRef(false);
   const opacityRef    = useRef(0);
@@ -1155,17 +1182,21 @@ function VoidModel({ entry }: { entry: WorkModelEntry }) {
         const mesh = o as THREE.Mesh;
         const prev = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
         prev.forEach(m => (m as THREE.Material)?.dispose());
-        const mat = new THREE.MeshStandardMaterial({
-          color:             0xffffff,
-          emissive:          new THREE.Color(0x000000),
-          emissiveIntensity: 0,
-          roughness:         0.72,
-          metalness:         0.05,
-          transparent:       true,
-          opacity:           0,
-          depthWrite:        true,
-          envMapIntensity:   1.2,
-          side:              THREE.FrontSide,
+        const mat = new THREE.MeshPhysicalMaterial({
+          color:              0xffffff,
+          emissive:           new THREE.Color(0x000000),
+          emissiveIntensity:  0,
+          roughness:          0.72,
+          metalness:          0.05,
+          transparent:        true,
+          opacity:            0,
+          depthWrite:         true,
+          envMapIntensity:    1.2,
+          iridescence:        0.35,
+          iridescenceIOR:     1.4,
+          clearcoat:          0.15,
+          clearcoatRoughness: 0.1,
+          side:               THREE.FrontSide,
         });
         mesh.material = mat;
         allMats.current.push(mat);
@@ -1196,7 +1227,7 @@ function VoidModel({ entry }: { entry: WorkModelEntry }) {
     const loader = new THREE.TextureLoader();
     const t      = entry.textures;
 
-    const applyAll = (update: (m: THREE.MeshStandardMaterial) => void) => {
+    const applyAll = (update: (m: THREE.MeshPhysicalMaterial) => void) => {
       allMats.current.forEach(m => { if (m) { update(m); m.needsUpdate = true; } });
     };
 
@@ -1297,8 +1328,12 @@ function VoidModel({ entry }: { entry: WorkModelEntry }) {
 
     // ── Depth: model arrives from / recedes into background ───────────────
     if (posGroupRef.current) {
-      const depthBack = (1 - op) * 9;
-      posGroupRef.current.position.set(worldX, getWorldY(), worldZ - depthBack);
+      const depthBack  = (1 - op) * 9;
+      const isExpanded = workModels.expandedModelId === entry.id;
+      const targetY    = isExpanded ? 0 : getWorldY();
+      const curY       = posGroupRef.current.position.y;
+      const newY       = curY + (targetY - curY) * Math.min(dt * 4, 1);
+      posGroupRef.current.position.set(worldX, newY, worldZ - depthBack);
     }
 
     // ── Sync from workModels entry ─────────────────────────────────────────
@@ -1382,12 +1417,14 @@ function WorkModelsInScene() {
     if (workModels.version !== versionRef.current) {
       versionRef.current = workModels.version;
       setEntries([...workModels.entries]);
-      const firstId = workModels.entries[0]?.id;
-      const activeId = workModels.activeModelId;
+      const firstId    = workModels.entries[0]?.id;
+      const activeId   = workModels.activeModelId;
+      const expandedId = workModels.expandedModelId;
       setLoadedIds((prev) => {
         const next = new Set(prev);
-        if (firstId) next.add(firstId);
-        if (activeId) next.add(activeId);
+        if (firstId)    next.add(firstId);
+        if (activeId)   next.add(activeId);
+        if (expandedId) next.add(expandedId);
         return next;
       });
     }

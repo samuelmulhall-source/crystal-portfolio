@@ -127,33 +127,44 @@ function ShowcaseModel({
               roughness: 0.72,
               metalness: 0.05,
               envMapIntensity: 1.4,
+              iridescence: 0.45,
+              iridescenceIOR: 1.45,
+              clearcoat: 0.25,
+              clearcoatRoughness: 0.08,
             });
-            const matNode = mat as { roughnessNode?: unknown; metalnessNode?: unknown; emissiveNode?: unknown; colorNode?: unknown };
+            const matNode = mat as { roughnessNode?: unknown; metalnessNode?: unknown; emissiveNode?: unknown; colorNode?: unknown; clearcoatNode?: unknown };
             matNode.roughnessNode = (float as (x: number) => unknown)(0.72);
             matNode.metalnessNode = (float as (x: number) => unknown)(0.05);
             const timeNode = (time as { mul: (n: number) => unknown }).mul(2);
             const pulse = ((sin as (x: unknown) => { mul: (n: number) => { add: (n: number) => unknown } })(timeNode)).mul(0.5).add(0.5);
             matNode.emissiveNode = ((vec3 as (a: number, b?: number, c?: number) => { mul: (x: unknown) => unknown })(0.05, 0.07, 0.1)).mul(pulse);
             matNode.colorNode = (vec3 as (a: number, b?: number, c?: number) => unknown)(1, 1, 1);
+            // Animated clearcoat pulse via TSL timer
+            const ccTime = (time as { mul: (n: number) => unknown }).mul(0.6);
+            matNode.clearcoatNode = ((sin as (x: unknown) => { mul: (n: number) => { add: (n: number) => unknown } })(ccTime)).mul(0.1).add(0.25);
           } catch {
-            mat = new THREE.MeshStandardMaterial({
+            mat = new THREE.MeshPhysicalMaterial({
               color: 0xffffff,
-              emissive: new THREE.Color(0x000000),
-              emissiveIntensity: 0,
               roughness: 0.72,
               metalness: 0.05,
               envMapIntensity: 1.4,
+              iridescence: 0.4,
+              iridescenceIOR: 1.4,
+              clearcoat: 0.2,
+              clearcoatRoughness: 0.08,
               side: THREE.FrontSide,
             });
           }
         } else {
-          mat = new THREE.MeshStandardMaterial({
+          mat = new THREE.MeshPhysicalMaterial({
             color: 0xffffff,
-            emissive: new THREE.Color(0x000000),
-            emissiveIntensity: 0,
             roughness: 0.72,
             metalness: 0.05,
             envMapIntensity: 1.4,
+            iridescence: 0.4,
+            iridescenceIOR: 1.4,
+            clearcoat: 0.2,
+            clearcoatRoughness: 0.08,
             side: THREE.FrontSide,
           });
         }

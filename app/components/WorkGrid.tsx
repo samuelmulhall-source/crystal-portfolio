@@ -515,7 +515,7 @@ function WorkTabButtons({
         <button
           key={tab}
           onClick={() => onTabChange(tab)}
-          className="work-tab"
+          className="work-tab holo-btn"
           style={{
             background:   "none",
             border:       "none",
@@ -946,7 +946,9 @@ function WorkGridContent() {
                 const p   = projects.find(p => p.id === activeId);
                 if (p) {
                   router.push(`/?model=${slugFromTitle(p.title)}`);
+                  workModels.activeModelId = p.id;
                   workModels.setExpandedModelId(p.id);
+                  workModels.version++;
                   setViewer({ project: p });
                 }
               }}
