@@ -204,7 +204,10 @@ function ShowcaseModel({
             mapTex.colorSpace = THREE.SRGBColorSpace;
             mat.colorNode = texture(mapTex, uvNode);
           }
-          if (normalTex) mat.normalNode = texture(normalTex, uvNode);
+          if (normalTex) {
+            normalTex.colorSpace = THREE.NoColorSpace; // linear, not sRGB
+            mat.normalNode = texture(normalTex, uvNode);
+          }
           if (roughTex) mat.roughnessNode = texture(roughTex, uvNode);
           if (metalTex) mat.metalnessNode = texture(metalTex, uvNode);
         });
@@ -213,7 +216,7 @@ function ShowcaseModel({
       const apply = (fn: (m: THREE.MeshStandardMaterial) => void) =>
         matRefs.current.forEach(m => { if (m && "map" in m) { fn(m as THREE.MeshStandardMaterial); (m as THREE.MeshStandardMaterial).needsUpdate = true; } });
       if (t.map)          loader.loadAsync(t.map).then(tx => { tx.colorSpace = THREE.SRGBColorSpace; apply(m => { m.map = tx; }); }).catch(() => {});
-      if (t.normalMap)    loader.loadAsync(t.normalMap).then(tx => { apply(m => { m.normalMap = tx; }); }).catch(() => {});
+      if (t.normalMap)    loader.loadAsync(t.normalMap).then(tx => { tx.colorSpace = THREE.NoColorSpace; apply(m => { m.normalMap = tx; m.normalMapType = THREE.TangentSpaceNormalMap; }); }).catch(() => {});
       if (t.roughnessMap) loader.loadAsync(t.roughnessMap).then(tx => { apply(m => { m.roughnessMap = tx; m.roughness = 1; }); }).catch(() => {});
       if (t.metalnessMap) loader.loadAsync(t.metalnessMap).then(tx => { apply(m => { m.metalnessMap = tx; m.metalness = 1; }); }).catch(() => {});
     }
@@ -326,16 +329,16 @@ function ShowcaseScene({
 
   return (
     <>
-      {/* Studio lighting — tuned for visibility on dark void background */}
-      <ambientLight intensity={0.55} color="#c8dff0" />
-      <directionalLight position={[-4, 10,  7]}  intensity={3.0} color="#f0f8ff" />
-      <directionalLight position={[ 5,  3,  5]}  intensity={2.5} color="#daeeff" />
-      <directionalLight position={[ 0,  2, 12]}  intensity={1.8} color="#e8f4ff" />
-      <directionalLight position={[ 0, -4, -10]} intensity={1.1} color="#7ab8e8" />
-      <directionalLight position={[ 0, 12,  2]}  intensity={1.0} color="#e4f4ff" />
-      <pointLight position={[0, 0, 5]} intensity={2.2} color="#a0d4f8" distance={22} />
+      {/* Neutral studio lighting — no blue tint, matches VoidBackground setup */}
+      <ambientLight intensity={0.40} color="#e0e0e0" />
+      <directionalLight position={[-4, 10,  7]}  intensity={2.2} color="#ffffff" />
+      <directionalLight position={[ 5,  3,  5]}  intensity={1.8} color="#f8f8f8" />
+      <directionalLight position={[ 0,  2, 12]}  intensity={1.4} color="#f4f4f4" />
+      <directionalLight position={[ 0, -4, -10]} intensity={0.9} color="#b0c8e0" />
+      <directionalLight position={[ 0, 12,  2]}  intensity={0.8} color="#f0f0f0" />
+      <pointLight position={[0, 0, 5]} intensity={1.5} color="#ffffff" distance={22} />
       <CoreLight />
-      <Environment preset="apartment" environmentIntensity={1.2} />
+      <Environment preset="studio" environmentIntensity={0.7} />
       <AtmosphericParticles />
       <Suspense fallback={<ShowcaseLoading />}>
         <Bounds fit clip margin={fullscreen ? 1.15 : 1.25}>

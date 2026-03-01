@@ -21,104 +21,7 @@
 import { useEffect, useRef } from "react";
 import { voidState } from "../lib/voidState";
 
-// ─── 6 symbol shape functions ───────────────────────────────────────────────
-// Each sets up a canvas path (caller does ctx.stroke() afterward).
-// They're deterministically assigned per star so each star always shows
-// the same variant — giving the illusion of "individual transformation".
-
-// 0 — Ice shard: elongated spear diamond
-function drawIceShard(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, rot: number) {
-  ctx.beginPath();
-  ctx.moveTo(cx + Math.cos(rot)              * r * 1.9,  cy + Math.sin(rot)              * r * 1.9);
-  ctx.lineTo(cx + Math.cos(rot + Math.PI/2)  * r * 0.25, cy + Math.sin(rot + Math.PI/2)  * r * 0.25);
-  ctx.lineTo(cx + Math.cos(rot + Math.PI)    * r * 0.6,  cy + Math.sin(rot + Math.PI)    * r * 0.6);
-  ctx.lineTo(cx + Math.cos(rot - Math.PI/2)  * r * 0.25, cy + Math.sin(rot - Math.PI/2)  * r * 0.25);
-  ctx.closePath();
-}
-
-// 1 — Node: small circle with 4 radial spokes
-function drawNode(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, rot: number) {
-  ctx.beginPath();
-  ctx.arc(cx, cy, r * 0.32, 0, Math.PI * 2); // inner ring
-  for (let i = 0; i < 4; i++) {
-    const a = rot + i * (Math.PI / 2);
-    ctx.moveTo(cx + Math.cos(a) * r * 0.48, cy + Math.sin(a) * r * 0.48);
-    ctx.lineTo(cx + Math.cos(a) * r,         cy + Math.sin(a) * r);
-  }
-}
-
-// 2 — Diamond: classic 4-pointed rhombus
-function drawDiamond(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, rot: number) {
-  ctx.beginPath();
-  ctx.moveTo(cx + Math.cos(rot)             * r,        cy + Math.sin(rot)             * r);
-  ctx.lineTo(cx + Math.cos(rot + Math.PI/2) * r * 0.30, cy + Math.sin(rot + Math.PI/2) * r * 0.30);
-  ctx.lineTo(cx + Math.cos(rot + Math.PI)   * r,        cy + Math.sin(rot + Math.PI)   * r);
-  ctx.lineTo(cx + Math.cos(rot - Math.PI/2) * r * 0.30, cy + Math.sin(rot - Math.PI/2) * r * 0.30);
-  ctx.closePath();
-}
-
-// 3 — Spark: 4-line asterisk with small crossbar ticks
-function drawSpark(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, rot: number) {
-  ctx.beginPath();
-  for (let i = 0; i < 4; i++) {
-    const a  = rot + i * (Math.PI / 2);
-    const tp = a + Math.PI / 2;
-    ctx.moveTo(cx, cy);
-    ctx.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
-    // small crossbar at 60% out
-    ctx.moveTo(cx + Math.cos(a) * r * 0.6 + Math.cos(tp) * r * 0.18,
-               cy + Math.sin(a) * r * 0.6 + Math.sin(tp) * r * 0.18);
-    ctx.lineTo(cx + Math.cos(a) * r * 0.6 - Math.cos(tp) * r * 0.18,
-               cy + Math.sin(a) * r * 0.6 - Math.sin(tp) * r * 0.18);
-  }
-}
-
-// 4 — Triangle crystal: equilateral with inner centroid line
-function drawTriCrystal(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, rot: number) {
-  ctx.beginPath();
-  for (let i = 0; i < 3; i++) {
-    const a = rot - Math.PI / 2 + i * (Math.PI * 2 / 3);
-    if (i === 0) {
-      ctx.moveTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
-    } else {
-      ctx.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
-    }
-  }
-  ctx.closePath();
-  // Inner centroid detail line
-  ctx.moveTo(cx + Math.cos(rot - Math.PI / 2) * r, cy + Math.sin(rot - Math.PI / 2) * r);
-  ctx.lineTo(cx, cy);
-}
-
-// 5 — Hex crystal: 6-pointed star with alternating long/short tips
-function drawHexCrystal(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, rot: number) {
-  ctx.beginPath();
-  for (let i = 0; i < 6; i++) {
-    const a  = rot + (i / 6) * Math.PI * 2;
-    const ri = i % 2 === 0 ? r : r * 0.50;
-    ctx.lineTo(cx + Math.cos(a) * ri, cy + Math.sin(a) * ri);
-  }
-  ctx.closePath();
-}
-
-// Dispatch to the correct shape by variant index
-function drawVariant(
-  ctx: CanvasRenderingContext2D,
-  cx: number, cy: number,
-  r: number, rot: number,
-  variant: number,
-) {
-  switch (variant % 6) {
-    case 0: drawIceShard(ctx, cx, cy, r, rot);  break;
-    case 1: drawNode(ctx, cx, cy, r, rot);      break;
-    case 2: drawDiamond(ctx, cx, cy, r, rot);   break;
-    case 3: drawSpark(ctx, cx, cy, r, rot);     break;
-    case 4: drawTriCrystal(ctx, cx, cy, r, rot);break;
-    case 5: drawHexCrystal(ctx, cx, cy, r, rot);break;
-  }
-}
-
-// Per-slot spring state for bouncy symbol entrance (lives outside React render cycle)
+// Per-slot spring state for smooth hover entrance (lives outside React render cycle)
 const _springs: Array<{ pos: number; vel: number }> =
   Array.from({ length: 14 }, () => ({ pos: 0, vel: 0 }));
 
@@ -190,8 +93,7 @@ export default function EffectsOverlay() {
 
         const { sx, sy, variant } = slot;
         const ease = Math.min(spring.pos, 1.0);
-        // Larger base radius for more visible holographic rings
-        const r   = 12 * ease;
+        const r   = 8 * ease;  // reduced from 12 — cleaner, less overwhelming
         const rot = t * 1.2 + i * 1.05;
 
         ctx!.save();
@@ -206,7 +108,7 @@ export default function EffectsOverlay() {
           const rOuter = r * rMul * 1.30;
           // Each ring shimmers at its own phase — thin-film interference illusion
           const shimmer = 0.55 + 0.45 * Math.sin(t * 2.4 + si * 0.9 + i * 0.5);
-          const a = ease * 0.16 * shimmer;
+          const a = ease * 0.10 * shimmer;  // reduced opacity — subtler rings
           const ring = ctx!.createRadialGradient(sx, sy, rInner, sx, sy, rOuter);
           ring.addColorStop(0.0, `hsla(${hue}, ${sat}%, 72%, 0)`);
           ring.addColorStop(0.4, `hsla(${hue}, ${sat}%, 72%, ${a})`);
@@ -220,12 +122,12 @@ export default function EffectsOverlay() {
 
         // ── Diffractive spikes: sharp radial rays cycling through spectrum ─
         const spikeCount = variant % 2 === 0 ? 6 : 8;
-        const spikeR     = r * 3.5;
+        const spikeR     = r * 3.0;  // slightly shorter spikes
         for (let si = 0; si < spikeCount; si++) {
           const a    = rot + (si / spikeCount) * Math.PI * 2;
           // Each spike has a different spectral hue, cycling with time
           const hue  = (195 + si * (280 / spikeCount) + t * 18) % 360;
-          const sAlpha = ease * (0.45 + 0.25 * Math.sin(t * 3.1 + si * 1.3));
+          const sAlpha = ease * (0.28 + 0.15 * Math.sin(t * 3.1 + si * 1.3));  // reduced
           const sGrad  = ctx!.createLinearGradient(sx, sy, sx + Math.cos(a) * spikeR, sy + Math.sin(a) * spikeR);
           sGrad.addColorStop(0.0, `hsla(${hue}, 100%, 88%, ${sAlpha})`);
           sGrad.addColorStop(0.5, `hsla(${(hue + 30) % 360}, 100%, 78%, ${sAlpha * 0.4})`);
@@ -247,23 +149,6 @@ export default function EffectsOverlay() {
         ctx!.beginPath();
         ctx!.arc(sx, sy, r * 0.85, 0, Math.PI * 2);
         ctx!.fill();
-
-        // ── Spinning crystal shape outline (variant) ─────────────────────
-        // Hue shifts with time for a prismatic sweep effect
-        const shimHue = (200 + Math.sin(t * 1.8 + i * 0.8) * 80 + 360) % 360;
-        ctx!.strokeStyle = `hsla(${shimHue}, 100%, 82%, ${ease * 0.75})`;
-        ctx!.lineWidth   = 0.7;
-        ctx!.shadowColor = `hsla(${shimHue}, 100%, 68%, 0.9)`;
-        ctx!.shadowBlur  = 5 * ease;
-        drawVariant(ctx!, sx, sy, r, rot, variant);
-        ctx!.stroke();
-
-        // Counter-rotating layer (offset hue, larger radius)
-        ctx!.strokeStyle = `hsla(${(shimHue + 60) % 360}, 95%, 74%, ${ease * 0.28})`;
-        ctx!.shadowBlur  = 2 * ease;
-        ctx!.lineWidth   = 0.4;
-        drawVariant(ctx!, sx, sy, r * 1.4, -rot * 0.55 + Math.PI / 6, (variant + 2) % 6);
-        ctx!.stroke();
 
         ctx!.restore();
       }

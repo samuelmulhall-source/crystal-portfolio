@@ -348,6 +348,63 @@ function VideosContent({ visible, isNarrow }: { visible: boolean; isNarrow?: boo
   const active = videos.find(v => v.id === activeId);
   const columnLayout = isNarrow;
 
+  // Video list (shared between desktop-left and mobile-bottom)
+  const videoNav = (
+    <nav style={{
+      flexShrink: 0,
+      width: columnLayout ? "100%" : "clamp(160px, 18vw, 240px)",
+      maxHeight: columnLayout ? "22vh" : "none",
+      overflowY: columnLayout ? "hidden" : "visible",
+      overflowX: columnLayout ? "auto" : "hidden",
+      marginRight: columnLayout ? 0 : "2.5rem",
+      padding: columnLayout ? "0.5rem clamp(1rem, 4vw, 2rem) 0.5rem" : 0,
+      display: "flex",
+      flexDirection: columnLayout ? "row" : "column",
+      gap: columnLayout ? "0.5rem" : "1.4rem",
+      zIndex: 2,
+      flexWrap: "nowrap",
+    }}>
+      {videos.map((v, i) => {
+        const on = v.id === activeId;
+        return (
+          <button
+            key={v.id}
+            onClick={() => {
+              setActiveId(v.id);
+              setTimeout(() => videoRef.current?.play().catch(() => {}), 80);
+            }}
+            style={{
+              background: "none",
+              border: columnLayout ? `1px solid rgba(184,240,255,${on ? 0.3 : 0.12})` : "none",
+              borderLeft: !columnLayout && on ? "1px solid rgba(184,240,255,0.55)" : undefined,
+              borderRadius: columnLayout ? "3px" : undefined,
+              cursor: "pointer",
+              padding: columnLayout ? "0.5rem 0.75rem" : 0,
+              paddingLeft: !columnLayout ? "0.65rem" : undefined,
+              textAlign: "left",
+              flexShrink: 0,
+              display: "flex", flexDirection: "column", gap: "0.2rem",
+            }}
+          >
+            <span style={{ ...MON, fontSize: "0.55rem", letterSpacing: "0.2em", color: on ? "rgba(184,240,255,0.6)" : "rgba(184,240,255,0.4)", transition: "color 0.3s" }}>
+              {String(i + 1).padStart(2, "0")}
+            </span>
+            <span style={{
+              ...MON, fontSize: columnLayout ? "0.72rem" : "0.75rem", letterSpacing: "0.08em",
+              color: on ? "rgba(220,245,255,0.95)" : "rgba(184,240,255,0.55)",
+              transition: "color 0.3s",
+            }}>
+              {v.title}
+            </span>
+          </button>
+        );
+      })}
+      {videos.length === 0 && (
+        <span style={{ ...MON, fontSize: "0.65rem", color: "rgba(184,240,255,0.4)" }}>No videos found</span>
+      )}
+    </nav>
+  );
+
   return (
     <div style={{
       display: "flex",
@@ -357,16 +414,19 @@ function VideosContent({ visible, isNarrow }: { visible: boolean; isNarrow?: boo
       alignItems: "center",
       overflow: "hidden",
     }}>
-      {/* Video player first on mobile so it gets maximum space */}
+      {/* Desktop: video list on the LEFT (matching model selection placement) */}
+      {!columnLayout && videoNav}
+
+      {/* Video player */}
       <div style={{
-        flex: columnLayout ? "1 1 auto" : 1,
+        flex: 1,
         minWidth: 0,
         minHeight: columnLayout ? "min(50vh, 320px)" : 0,
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        padding: columnLayout ? "0 clamp(1rem, 4vw, 2rem)" : "0 2rem 0 1.5rem",
+        padding: columnLayout ? "0 clamp(1rem, 4vw, 2rem)" : "0 1.5rem",
         height: columnLayout ? "auto" : "100%",
         overflow: "hidden",
       }}>
@@ -420,60 +480,20 @@ function VideosContent({ visible, isNarrow }: { visible: boolean; isNarrow?: boo
         )}
       </div>
 
-      {/* Video list: right on desktop, below video on mobile */}
-      <nav style={{
-        flexShrink: 0,
-        width: columnLayout ? "100%" : "clamp(160px, 18vw, 240px)",
-        maxHeight: columnLayout ? "28vh" : "none",
-        overflowY: columnLayout ? "auto" : "visible",
-        overflowX: columnLayout ? "auto" : "visible",
-        marginLeft: columnLayout ? 0 : "2.5rem",
-        marginTop: columnLayout ? "0.5rem" : 0,
-        padding: columnLayout ? "0.5rem clamp(1rem, 4vw, 2rem)" : 0,
-        display: "flex",
-        flexDirection: columnLayout ? "row" : "column",
-        gap: columnLayout ? "0.5rem" : "1.4rem",
-        zIndex: 2,
-      }}>
-        {videos.map((v, i) => {
-          const on = v.id === activeId;
-          return (
-            <button
-              key={v.id}
-              onClick={() => {
-                setActiveId(v.id);
-                setTimeout(() => videoRef.current?.play().catch(() => {}), 80);
-              }}
-              style={{
-                background: "none",
-                border: columnLayout ? `1px solid rgba(184,240,255,${on ? 0.3 : 0.12})` : "none",
-                borderLeft: !columnLayout && on ? "1px solid rgba(184,240,255,0.55)" : undefined,
-                borderRadius: columnLayout ? "3px" : undefined,
-                cursor: "pointer",
-                padding: columnLayout ? "0.5rem 0.75rem" : 0,
-                paddingLeft: !columnLayout ? "0.65rem" : undefined,
-                textAlign: "left",
-                flexShrink: columnLayout ? 0 : undefined,
-                display: "flex", flexDirection: "column", gap: "0.2rem",
-              }}
-            >
-              <span style={{ ...MON, fontSize: "0.55rem", letterSpacing: "0.2em", color: on ? "rgba(184,240,255,0.6)" : "rgba(184,240,255,0.4)", transition: "color 0.3s" }}>
-                {String(i + 1).padStart(2, "0")}
-              </span>
-              <span style={{
-                ...MON, fontSize: columnLayout ? "0.72rem" : "0.75rem", letterSpacing: "0.08em",
-                color: on ? "rgba(220,245,255,0.95)" : "rgba(184,240,255,0.55)",
-                transition: "color 0.3s, border-color 0.3s",
-              }}>
-                {v.title}
-              </span>
-            </button>
-          );
-        })}
-        {videos.length === 0 && (
-          <span style={{ ...MON, fontSize: "0.65rem", color: "rgba(184,240,255,0.4)" }}>No videos found</span>
-        )}
-      </nav>
+      {/* Mobile: video list at BOTTOM (like model chip strip) */}
+      {columnLayout && (
+        <div style={{
+          width: "100%",
+          overflowX: "auto",
+          overflowY: "hidden",
+          flexShrink: 0,
+          borderTop: "1px solid rgba(184,240,255,0.06)",
+          background: "rgba(0,4,16,0.60)",
+          backdropFilter: "blur(10px)",
+        }}>
+          {videoNav}
+        </div>
+      )}
     </div>
   );
 }
@@ -1048,24 +1068,54 @@ function WorkGridContent() {
             DRAG TO ROTATE
           </div>
 
-          {/* ── "Double-click to expand" hint (replaces button) ── */}
+          {/* ── "Double-click to expand" hint — positioned to the right of model ── */}
           {activeId && !loading && (
             <div style={{
               position: "absolute",
-              bottom: isNarrow ? "calc(3.5rem + clamp(1rem, 5vh, 2rem))" : "1.75rem",
-              left: "50%",
-              transform: "translateX(-50%)",
+              top: "50%",
+              // Desktop: offset right of the centered model
+              // Mobile: center-bottom above the chip strip
+              left: isNarrow ? "50%" : "calc(50% + min(20vw, 18rem))",
+              transform: isNarrow
+                ? "translate(-50%, calc(-50% - 5rem))"
+                : "translateY(-50%)",
               zIndex: 2,
               pointerEvents: "none",
-              ...MON,
-              fontSize: "clamp(0.38rem, 1.1vw, 0.46rem)",
-              letterSpacing: "0.30em",
-              color: isHovered ? "rgba(184,240,255,0.42)" : "rgba(184,240,255,0.0)",
-              transition: "color 0.6s ease",
-              whiteSpace: "nowrap",
-              textAlign: "center",
+              opacity: isHovered ? 1 : 0,
+              transition: "opacity 0.7s ease",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: isNarrow ? "center" : "flex-start",
+              gap: "0.3rem",
             }}>
-              {isNarrow ? "DOUBLE TAP TO EXPAND" : "DOUBLE CLICK TO EXPAND"}
+              <span style={{
+                ...MON,
+                fontSize: "clamp(0.38rem, 1.0vw, 0.44rem)",
+                letterSpacing: "0.30em",
+                color: "rgba(184,240,255,0.75)",
+                textShadow: "0 0 14px rgba(184,240,255,0.55), 0 0 40px rgba(120,200,255,0.22)",
+                whiteSpace: "nowrap",
+              }}>
+                {isNarrow ? "DOUBLE TAP" : "DOUBLE CLICK"}
+              </span>
+              <span style={{
+                ...MON,
+                fontSize: "clamp(0.34rem, 0.85vw, 0.38rem)",
+                letterSpacing: "0.26em",
+                color: "rgba(184,240,255,0.42)",
+                textShadow: "0 0 10px rgba(184,240,255,0.28)",
+                whiteSpace: "nowrap",
+              }}>
+                TO EXPAND
+              </span>
+              {!isNarrow && (
+                <div style={{
+                  marginTop: "0.2rem",
+                  width: "clamp(1.5rem, 4vw, 3rem)",
+                  height: "1px",
+                  background: "linear-gradient(to right, rgba(184,240,255,0.40), rgba(184,240,255,0))",
+                }} />
+              )}
             </div>
           )}
         </>
@@ -1099,12 +1149,13 @@ function WorkGridContent() {
         </div>
       )}
 
-      {/* ── Inline fullscreen viewer ── */}
-      {viewer && (
+      {/* ── Fullscreen viewer — via portal so it escapes section stacking/overflow ── */}
+      {viewer && typeof document !== "undefined" && createPortal(
         <FullscreenViewer
           project={viewer.project}
           onClose={() => { router.replace("/"); workModels.setExpandedModelId(null); setViewer(null); }}
-        />
+        />,
+        document.body
       )}
     </section>
   );

@@ -151,64 +151,41 @@ function buildStarGeo(count: number, rMin: number, rMax: number, seed: number) {
   return g;
 }
 
-// ─── Holographic star shader: fresnel edge iridescence + foil shimmer ─────
-// fresnel proxy via gl_PointCoord (rim = edge of sprite); sin(time)+noise for shimmer
+// ─── Star sprite shader: clean round dot — no wide halo, no ray pattern ───
+// Wide halos cause additive-blending bloom/flicker when many stars overlap.
+// Holographic hover effects live in EffectsOverlay (2D canvas) instead.
 function makeHoloStarMat(): THREE.ShaderMaterial {
   return new THREE.ShaderMaterial({
     uniforms: {
-      uTime: { value: 0 },
-      uSize: { value: 0.22 },
+      uSize:    { value: 0.22 },
       uOpacity: { value: 0.84 },
-      uScroll: { value: 0 },
-      uVelBoost: { value: 0 },
     },
     vertexShader: /* glsl */`
       varying vec3 vColor;
-      varying float vSeed;
       uniform float uSize;
       void main() {
         vColor = color;
-        vSeed = fract(sin(dot(position.xy, vec2(127.1, 311.7))) * 43758.5453123);
         vec4 mv = modelViewMatrix * vec4(position, 1.0);
         gl_Position = projectionMatrix * mv;
         gl_PointSize = uSize * (300.0 / -mv.z);
       }
     `,
     fragmentShader: /* glsl */`
-      #define TAU 6.28318530717959
-
-      uniform float uTime;
       uniform float uOpacity;
-      uniform float uScroll;
       varying vec3 vColor;
-      varying float vSeed;
 
       void main() {
         vec2 uv = gl_PointCoord * 2.0 - 1.0;
         float r = length(uv);
         if (r > 1.0) discard;
 
-        float angle = atan(uv.y, uv.x);
-        float phase = uTime * 0.25 + vSeed * TAU;
-
-        // Integer N patterns — guaranteed periodic/closed, no seam artifacts.
-        // 4-fold and 6-fold rotate at slightly different speeds for variety.
-        float rot4 = phase * 0.04;
-        float rot6 = phase * 0.028;
-        float p4 = pow(max(0.0, cos(4.0 * (angle + rot4))), 12.0) * exp(-r * r * 4.5);
-        float p6 = pow(max(0.0, cos(6.0 * (angle + rot6))), 10.0) * exp(-r * r * 3.2);
-        float morphT = sin(phase * 0.18) * 0.5 + 0.5;
-        float rayPat = mix(p4, p6, morphT);
-
-        // Core glow + soft halo
+        // Tight bright core + minimal soft glow.
+        // No wide halo: prevents additive-blending flicker from overlapping stars.
         float core = exp(-r * r * 18.0);
-        float halo = exp(-r * r * 2.8) * (0.22 - uScroll * 0.05);
+        float glow = exp(-r * r * 7.0) * 0.06;
 
-        // Subtle ice-blue tint along rays
-        vec3 iceBlue = vec3(0.72, 0.94, 1.0);
-        vec3 col = vColor * (core + halo) + iceBlue * rayPat * 0.14;
-
-        float a = uOpacity * (core * 0.75 + halo + rayPat * 0.22);
+        vec3 col = vColor * (core + glow);
+        float a   = uOpacity * (core + glow);
         if (a < 0.005) discard;
         gl_FragColor = vec4(col, a);
       }
@@ -246,15 +223,9 @@ function StarLayer({
     const dim  = 1 - voidState.scrollProgress * 0.10;
     // eslint-disable-next-line react-hooks/immutability
     mat.uniforms.uOpacity.value += (base * dim - mat.uniforms.uOpacity.value) * 0.04;
-     
-    mat.uniforms.uTime.value = t;
-     
-    mat.uniforms.uScroll.value = voidState.scrollProgress;
-    const vel = voidState.mouseVel + voidState.scrollVel * 5;
-     
-    mat.uniforms.uVelBoost.value = Math.min(vel * 0.08, 0.60);
-     
-    mat.uniforms.uSize.value = cfg.size * (1 + mat.uniforms.uVelBoost.value);
+    const vel   = voidState.mouseVel + voidState.scrollVel * 5;
+    const boost = Math.min(vel * 0.08, 0.60);
+    mat.uniforms.uSize.value = cfg.size * (1 + boost);
   });
 
   return (
@@ -478,8 +449,8 @@ function StarHoverSystem({
     const W     = typeof window !== "undefined" ? window.innerWidth  : 1920;
     const H     = typeof window !== "undefined" ? window.innerHeight : 1080;
 
-    if (!voidState.isOnPage || workModels.activeModelId !== null) {
-      // Suppress hover when cursor is off-page or a work model is displayed
+    if (!voidState.isOnPage) {
+      // Suppress hover when cursor is off-page
       slots.forEach((s, i) => {
         s.active = false;
         s.ease   = Math.max(s.ease - dt * 5, 0);
@@ -926,45 +897,6 @@ function ShootingStars({
     camR.setFromMatrixColumn(camera.matrixWorld, 0);
     camU.setFromMatrixColumn(camera.matrixWorld, 1);
 
-    // ── Mouse repulsion ────────────────────────────────────────────────────
-    // Stars near the cursor get a gentle push away; the spring already
-    // handles the snap-back. Uses camera axes so the push looks 2D on screen.
-    if (voidState.isOnPage) {
-      const mx    = voidState.mouseNX;
-      const my    = -voidState.mouseNY; // flip Y to match Three.js NDC
-      const MR    = 0.14;               // NDC radius
-      const MR2   = MR * MR;
-      const MPUSH = 0.18;
-
-      for (let li = 0; li < 2; li++) {
-        const pObj = pts[li].current;
-        if (!pObj) continue;
-        const posArr = pObj.geometry.attributes.position.array as Float32Array;
-        const vel    = velBufs[li];
-        const cnt    = layers[li].count;
-
-        for (let i = 0; i < cnt; i++) {
-          tmpV2.set(posArr[i * 3], posArr[i * 3 + 1], posArr[i * 3 + 2]);
-          tmpV2.applyMatrix4(pObj.matrixWorld).project(camera);
-          if (tmpV2.z > 1) continue;
-
-          const ndx = tmpV2.x - mx;
-          const ndy = tmpV2.y - my;
-          const nd2 = ndx * ndx + ndy * ndy;
-          if (nd2 >= MR2 || nd2 < 0.000001) continue;
-
-          const ndDist = Math.sqrt(nd2);
-          const str    = (1 - ndDist / MR) * MPUSH;
-          const nx     = ndx / ndDist;
-          const ny_    = ndy / ndDist;
-
-          vel[i * 3]     += (camR.x * nx + camU.x * ny_) * str;
-          vel[i * 3 + 1] += (camR.y * nx + camU.y * ny_) * str;
-          vel[i * 3 + 2] += (camR.z * nx + camU.z * ny_) * str;
-        }
-      }
-    }
-
     // ── Model star repulsion + colour masking ─────────────────────────────
     // Three complementary techniques clear stars from around each visible model:
     //   1. 3D world-space push  — physical velocity impulse outward from model centre.
@@ -1228,7 +1160,8 @@ function VoidModel({ entry }: { entry: WorkModelEntry }) {
     }).catch(() => {});
 
     if (t.normalMap) loader.loadAsync(t.normalMap).then(tex => {
-      applyAll(m => { m.normalMap = tex; });
+      tex.colorSpace = THREE.NoColorSpace; // normal maps are linear data, not sRGB
+      applyAll(m => { m.normalMap = tex; m.normalMapType = THREE.TangentSpaceNormalMap; });
     }).catch(() => {});
 
     if (t.roughnessMap) loader.loadAsync(t.roughnessMap).then(tex => {
@@ -1432,23 +1365,23 @@ function VoidScene({ isMobile }: { isMobile: boolean }) {
     <VoidContext.Provider value={{ isMobile, layers }}>
     <>
       <color attach="background" args={["#000005"]} />
-      {/* ── Studio lighting for PBR model display — tuned for dark void bg ── */}
-      {/* Global fill — stronger to lift shadows on dark background */}
-      <ambientLight intensity={0.55} color="#c8dff0" />
-      {/* Key light: upper-left, main illumination */}
-      <directionalLight position={[-4, 10, 7]}  intensity={3.0} color="#f0f8ff" />
-      {/* Fill light: opposite side — strong to prevent pure-black shadows */}
-      <directionalLight position={[ 5, 3, 5]}   intensity={2.5} color="#daeeff" />
-      {/* Front fill: ensures model is legible from camera direction */}
-      <directionalLight position={[ 0, 2, 12]}  intensity={1.8} color="#e8f4ff" />
-      {/* Rim/back light: separating edge */}
-      <directionalLight position={[ 0, -4, -10]} intensity={1.1} color="#7ab8e8" />
+      {/* ── Neutral studio lighting for PBR models on dark void background ── */}
+      {/* Global fill — soft neutral to lift shadow areas */}
+      <ambientLight intensity={0.40} color="#e0e0e0" />
+      {/* Key light: upper-left, primary illumination — pure white */}
+      <directionalLight position={[-4, 10, 7]}  intensity={2.2} color="#ffffff" />
+      {/* Fill light: opposite side — near-white, prevent pure-black shadows */}
+      <directionalLight position={[ 5, 3, 5]}   intensity={1.8} color="#f8f8f8" />
+      {/* Front fill: ensures model legible from camera direction */}
+      <directionalLight position={[ 0, 2, 12]}  intensity={1.4} color="#f4f4f4" />
+      {/* Rim/back light: cool edge separation (subtle blue-grey only) */}
+      <directionalLight position={[ 0, -4, -10]} intensity={0.9} color="#b0c8e0" />
       {/* Overhead kicker */}
-      <directionalLight position={[ 0, 12, 2]}   intensity={1.0} color="#e4f4ff" />
+      <directionalLight position={[ 0, 12, 2]}   intensity={0.8} color="#f0f0f0" />
       {/* Close point light at model centre */}
-      <pointLight position={[0, 0, 5]} intensity={2.2} color="#a0d4f8" distance={22} />
-      {/* IBL — apartment preset is brighter for dark scenes */}
-      <Environment preset="apartment" environmentIntensity={1.2} />
+      <pointLight position={[0, 0, 5]} intensity={1.5} color="#ffffff" distance={22} />
+      {/* IBL — studio preset is the most neutral/white for accurate PBR */}
+      <Environment preset="studio" environmentIntensity={0.7} />
 
       <StarLayer li={0} pointsRef={pts0} />
       <StarLayer li={1} pointsRef={pts1} />
@@ -1529,12 +1462,35 @@ export default function VoidBackground() {
       prevST = now;
     };
 
+    // Mobile: track touch position so star hover effects follow the thumb
+    const onTouchStart = (e: TouchEvent) => {
+      const touch = e.touches[0];
+      if (!touch) return;
+      voidState.mouseNX  = (touch.clientX / window.innerWidth)  * 2 - 1;
+      voidState.mouseNY  = (touch.clientY / window.innerHeight) * 2 - 1;
+      voidState.isOnPage = true;
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      const touch = e.touches[0];
+      if (!touch) return;
+      voidState.mouseNX  = (touch.clientX / window.innerWidth)  * 2 - 1;
+      voidState.mouseNY  = (touch.clientY / window.innerHeight) * 2 - 1;
+      voidState.isOnPage = true;
+    };
+    const onTouchEnd = () => { voidState.isOnPage = false; };
+
     document.addEventListener("mousemove",  onMove);
     document.addEventListener("mouseleave", onLeave);
+    document.addEventListener("touchstart", onTouchStart, { passive: true });
+    document.addEventListener("touchmove",  onTouchMove,  { passive: true });
+    document.addEventListener("touchend",   onTouchEnd);
     window.addEventListener("scroll",       onScroll, { passive: true });
     return () => {
       document.removeEventListener("mousemove",  onMove);
       document.removeEventListener("mouseleave", onLeave);
+      document.removeEventListener("touchstart", onTouchStart);
+      document.removeEventListener("touchmove",  onTouchMove);
+      document.removeEventListener("touchend",   onTouchEnd);
       window.removeEventListener("scroll",       onScroll);
     };
   }, [mounted]);
