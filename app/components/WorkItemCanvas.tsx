@@ -131,7 +131,7 @@ function ShowcaseModel({
             const matNode = mat as { roughnessNode?: unknown; metalnessNode?: unknown; emissiveNode?: unknown; colorNode?: unknown };
             matNode.roughnessNode = (float as (x: number) => unknown)(0.72);
             matNode.metalnessNode = (float as (x: number) => unknown)(0.05);
-            const timeNode = (time as { mul: (n: number) => unknown }).mul(0.65);
+            const timeNode = (time as { mul: (n: number) => unknown }).mul(2);
             const pulse = ((sin as (x: unknown) => { mul: (n: number) => { add: (n: number) => unknown } })(timeNode)).mul(0.5).add(0.5);
             matNode.emissiveNode = ((vec3 as (a: number, b?: number, c?: number) => { mul: (x: unknown) => unknown })(0.05, 0.07, 0.1)).mul(pulse);
             matNode.colorNode = (vec3 as (a: number, b?: number, c?: number) => unknown)(1, 1, 1);
@@ -409,9 +409,10 @@ export default function WorkItemCanvas({
 
   const camPos: [number, number, number] = fullscreen ? [0, 0, 10] : [0, 0.1, 11.0];
   const camFov = fullscreen ? 44 : 36;
-  // Use WebGL for expanded view so we never hit WebGPURenderer + MeshStandardMaterial or TSL API issues
-  const useWebGPU = !fullscreen && webgpuModule && typeof webgpuModule.WebGPURenderer === "function";
+  // WebGPU where supported (preview + fullscreen), fallback to WebGL on failure or unsupported.
+  const useWebGPU = !!webgpuModule && typeof webgpuModule.WebGPURenderer === "function";
 
+  // Future: TSL post-processing (bloom, vignette) can be added via the WebGPU renderer's node-based post stack.
   const glProp = useWebGPU
     ? async (defaultProps: { canvas: HTMLCanvasElement | OffscreenCanvas; antialias?: boolean; alpha?: boolean }) => {
         const r = new webgpuModule!.WebGPURenderer(defaultProps as { canvas: HTMLCanvasElement; antialias?: boolean; alpha?: boolean });
