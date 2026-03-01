@@ -20,7 +20,7 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Environment, useFBX, OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 import { voidState } from "../lib/voidState";
-import { workModels, WorkModelEntry } from "../lib/workModels";
+import { workModels, WorkModelEntry, subscribeExpanded } from "../lib/workModels";
 
 type LayerConfig = readonly { count: number; rMin: number; rMax: number; rotSpd: number; size: number; seed: number }[];
 
@@ -323,9 +323,20 @@ function VoidCamera() {
   const cp  = useRef(new THREE.Vector3(0, 0, 12));
   const lt  = useRef(new THREE.Vector3(0, 0, 0));
   const lt2 = useMemo(() => new THREE.Vector3(), []);
+  const wasExpandedRef = useRef(false);
 
   useFrame((s, dt) => {
-    if (workModels.expandedModelId) return; // OrbitControls takes over
+    const expanded = workModels.expandedModelId;
+    if (expanded) {
+      wasExpandedRef.current = true;
+      return; // OrbitControls takes over
+    }
+    // Handoff: sync refs from OrbitControls when viewer closes so we don't snap
+    if (wasExpandedRef.current) {
+      cp.current.copy(camera.position);
+      lt.current.copy(camera.position).add(camera.getWorldDirection(lt2).multiplyScalar(10));
+      wasExpandedRef.current = false;
+    }
     const t  = s.clock.elapsedTime;
     const dx = Math.sin(t * 0.038) * 0.55;
     const dy = Math.cos(t * 0.028) * 0.32;
@@ -1196,7 +1207,9 @@ function VoidModel({ entry, idx }: { entry: WorkModelEntry; idx: number }) {
   useEffect(() => {
     if (scaleGroupRef.current) scaleGroupRef.current.scale.setScalar(0.001);
     if (posGroupRef.current) posGroupRef.current.position.set(worldX, getWorldY(), worldZ - 9);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Intentionally run once on mount — getWorldY() reads voidState.scrollProgress,
+    // which we don't want in deps (would re-run on every scroll).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── Mouse-localised wireframe edges added imperatively into each mesh ───────
@@ -1373,9 +1386,9 @@ function WorkModelsInScene() {
 
 // ─── Scene ─────────────────────────────────────────────────────────────────
 function VoidScene({ isMobile }: { isMobile: boolean }) {
-  const pts0 = useRef<THREE.Points>(null);
-  const pts1 = useRef<THREE.Points>(null);
-  const pts2 = useRef<THREE.Points>(null);
+  const pts0 = useRef<THREE.Points | null>(null);
+  const pts1 = useRef<THREE.Points | null>(null);
+  const pts2 = useRef<THREE.Points | null>(null);
 
   const layers = isMobile ? LAYERS_MOBILE : LAYERS_DESKTOP;
   return (
@@ -1486,12 +1499,11 @@ export default function VoidBackground() {
     };
   }, [mounted]);
 
-  // Sync expanded state so we can raise z-index for OrbitControls pointer events
+  // Sync expanded state — subscribe to workModels changes (no setInterval polling)
   useEffect(() => {
-    const id = setInterval(() => {
-      setExpanded(!!workModels.expandedModelId);
-    }, 100);
-    return () => clearInterval(id);
+    const unsub = subscribeExpanded(() => setExpanded(!!workModels.expandedModelId));
+    setExpanded(!!workModels.expandedModelId); // initial
+    return () => { unsub(); };
   }, []);
 
   const onCanvasCreated = useCallback((state: { gl: THREE.WebGLRenderer & { domElement?: HTMLCanvasElement } }) => {

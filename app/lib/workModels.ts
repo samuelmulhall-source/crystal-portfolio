@@ -4,7 +4,29 @@
  * WorkGrid writes model paths + per-item scroll progress and hover state.
  * VoidBackground reads these in useFrame and renders FBXs inside the void scene.
  * No React re-renders required for hover — reads happen in useFrame.
+ *
+ * Event emission: expandedModelId and pendingTab changes emit events so React
+ * components can subscribe instead of polling with setInterval.
  */
+
+type WorkModelsListener = () => void;
+const expandedListeners = new Set<WorkModelsListener>();
+const pendingTabListeners = new Set<WorkModelsListener>();
+
+export function subscribeExpanded(fn: WorkModelsListener) {
+  expandedListeners.add(fn);
+  return () => expandedListeners.delete(fn);
+}
+export function subscribePendingTab(fn: WorkModelsListener) {
+  pendingTabListeners.add(fn);
+  return () => pendingTabListeners.delete(fn);
+}
+function emitExpanded() {
+  expandedListeners.forEach((fn) => fn());
+}
+function emitPendingTab() {
+  pendingTabListeners.forEach((fn) => fn());
+}
 
 /** PBR texture map — keys match Three.js MeshStandardMaterial property names. */
 export interface TextureSet {
@@ -54,4 +76,25 @@ export const workModels = {
   pendingTab: null as 'models' | 'videos' | 'images' | null,
   /** When set, expanded view reuses VoidBackground — no new canvas/model. */
   expandedModelId: null as string | null,
+
+  /** Set expandedModelId and notify subscribers (avoids setInterval polling). */
+  setExpandedModelId(id: string | null) {
+    if (this.expandedModelId === id) return;
+    this.expandedModelId = id;
+    emitExpanded();
+  },
+  /** Set pendingTab and notify subscribers. */
+  setPendingTab(tab: 'models' | 'videos' | 'images' | null) {
+    if (this.pendingTab === tab) return;
+    this.pendingTab = tab;
+    emitPendingTab();
+  },
+  /** Reset state on unmount/hot-reload to avoid stale accumulation. */
+  reset() {
+    this.entries = [];
+    this.version = 0;
+    this.activeModelId = null;
+    this.pendingTab = null;
+    this.expandedModelId = null;
+  },
 };

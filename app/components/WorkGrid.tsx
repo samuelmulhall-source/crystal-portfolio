@@ -13,7 +13,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { workModels, TextureSet } from "../lib/workModels";
+import { workModels, TextureSet, subscribePendingTab } from "../lib/workModels";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 type WorkTab = 'models' | 'videos' | 'images';
@@ -160,7 +160,7 @@ function FullscreenViewer({
         flexWrap: "wrap",
         gap: "0.5rem",
       }}>
-        {["FBX", "WebGL", "React Three Fiber", "WebGPU"].map((tag) => (
+        {["FBX", "WebGL", "React Three Fiber"].map((tag) => (
           <span
             key={tag}
             style={{
@@ -205,11 +205,11 @@ function FullscreenViewer({
   );
 
   return (
-    <div ref={overlayRef} style={{ position: "fixed", inset: 0, zIndex: 100, opacity: 0, pointerEvents: "auto" }}>
-      <div style={{ display: "flex", flexDirection: mobile ? "column" : "row", width: "100%", height: "100%", overflow: "hidden" }}>
-        {/* Left: transparent, pointer-events none — VoidBackground (reused) receives orbit controls */}
-        <div ref={canvasWrapRef} style={{ flex: mobile ? "none" : 1, height: mobile ? "55vh" : "100%", minHeight: 0, position: "relative", background: "transparent", pointerEvents: "none" }} />
-        <div style={{ flex: mobile ? "1 1 auto" : "0 0 380px", overflowY: "auto", position: mobile ? "relative" : "sticky", top: 0, alignSelf: "stretch", background: "rgba(0,5,18,0.96)", borderLeft: mobile ? "none" : "1px solid rgba(184,240,255,0.06)", borderTop: mobile ? "1px solid rgba(184,240,255,0.06)" : "none" }}>
+    <div ref={overlayRef} style={{ position: "fixed", inset: 0, zIndex: 100, opacity: 0, pointerEvents: "none" }}>
+      <div style={{ display: "flex", flexDirection: mobile ? "column" : "row", width: "100%", height: "100%", overflow: "hidden", pointerEvents: "none" }}>
+        {/* Left: canvas area — pointer-events none so VoidBackground/OrbitControls receive drag/zoom */}
+        <div ref={canvasWrapRef} style={{ flex: mobile ? "none" : 1, height: mobile ? "55vh" : "100%", minHeight: 0, position: "relative", background: "transparent" }} />
+        <div style={{ flex: mobile ? "1 1 auto" : "0 0 380px", overflowY: "auto", position: mobile ? "relative" : "sticky", top: 0, alignSelf: "stretch", background: "rgba(0,5,18,0.96)", borderLeft: mobile ? "none" : "1px solid rgba(184,240,255,0.06)", borderTop: mobile ? "1px solid rgba(184,240,255,0.06)" : "none", pointerEvents: "auto" }}>
           {infoPanel}
         </div>
       </div>
@@ -221,6 +221,7 @@ function FullscreenViewer({
           top: "1.25rem",
           right: "clamp(1rem, 4vw, 1.75rem)",
           zIndex: 102,
+          pointerEvents: "auto",
           background: "transparent",
           border: "none",
           color: "rgba(184,240,255,0.55)",
@@ -555,7 +556,7 @@ function WorkGridContent() {
     setActiveTab("models");
     setActiveId(project.id);
     workModels.activeModelId = project.id;
-    workModels.expandedModelId = project.id;
+    workModels.setExpandedModelId(project.id);
     workModels.version++;
     document.getElementById("work")?.scrollIntoView({ behavior: "smooth" });
   }, [searchParams, projects]);
@@ -574,23 +575,22 @@ function WorkGridContent() {
     const onPopState = () => {
       if (!new URLSearchParams(window.location.search).has("model")) {
         setViewer(null);
-        workModels.expandedModelId = null;
+        workModels.setExpandedModelId(null);
       }
     };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
   }, []);
 
-  // ── Read pendingTab from nav ──────────────────────────────────────────────
+  // ── Read pendingTab from nav (subscribe, no setInterval polling) ───────────
   useEffect(() => {
-    const check = () => {
+    const unsub = subscribePendingTab(() => {
       if (workModels.pendingTab) {
-        setActiveTab(workModels.pendingTab);
-        workModels.pendingTab = null;
+        setActiveTab(workModels.pendingTab!);
+        workModels.setPendingTab(null);
       }
-    };
-    const id = setInterval(check, 80);
-    return () => clearInterval(id);
+    });
+    return () => { unsub(); };
   }, []);
 
   // ── When tab changes away from models, immediately hide the 3D model ──────
@@ -666,17 +666,18 @@ function WorkGridContent() {
     const THRESHOLDS = Array.from({ length: 21 }, (_, i) => i / 20);
     const observer = new IntersectionObserver(([entry]) => {
       workModels.sectionRatio = entry.intersectionRatio;
-      // Only show model when section nearly fills the viewport (≥ 80%)
-      // so the model appears centred rather than floating in a partial section.
-      if (entry.isIntersecting && entry.intersectionRatio >= 0.78 && activeTab === 'models') {
+      // Hysteresis: activate when ≥25% visible, deactivate when <15%.
+      // 0.78 was unreachable on screens with nav/chrome reducing viewport height.
+      const ACTIVE_THRESH = 0.25;
+      const DEACTIVE_THRESH = 0.15;
+      if (entry.isIntersecting && entry.intersectionRatio >= ACTIVE_THRESH && activeTab === 'models') {
         const firstId = workModels.entries[0]?.id ?? null;
         if (firstId && !workModels.activeModelId) {
           workModels.activeModelId = firstId;
           setActiveId(firstId);
           workModels.version++;
         }
-      } else if (entry.intersectionRatio < 0.55) {
-        // Deactivate promptly when section is scrolling away
+      } else if (entry.intersectionRatio < DEACTIVE_THRESH) {
         workModels.activeModelId = null;
         workModels.version++;
       }
@@ -687,8 +688,9 @@ function WorkGridContent() {
       observer.disconnect();
       workModels.entries = workModels.entries.filter(e => !projects.find(p => p.id === e.id));
       workModels.activeModelId = null;
-      workModels.version++;
+      workModels.version = 0; // Reset to avoid stale skips in WorkModelsInScene on remount
     };
+    // projects only — viewer/searchParams omitted so closing viewer doesn't re-run
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projects]);
 
@@ -983,7 +985,7 @@ function WorkGridContent() {
                 const p   = projects.find(p => p.id === activeId);
                 if (p) {
                   router.push(`/?model=${slugFromTitle(p.title)}`);
-                  workModels.expandedModelId = p.id;
+                  workModels.setExpandedModelId(p.id);
                   setViewer({ project: p });
                 }
               }}
@@ -1051,7 +1053,7 @@ function WorkGridContent() {
       {viewer && (
         <FullscreenViewer
           project={viewer.project}
-          onClose={() => { router.replace("/"); workModels.expandedModelId = null; setViewer(null); }}
+          onClose={() => { router.replace("/"); workModels.setExpandedModelId(null); setViewer(null); }}
         />
       )}
     </section>

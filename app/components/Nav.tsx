@@ -184,7 +184,7 @@ export default function Nav() {
               <li key={tab}>
                 <a
                   href="#work"
-                  onClick={(e) => { workModels.pendingTab = tab; scrollTo(e, "#work"); setWorkOpen(false); }}
+                  onClick={(e) => { workModels.setPendingTab(tab); scrollTo(e, "#work"); setWorkOpen(false); }}
                   style={{
                     display:       "block",
                     padding:       "12px 18px",
