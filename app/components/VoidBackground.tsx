@@ -175,7 +175,6 @@ function makeHoloStarMat(): THREE.ShaderMaterial {
       }
     `,
     fragmentShader: /* glsl */`
-      #define PI  3.14159265358979
       #define TAU 6.28318530717959
 
       uniform float uTime;
@@ -192,33 +191,22 @@ function makeHoloStarMat(): THREE.ShaderMaterial {
         float angle = atan(uv.y, uv.x);
         float phase = uTime * 0.25 + vSeed * TAU;
 
-        // Pattern A: 4-fold diffraction cross
-        float foldA = mod(angle + PI, TAU / 4.0) - PI / 4.0;
-        float spikes4 = pow(max(0.0, cos(foldA * 4.0)), 14.0);
-        float patA = spikes4 * exp(-r * r * 5.0);
-
-        // Pattern B: 6-fold star (slow per-star rotation)
-        float rotB = phase * 0.04;
-        float foldB = mod(angle + rotB, TAU / 6.0) - PI / 6.0;
-        float spikes6 = pow(max(0.0, cos(foldB * 6.0)), 10.0);
-        float patB = spikes6 * exp(-r * r * 3.5);
-
-        // Morph A↔B per star
+        // Integer N patterns — guaranteed periodic/closed, no seam artifacts.
+        // 4-fold and 6-fold rotate at slightly different speeds for variety.
+        float rot4 = phase * 0.04;
+        float rot6 = phase * 0.028;
+        float p4 = pow(max(0.0, cos(4.0 * (angle + rot4))), 12.0) * exp(-r * r * 4.5);
+        float p6 = pow(max(0.0, cos(6.0 * (angle + rot6))), 10.0) * exp(-r * r * 3.2);
         float morphT = sin(phase * 0.18) * 0.5 + 0.5;
-        float rayPat = mix(patA, patB, morphT);
+        float rayPat = mix(p4, p6, morphT);
 
         // Core glow + soft halo
         float core = exp(-r * r * 18.0);
         float halo = exp(-r * r * 2.8) * (0.22 - uScroll * 0.05);
 
-        // Chromatic aberration: R/G/B rings at different radii along rays
-        float rRing = exp(-pow(r - 0.38, 2.0) * 18.0) * rayPat * 0.45;
-        float gRing = exp(-pow(r - 0.22, 2.0) * 22.0) * rayPat * 0.18;
-        float bRing = exp(-pow(r - 0.12, 2.0) * 28.0) * rayPat * 0.35;
-
-        vec3 base   = vColor;
-        vec3 chroma = vec3(rRing, gRing, bRing) * vec3(1.1, 0.7, 1.6);
-        vec3 col    = base * (core + halo) + chroma + vec3(0.04, 0.07, 0.14) * rayPat;
+        // Subtle ice-blue tint along rays
+        vec3 iceBlue = vec3(0.72, 0.94, 1.0);
+        vec3 col = vColor * (core + halo) + iceBlue * rayPat * 0.14;
 
         float a = uOpacity * (core * 0.75 + halo + rayPat * 0.22);
         if (a < 0.005) discard;
@@ -406,8 +394,8 @@ function ExpandedOrbitControls() {
     const expanded = workModels.expandedModelId;
     if (expanded && prevExpandedRef.current !== expanded) {
       prevExpandedRef.current = expanded;
-      camera.position.set(0, 0, 8);
-      camera.lookAt(0, 0, 0);
+      camera.position.set(0, 0, 10);
+      camera.lookAt(0, 0, 2);
       setHasInteracted(false);
     } else if (!expanded) {
       prevExpandedRef.current = null;
@@ -435,7 +423,7 @@ function ExpandedOrbitControls() {
       enableDamping
       minDistance={0.5}
       maxDistance={40}
-      target={[0, 0, 0]}
+      target={[0, 0, 2]}
     />
   );
 }
@@ -490,7 +478,8 @@ function StarHoverSystem({
     const W     = typeof window !== "undefined" ? window.innerWidth  : 1920;
     const H     = typeof window !== "undefined" ? window.innerHeight : 1080;
 
-    if (!voidState.isOnPage) {
+    if (!voidState.isOnPage || workModels.activeModelId !== null) {
+      // Suppress hover when cursor is off-page or a work model is displayed
       slots.forEach((s, i) => {
         s.active = false;
         s.ease   = Math.max(s.ease - dt * 5, 0);
@@ -1160,6 +1149,9 @@ function VoidModel({ entry }: { entry: WorkModelEntry }) {
   const hoveredRef    = useRef(false);
   const opacityRef    = useRef(0);
   const entranceRef   = useRef(0); // 0→1 entrance progress
+  // Locked Y: captured when work section is in view so model stays anchored
+  // to the work section's viewport position rather than drifting with global scroll.
+  const lockedWorkY   = useRef<number | null>(null);
 
   // ── Replace FBX materials + compute normScale ──────────────────────────────
   // FBXLoader applies a cm→m scale correction to the root group (scale 0.01).
@@ -1186,16 +1178,15 @@ function VoidModel({ entry }: { entry: WorkModelEntry }) {
           color:              0xffffff,
           emissive:           new THREE.Color(0x000000),
           emissiveIntensity:  0,
-          roughness:          0.72,
-          metalness:          0.05,
+          roughness:          0.65,
+          metalness:          0.08,
           transparent:        true,
           opacity:            0,
           depthWrite:         true,
-          envMapIntensity:    1.2,
-          iridescence:        0.35,
-          iridescenceIOR:     1.4,
-          clearcoat:          0.15,
-          clearcoatRoughness: 0.1,
+          envMapIntensity:    2.4,
+          iridescence:        0,
+          clearcoat:          0.18,
+          clearcoatRoughness: 0.08,
           side:               THREE.FrontSide,
         });
         mesh.material = mat;
@@ -1256,7 +1247,14 @@ function VoidModel({ entry }: { entry: WorkModelEntry }) {
   // worldY tracks the camera's lookat Y so the model stays screen-centred while
   // scrolling.  Derivation: camera is at (0, -sp*10, 12), lookat at (0, -sp*7, 0),
   // the view-ray passes through z=worldZ at Y = -sp * 7.5.
-  const getWorldY = () => -voidState.scrollProgress * 7.5;
+  // We lock this value when the work section is visible so the model is anchored
+  // to the work section's viewport position rather than floating at screen center
+  // when the user scrolls past the section.
+  const getWorldY = () => {
+    const dynamic = -voidState.scrollProgress * 7.5;
+    if (workModels.sectionRatio > 0.20) lockedWorkY.current = dynamic;
+    return lockedWorkY.current ?? dynamic;
+  };
 
   useEffect(() => {
     if (scaleGroupRef.current) scaleGroupRef.current.scale.setScalar(0.001);
@@ -1357,31 +1355,10 @@ function VoidModel({ entry }: { entry: WorkModelEntry }) {
       rotGroupRef.current.rotation.y = e.rotY + entranceSpin;
     }
 
-    // ── Emissive pulse (subtle — textures provide the colour, this adds rim glow) ──
-    const mat0 = allMats.current[0];
-    if (mat0) {
-      // Set the emissive colour to a very subtle ice-blue only when we have it
-      if (mat0.emissive.r === 0 && mat0.emissive.g === 0 && mat0.emissive.b === 0) {
-        mat0.emissive.set(0x223344);
-      }
-      const baseEI = e.hovered ? 0.10 : 0.02;
-      mat0.emissiveIntensity +=
-        (baseEI + 0.02 * Math.sin(s.clock.elapsedTime * 0.65) - mat0.emissiveIntensity) * 0.04;
-      if (allMats.current.length > 1) {
-        allMats.current.slice(1).forEach((m) => {
-          if (m) m.emissiveIntensity = mat0.emissiveIntensity;
-        });
-      }
-    }
-
-    // ── Mouse-localised wireframe: update NDC uniform + opacity ──────────
-    const wireTarget = e.hovered ? op * 0.90 : 0;
+    // ── Wireframe: keep hidden ────────────────────────────────────────────
     wireMatRefs.current.forEach((m) => {
       if (!m) return;
-      // voidState.mouseNX is +right, mouseNY is +down (DOM space).
-      // WebGL NDC Y is +up, so negate.
-      m.uniforms.uMouseNDC.value.set(voidState.mouseNX, -voidState.mouseNY);
-      m.uniforms.uOpacity.value += (wireTarget - m.uniforms.uOpacity.value) * 0.12;
+      m.uniforms.uOpacity.value += (0 - m.uniforms.uOpacity.value) * 0.12;
     });
   });
 
@@ -1455,21 +1432,23 @@ function VoidScene({ isMobile }: { isMobile: boolean }) {
     <VoidContext.Provider value={{ isMobile, layers }}>
     <>
       <color attach="background" args={["#000005"]} />
-      {/* ── Studio three-point lighting for PBR model display ── */}
-      {/* Global fill — lifts shadows without flattening */}
-      <ambientLight intensity={0.32} color="#c0d8ee" />
-      {/* Key light: upper-left, main illumination — kept moderate to avoid blown highlights */}
-      <directionalLight position={[-4, 10, 7]}  intensity={2.2} color="#f0f8ff" />
-      {/* Fill light: opposite side — brightened to reduce harsh shadow side */}
-      <directionalLight position={[ 5, 3, 5]}   intensity={1.8} color="#d8eeff" />
-      {/* Rim/back light: separating edge — softened */}
-      <directionalLight position={[ 0, -4, -10]} intensity={0.9} color="#7ab8e8" />
-      {/* Overhead kicker — subtle top highlight */}
-      <directionalLight position={[ 0, 12, 2]}   intensity={0.8} color="#e4f4ff" />
+      {/* ── Studio lighting for PBR model display — tuned for dark void bg ── */}
+      {/* Global fill — stronger to lift shadows on dark background */}
+      <ambientLight intensity={0.55} color="#c8dff0" />
+      {/* Key light: upper-left, main illumination */}
+      <directionalLight position={[-4, 10, 7]}  intensity={3.0} color="#f0f8ff" />
+      {/* Fill light: opposite side — strong to prevent pure-black shadows */}
+      <directionalLight position={[ 5, 3, 5]}   intensity={2.5} color="#daeeff" />
+      {/* Front fill: ensures model is legible from camera direction */}
+      <directionalLight position={[ 0, 2, 12]}  intensity={1.8} color="#e8f4ff" />
+      {/* Rim/back light: separating edge */}
+      <directionalLight position={[ 0, -4, -10]} intensity={1.1} color="#7ab8e8" />
+      {/* Overhead kicker */}
+      <directionalLight position={[ 0, 12, 2]}   intensity={1.0} color="#e4f4ff" />
       {/* Close point light at model centre */}
-      <pointLight position={[0, 0, 5]} intensity={1.4} color="#a0d0f0" distance={18} />
-      {/* IBL — reduced to prevent over-glossy reflections */}
-      <Environment preset="studio" environmentIntensity={0.85} />
+      <pointLight position={[0, 0, 5]} intensity={2.2} color="#a0d4f8" distance={22} />
+      {/* IBL — apartment preset is brighter for dark scenes */}
+      <Environment preset="apartment" environmentIntensity={1.2} />
 
       <StarLayer li={0} pointsRef={pts0} />
       <StarLayer li={1} pointsRef={pts1} />

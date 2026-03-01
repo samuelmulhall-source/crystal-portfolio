@@ -108,95 +108,171 @@ function FullscreenViewer({
     return () => mq.removeEventListener("change", on);
   }, []);
 
+  const SPECS = [
+    ["Format",    "FBX / GLB"],
+    ["Engine",    "WebGL · WebGPU"],
+    ["Materials", "MeshPhysicalMaterial"],
+    ["Textures",  "PBR · 4K Maps"],
+    ["Pipeline",  "Blender → Three.js"],
+  ];
+  const TAGS = ["Blender", "PBR", "Real-time", "WebGL", project.category];
+
   const infoPanel = (
     <div style={{
-      padding: mobile ? "1.5rem 1.25rem 2rem" : "clamp(32px, 3.5vw, 48px)",
+      padding: mobile ? "1.75rem 1.25rem 2rem" : "clamp(36px, 4vw, 56px)",
       display: "flex",
       flexDirection: "column",
-      gap: "clamp(1.5rem, 2.5vw, 2.25rem)",
-      background: "rgba(0,5,18,0.94)",
-      borderLeft: mobile ? "none" : "1px solid rgba(184,240,255,0.06)",
-      borderTop: mobile ? "1px solid rgba(184,240,255,0.06)" : "none",
+      height: "100%",
+      overflowY: "auto",
+      overflowX: "hidden",
+      background: "rgba(0,4,16,0.97)",
+      borderLeft: mobile ? "none" : "1px solid rgba(184,240,255,0.055)",
+      borderTop: mobile ? "1px solid rgba(184,240,255,0.055)" : "none",
     }}>
-      <div>
-        <p style={{
-          ...MON,
-          fontSize: "0.5rem",
-          letterSpacing: "0.32em",
-          color: "rgba(184,240,255,0.42)",
-          marginBottom: "0.5rem",
-        }}>
-          {project.category} · {project.year}
-        </p>
-        <h2 style={{
-          fontFamily: "var(--font-geist-sans), sans-serif",
-          fontSize: mobile ? "1.8rem" : "2.5rem",
-          fontWeight: 600,
-          letterSpacing: "-0.02em",
-          color: "var(--text-primary)",
-          margin: 0,
-          lineHeight: 1.15,
-        }}>
-          {project.title}
-        </h2>
-      </div>
+
+      {/* ── Category + year ── */}
       <p style={{
-        color: "var(--text-secondary)",
-        fontSize: "0.9375rem",
-        lineHeight: 1.82,
-        margin: 0,
-        maxWidth: "28ch",
+        ...MON, fontSize: "0.44rem", letterSpacing: "0.38em",
+        color: "rgba(184,240,255,0.35)", marginBottom: "0.8rem", marginTop: 0,
       }}>
-        PBR real-time asset. Drag to orbit, scroll to zoom.
+        {project.category} — {project.year}
       </p>
-      <div style={{
-        ...MON,
-        fontSize: "0.5rem",
-        letterSpacing: "0.2em",
-        color: "rgba(184,240,255,0.45)",
-        display: "flex",
-        flexWrap: "wrap",
-        gap: "0.5rem",
-      }}>
-        {["FBX", "WebGL", "React Three Fiber"].map((tag) => (
+
+      {/* ── Title with soft glow + hover shift ── */}
+      <h2
+        style={{
+          fontFamily: "var(--font-geist-sans), sans-serif",
+          fontSize: mobile ? "2rem" : "clamp(1.9rem, 3.2vw, 2.6rem)",
+          fontWeight: 600,
+          letterSpacing: "-0.025em",
+          color: "#dff0ff",
+          margin: "0 0 clamp(1.5rem, 2.5vw, 2rem)",
+          lineHeight: 1.1,
+          textShadow: "0 0 50px rgba(184,240,255,0.16), 0 0 100px rgba(120,200,255,0.07)",
+          transition: "transform 0.45s cubic-bezier(0.22,1,0.36,1), text-shadow 0.45s ease",
+          cursor: "default",
+        }}
+        onMouseEnter={(e) => {
+          const el = e.currentTarget as HTMLHeadingElement;
+          el.style.transform    = "translateY(-3px)";
+          el.style.textShadow   = "0 0 50px rgba(184,240,255,0.32), 0 0 120px rgba(120,200,255,0.14)";
+        }}
+        onMouseLeave={(e) => {
+          const el = e.currentTarget as HTMLHeadingElement;
+          el.style.transform    = "";
+          el.style.textShadow   = "0 0 50px rgba(184,240,255,0.16), 0 0 100px rgba(120,200,255,0.07)";
+        }}
+      >
+        {project.title}
+      </h2>
+
+      {/* ── Divider ── */}
+      <div style={{ height: "1px", background: "rgba(184,240,255,0.06)", marginBottom: "clamp(1.25rem,2vw,1.75rem)" }} />
+
+      {/* ── Description ── */}
+      <p style={{ ...MON, fontSize: "0.42rem", letterSpacing: "0.22em", color: "rgba(184,240,255,0.32)", marginBottom: "0.7rem", marginTop: 0 }}>
+        ABOUT
+      </p>
+      <p
+        style={{
+          fontFamily: "var(--font-geist-sans), sans-serif",
+          fontSize: "0.92rem", lineHeight: 1.85,
+          color: "rgba(200,232,255,0.62)", margin: "0 0 clamp(1.5rem,2.5vw,2rem)",
+          transition: "color 0.4s ease",
+          cursor: "default",
+        }}
+        onMouseEnter={(e) => { (e.currentTarget as HTMLParagraphElement).style.color = "rgba(210,240,255,0.80)"; }}
+        onMouseLeave={(e) => { (e.currentTarget as HTMLParagraphElement).style.color = "rgba(200,232,255,0.62)"; }}
+      >
+        Real-time PBR asset crafted in Blender with a full physically-based rendering pipeline — hand-authored textures, precision edge loops, and production-ready UV unwrap optimised for WebGL and WebGPU.
+      </p>
+
+      {/* ── Technical specifications ── */}
+      <p style={{ ...MON, fontSize: "0.42rem", letterSpacing: "0.22em", color: "rgba(184,240,255,0.32)", marginBottom: "0.9rem", marginTop: 0 }}>
+        SPECIFICATIONS
+      </p>
+      <div style={{ display: "flex", flexDirection: "column", gap: "0.55rem", marginBottom: "clamp(1.5rem,2.5vw,2rem)" }}>
+        {SPECS.map(([label, value]) => (
+          <div
+            key={label}
+            style={{
+              display: "flex", justifyContent: "space-between", alignItems: "baseline",
+              padding: "0.4rem 0",
+              borderBottom: "1px solid rgba(184,240,255,0.04)",
+              transition: "border-color 0.3s ease",
+              cursor: "default",
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(184,240,255,0.12)"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(184,240,255,0.04)"; }}
+          >
+            <span style={{ ...MON, fontSize: "0.44rem", letterSpacing: "0.16em", color: "rgba(184,240,255,0.32)" }}>{label}</span>
+            <span
+              style={{ ...MON, fontSize: "0.46rem", letterSpacing: "0.12em", color: "rgba(184,240,255,0.60)", transition: "color 0.3s ease" }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLSpanElement).style.color = "rgba(184,240,255,0.88)"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLSpanElement).style.color = "rgba(184,240,255,0.60)"; }}
+            >
+              {value}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Tags ── */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "0.38rem", marginBottom: "auto", paddingBottom: "1.5rem" }}>
+        {TAGS.map((tag) => (
           <span
             key={tag}
             style={{
-              padding: "0.35rem 0.65rem",
-              background: "rgba(184,240,255,0.06)",
-              border: "1px solid rgba(184,240,255,0.1)",
-              borderRadius: "2px",
+              ...MON, fontSize: "0.42rem", letterSpacing: "0.14em",
+              padding: "0.3rem 0.62rem",
+              border: "1px solid rgba(184,240,255,0.09)",
+              color: "rgba(184,240,255,0.40)",
+              cursor: "default",
+              transition: "border-color 0.25s ease, color 0.25s ease, transform 0.25s ease",
+            }}
+            onMouseEnter={(e) => {
+              const el = e.currentTarget as HTMLSpanElement;
+              el.style.borderColor = "rgba(184,240,255,0.28)";
+              el.style.color       = "rgba(184,240,255,0.75)";
+              el.style.transform   = "translateY(-1px)";
+            }}
+            onMouseLeave={(e) => {
+              const el = e.currentTarget as HTMLSpanElement;
+              el.style.borderColor = "rgba(184,240,255,0.09)";
+              el.style.color       = "rgba(184,240,255,0.40)";
+              el.style.transform   = "";
             }}
           >
             {tag}
           </span>
         ))}
       </div>
-      <div style={{ marginTop: "auto", paddingTop: "1.5rem" }}>
+
+      {/* ── Footer link ── */}
+      <div style={{ borderTop: "1px solid rgba(184,240,255,0.06)", paddingTop: "1.25rem" }}>
         <a
           href="https://x.com/multiscatter"
           target="_blank"
           rel="noopener noreferrer"
           style={{
-            ...MON,
-            fontSize: "0.55rem",
-            letterSpacing: "0.26em",
-            color: "rgba(184,240,255,0.78)",
+            ...MON, fontSize: "0.48rem", letterSpacing: "0.26em",
+            color: "rgba(184,240,255,0.50)",
             textDecoration: "none",
-            borderBottom: "1px solid rgba(184,240,255,0.3)",
-            paddingBottom: "0.15rem",
-            transition: "color 0.2s ease, border-color 0.2s ease",
+            display: "inline-flex", alignItems: "center", gap: "0.4rem",
+            transition: "color 0.25s ease, letter-spacing 0.25s ease",
           }}
           onMouseEnter={(e) => {
-            (e.currentTarget as HTMLAnchorElement).style.color = "rgba(220,248,255,0.98)";
-            (e.currentTarget as HTMLAnchorElement).style.borderColor = "rgba(184,240,255,0.55)";
+            const el = e.currentTarget as HTMLAnchorElement;
+            el.style.color = "rgba(220,248,255,0.88)";
+            el.style.letterSpacing = "0.30em";
           }}
           onMouseLeave={(e) => {
-            (e.currentTarget as HTMLAnchorElement).style.color = "rgba(184,240,255,0.78)";
-            (e.currentTarget as HTMLAnchorElement).style.borderColor = "rgba(184,240,255,0.3)";
+            const el = e.currentTarget as HTMLAnchorElement;
+            el.style.color = "rgba(184,240,255,0.50)";
+            el.style.letterSpacing = "0.26em";
           }}
         >
-          View on X ↑
+          @MULTISCATTER ↗
         </a>
       </div>
     </div>
@@ -573,7 +649,8 @@ function WorkGridContent() {
   const [activeTab,  setActiveTab]  = useState<WorkTab>('models');
   const [isNarrow,   setIsNarrow]   = useState(false);
 
-  const dragRef = useRef({ active: false, x: 0, y: 0, moved: false });
+  const dragRef      = useRef({ active: false, x: 0, y: 0, moved: false });
+  const lastTouchRef = useRef(0); // for double-tap detection on mobile
   // Keep a ref in sync with activeTab so IntersectionObserver callbacks
   // always read the current tab without needing to re-register.
   const activeTabRef = useRef<WorkTab>(activeTab);
@@ -742,6 +819,17 @@ function WorkGridContent() {
     workModels.version++;
   };
 
+  // ── Expand model to fullscreen viewer ────────────────────────────────────
+  const handleExpand = useCallback(() => {
+    const p = projects.find(pr => pr.id === activeId);
+    if (!p || loading) return;
+    router.push(`/?model=${slugFromTitle(p.title)}`);
+    workModels.activeModelId = p.id;
+    workModels.setExpandedModelId(p.id);
+    workModels.version++;
+    setViewer({ project: p });
+  }, [activeId, projects, loading, router]);
+
   // ── Drag-zone interactions ────────────────────────────────────────────────
   const onEnter = () => {
     setIsHovered(true);
@@ -798,6 +886,16 @@ function WorkGridContent() {
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
+          onDoubleClick={activeId && !loading ? handleExpand : undefined}
+          onTouchStart={(ev) => {
+            if (!activeId || loading) return;
+            const now = performance.now();
+            if (now - lastTouchRef.current < 340) {
+              handleExpand();
+              ev.preventDefault();
+            }
+            lastTouchRef.current = now;
+          }}
           onWheel={e => { if (dragRef.current.active) { e.preventDefault(); e.stopPropagation(); } }}
         />
       )}
@@ -828,15 +926,19 @@ function WorkGridContent() {
         )}
       </div>
 
-      {/* Mobile: tabs at bottom (below canvas) — user sees canvas first, then tabs */}
+      {/* Mobile: tabs anchored at very bottom — safe below model chips */}
       {isNarrow && (
         <div style={{
           position: "absolute",
-          bottom: "clamp(1rem, 5vh, 2rem)",
+          bottom: "clamp(0.6rem, 2.5vh, 1.25rem)",
           left: "clamp(1rem, 4vw, 2.5rem)",
           right: "clamp(1rem, 4vw, 2.5rem)",
           zIndex: 3,
           pointerEvents: "auto",
+          background: "rgba(0,4,16,0.72)",
+          backdropFilter: "blur(12px)",
+          borderRadius: "3px",
+          border: "1px solid rgba(184,240,255,0.07)",
         }}>
           <WorkTabButtons activeTab={activeTab} onTabChange={setActiveTab} />
         </div>
@@ -845,11 +947,18 @@ function WorkGridContent() {
       {/* ── Models tab content ── */}
       {activeTab === 'models' && (
         <>
-          {/* Model list: on narrow screens horizontal strip at top (no overlap); on desktop left sidebar */}
+          {/* Model list: on narrow screens horizontal strip at bottom (above tabs); on desktop left sidebar */}
           <div style={{
             position: "absolute",
             ...(isNarrow
-              ? { left: "clamp(1rem, 4vw, 2.5rem)", right: "clamp(1rem, 4vw, 2.5rem)", top: "clamp(175px, 26vh, 220px)", height: "auto", maxHeight: "22vh", overflowX: "auto", overflowY: "hidden", display: "flex", flexDirection: "row", gap: 0, alignItems: "stretch", flexWrap: "nowrap" }
+              ? {
+                  left: 0, right: 0,
+                  bottom: "calc(clamp(2.4rem, 6vh, 3rem) + clamp(1rem, 5vh, 2rem))",
+                  height: "auto",
+                  overflowX: "auto", overflowY: "hidden",
+                  display: "flex", flexDirection: "row", gap: 0, alignItems: "stretch", flexWrap: "nowrap",
+                  padding: "0 clamp(1rem, 4vw, 2.5rem)",
+                }
               : { left: "2.5rem", top: "50%", transform: "translateY(-50%)", width: "clamp(160px, 18vw, 240px)" }
             ),
             zIndex: 2,
@@ -939,47 +1048,25 @@ function WorkGridContent() {
             DRAG TO ROTATE
           </div>
 
-          {/* ── EXPAND button — prominent, bottom-centre ── */}
+          {/* ── "Double-click to expand" hint (replaces button) ── */}
           {activeId && !loading && (
-            <button
-              onClick={() => {
-                const p   = projects.find(p => p.id === activeId);
-                if (p) {
-                  router.push(`/?model=${slugFromTitle(p.title)}`);
-                  workModels.activeModelId = p.id;
-                  workModels.setExpandedModelId(p.id);
-                  workModels.version++;
-                  setViewer({ project: p });
-                }
-              }}
-              style={{
-                position: "absolute",
-                bottom:   "2rem",
-                left:     "50%",
-                transform: "translateX(-50%)",
-                zIndex:    3,
-                background: "rgba(0,10,25,0.60)",
-                border:   "1px solid rgba(184,240,255,0.28)",
-                color:    "rgba(184,240,255,0.85)",
-                backdropFilter: "blur(8px)",
-                ...MON, fontSize: "clamp(0.58rem, 1.5vw, 0.65rem)", letterSpacing: "0.26em",
-                padding: "0.7rem 1.8rem",
-                cursor: "pointer",
-                transition: "border-color 0.2s, color 0.2s, background 0.2s",
-              }}
-              onMouseEnter={e => {
-                const b = e.currentTarget as HTMLButtonElement;
-                b.style.borderColor = "rgba(184,240,255,0.65)"; b.style.color = "rgba(220,248,255,0.95)";
-                b.style.background  = "rgba(0,20,50,0.80)";
-              }}
-              onMouseLeave={e => {
-                const b = e.currentTarget as HTMLButtonElement;
-                b.style.borderColor = "rgba(184,240,255,0.28)"; b.style.color = "rgba(184,240,255,0.75)";
-                b.style.background  = "rgba(0,10,25,0.60)";
-              }}
-            >
-              ⊞ EXPAND VIEW
-            </button>
+            <div style={{
+              position: "absolute",
+              bottom: isNarrow ? "calc(3.5rem + clamp(1rem, 5vh, 2rem))" : "1.75rem",
+              left: "50%",
+              transform: "translateX(-50%)",
+              zIndex: 2,
+              pointerEvents: "none",
+              ...MON,
+              fontSize: "clamp(0.38rem, 1.1vw, 0.46rem)",
+              letterSpacing: "0.30em",
+              color: isHovered ? "rgba(184,240,255,0.42)" : "rgba(184,240,255,0.0)",
+              transition: "color 0.6s ease",
+              whiteSpace: "nowrap",
+              textAlign: "center",
+            }}>
+              {isNarrow ? "DOUBLE TAP TO EXPAND" : "DOUBLE CLICK TO EXPAND"}
+            </div>
           )}
         </>
       )}

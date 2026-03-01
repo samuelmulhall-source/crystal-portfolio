@@ -115,42 +115,32 @@ function ShowcaseModel({
           try {
             const W = webgpu as Record<string, unknown>;
             const MeshPhysicalNodeMaterial = W.MeshPhysicalNodeMaterial as new (p: object) => THREE.Material;
-            const vec3 = W.vec3;
             const float = W.float;
-            const time = W.time;
-            const sin = W.sin;
-            if (typeof float !== "function" || typeof vec3 !== "function" || typeof sin !== "function" || time == null || typeof (time as { mul?: unknown }).mul !== "function") {
+            const vec3 = W.vec3;
+            if (typeof float !== "function" || typeof vec3 !== "function") {
               throw new Error("WebGPU TSL exports missing");
             }
             mat = new MeshPhysicalNodeMaterial({
               side: T.FrontSide,
-              roughness: 0.72,
-              metalness: 0.05,
-              envMapIntensity: 1.4,
-              iridescence: 0.45,
-              iridescenceIOR: 1.45,
-              clearcoat: 0.25,
+              roughness: 0.65,
+              metalness: 0.08,
+              envMapIntensity: 2.4,
+              iridescence: 0,
+              clearcoat: 0.18,
               clearcoatRoughness: 0.08,
             });
-            const matNode = mat as { roughnessNode?: unknown; metalnessNode?: unknown; emissiveNode?: unknown; colorNode?: unknown; clearcoatNode?: unknown };
-            matNode.roughnessNode = (float as (x: number) => unknown)(0.72);
-            matNode.metalnessNode = (float as (x: number) => unknown)(0.05);
-            const timeNode = (time as { mul: (n: number) => unknown }).mul(2);
-            const pulse = ((sin as (x: unknown) => { mul: (n: number) => { add: (n: number) => unknown } })(timeNode)).mul(0.5).add(0.5);
-            matNode.emissiveNode = ((vec3 as (a: number, b?: number, c?: number) => { mul: (x: unknown) => unknown })(0.05, 0.07, 0.1)).mul(pulse);
+            const matNode = mat as { roughnessNode?: unknown; metalnessNode?: unknown; colorNode?: unknown };
+            matNode.roughnessNode = (float as (x: number) => unknown)(0.65);
+            matNode.metalnessNode = (float as (x: number) => unknown)(0.08);
             matNode.colorNode = (vec3 as (a: number, b?: number, c?: number) => unknown)(1, 1, 1);
-            // Animated clearcoat pulse via TSL timer
-            const ccTime = (time as { mul: (n: number) => unknown }).mul(0.6);
-            matNode.clearcoatNode = ((sin as (x: unknown) => { mul: (n: number) => { add: (n: number) => unknown } })(ccTime)).mul(0.1).add(0.25);
           } catch {
             mat = new THREE.MeshPhysicalMaterial({
               color: 0xffffff,
-              roughness: 0.72,
-              metalness: 0.05,
-              envMapIntensity: 1.4,
-              iridescence: 0.4,
-              iridescenceIOR: 1.4,
-              clearcoat: 0.2,
+              roughness: 0.65,
+              metalness: 0.08,
+              envMapIntensity: 2.4,
+              iridescence: 0,
+              clearcoat: 0.18,
               clearcoatRoughness: 0.08,
               side: THREE.FrontSide,
             });
@@ -158,12 +148,11 @@ function ShowcaseModel({
         } else {
           mat = new THREE.MeshPhysicalMaterial({
             color: 0xffffff,
-            roughness: 0.72,
-            metalness: 0.05,
-            envMapIntensity: 1.4,
-            iridescence: 0.4,
-            iridescenceIOR: 1.4,
-            clearcoat: 0.2,
+            roughness: 0.65,
+            metalness: 0.08,
+            envMapIntensity: 2.4,
+            iridescence: 0,
+            clearcoat: 0.18,
             clearcoatRoughness: 0.08,
             side: THREE.FrontSide,
           });
@@ -274,7 +263,7 @@ function ShowcaseModel({
 }
 
 // ─── Atmospheric particles ─────────────────────────────────────────────────
-function AtmosphericParticles({ hoveredRef }: { hoveredRef: React.RefObject<boolean> }) {
+function AtmosphericParticles() {
   const ref = useRef<THREE.Points>(null);
   const geo = useMemo(() => {
     const count = 80;
@@ -292,11 +281,6 @@ function AtmosphericParticles({ hoveredRef }: { hoveredRef: React.RefObject<bool
   useFrame((_, dt) => {
     if (!ref.current) return;
     ref.current.rotation.y += dt * 0.012;
-    const mat = ref.current.material as THREE.PointsMaterial;
-    if (mat) {
-      const target = hoveredRef.current ? 0.25 : 0.07;
-      mat.opacity  += (target - mat.opacity) * 0.04;
-    }
   });
 
   return (
@@ -317,13 +301,12 @@ function AtmosphericParticles({ hoveredRef }: { hoveredRef: React.RefObject<bool
 }
 
 // ─── Pulsing key light ─────────────────────────────────────────────────────
-function CoreLight({ hoveredRef }: { hoveredRef: React.RefObject<boolean> }) {
+function CoreLight() {
   const ref = useRef<THREE.PointLight>(null);
   useFrame((s) => {
     if (!ref.current) return;
-    const t    = s.clock.elapsedTime;
-    const base = hoveredRef.current ? 4.0 : 2.2;
-    ref.current.intensity += (base + 0.9 * Math.sin(t * 0.7) - ref.current.intensity) * 0.05;
+    const t = s.clock.elapsedTime;
+    ref.current.intensity += (2.2 + 0.9 * Math.sin(t * 0.7) - ref.current.intensity) * 0.05;
   });
   return <pointLight ref={ref} position={[0, 0, 2.5]} color="#66ccff" intensity={2.2} distance={18} />;
 }
@@ -332,36 +315,35 @@ function CoreLight({ hoveredRef }: { hoveredRef: React.RefObject<boolean> }) {
 function ShowcaseScene({
   modelPath,
   textures,
-  hoveredRef,
   fullscreen,
 }: {
   modelPath:  string;
   textures:   TextureSet;
-  hoveredRef: React.RefObject<boolean>;
   fullscreen: boolean;
 }) {
-  const matRef = useRef<THREE.MeshStandardMaterial>(null);
+  const matRef = useRef<THREE.MeshPhysicalMaterial>(null);
   const [, setNormScaleState] = useState(1);
 
   return (
     <>
-      {/* Studio three-point lighting — matches VoidBackground void scene */}
-      <ambientLight intensity={0.32} color="#c0d8ee" />
-      <directionalLight position={[-4, 10,  7]}  intensity={2.2} color="#f0f8ff" />
-      <directionalLight position={[ 5,  3,  5]}  intensity={1.8} color="#d8eeff" />
-      <directionalLight position={[ 0, -4, -10]} intensity={0.9} color="#7ab8e8" />
-      <directionalLight position={[ 0, 12,  2]}  intensity={0.8} color="#e4f4ff" />
-      <pointLight position={[0, 0, 5]} intensity={1.4} color="#a0d0f0" distance={18} />
-      <CoreLight hoveredRef={hoveredRef} />
-      <Environment preset="studio" environmentIntensity={0.85} />
-      <AtmosphericParticles hoveredRef={hoveredRef} />
+      {/* Studio lighting — tuned for visibility on dark void background */}
+      <ambientLight intensity={0.55} color="#c8dff0" />
+      <directionalLight position={[-4, 10,  7]}  intensity={3.0} color="#f0f8ff" />
+      <directionalLight position={[ 5,  3,  5]}  intensity={2.5} color="#daeeff" />
+      <directionalLight position={[ 0,  2, 12]}  intensity={1.8} color="#e8f4ff" />
+      <directionalLight position={[ 0, -4, -10]} intensity={1.1} color="#7ab8e8" />
+      <directionalLight position={[ 0, 12,  2]}  intensity={1.0} color="#e4f4ff" />
+      <pointLight position={[0, 0, 5]} intensity={2.2} color="#a0d4f8" distance={22} />
+      <CoreLight />
+      <Environment preset="apartment" environmentIntensity={1.2} />
+      <AtmosphericParticles />
       <Suspense fallback={<ShowcaseLoading />}>
         <Bounds fit clip margin={fullscreen ? 1.15 : 1.25}>
           {/* ShowcaseModel now applies centreOffset internally — no <Center> needed */}
           <ShowcaseModel
             modelPath={modelPath}
             textures={textures}
-            matRef={matRef}
+            matRef={matRef as React.RefObject<THREE.MeshStandardMaterial | THREE.Material | null>}
             onNormScale={setNormScaleState}
           />
         </Bounds>
@@ -376,13 +358,11 @@ type WebGPUModule = typeof import("three/webgpu") | false | null;
 export default function WorkItemCanvas({
   modelPath,
   textures   = {},
-  hoveredRef,
   containerRef,
   fullscreen = false,
 }: {
   modelPath:    string;
   textures?:    TextureSet;
-  hoveredRef:   React.RefObject<boolean>;
   containerRef: React.RefObject<HTMLDivElement | null>;
   fullscreen?:  boolean;
 }) {
@@ -461,7 +441,6 @@ export default function WorkItemCanvas({
         <ShowcaseScene
           modelPath={modelPath}
           textures={textures}
-          hoveredRef={hoveredRef}
           fullscreen={fullscreen}
         />
         <OrbitControls

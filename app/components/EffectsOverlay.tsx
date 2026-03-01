@@ -11,9 +11,8 @@
  *   (= additive blending) which makes iridescent color trivial and guaranteed.
  *
  * Effects rendered here:
- *   1. Holographic hover glow  — colored radial gradient at each hovered star's
- *      screen position. Hue cycles ice-cyan → violet (from voidState.hoverSlots).
- *      Also draws a rotating 6-point crystal outline stroke.
+ *   1. Holographic hover glow  — prismatic spectral rings + diffractive spikes
+ *      at each hovered star's screen position (thin-film iridescence aesthetic).
  *   2. Meteor trail            — tapered gradient line (tail=transparent, head=white)
  *      with shadowBlur glow. Drawn from voidState.meteorSlots screen coords.
  *   3. Meteor head spark       — bright radial burst at head position.
@@ -123,6 +122,16 @@ function drawVariant(
 const _springs: Array<{ pos: number; vel: number }> =
   Array.from({ length: 14 }, () => ({ pos: 0, vel: 0 }));
 
+// Spectral ring wavelengths for thin-film iridescence (hue, radial multiplier)
+const SPECTRAL: Array<{ hue: number; rMul: number; sat: number }> = [
+  { hue: 195, rMul: 1.0, sat: 100 }, // ice-cyan   (innermost)
+  { hue: 210, rMul: 1.4, sat: 95  },
+  { hue: 230, rMul: 1.85, sat: 95 }, // blue
+  { hue: 255, rMul: 2.3, sat: 90  }, // indigo
+  { hue: 280, rMul: 2.8, sat: 88  }, // violet
+  { hue: 300, rMul: 3.3, sat: 85  }, // magenta (outermost)
+];
+
 export default function EffectsOverlay() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -158,7 +167,7 @@ export default function EffectsOverlay() {
       const SPRING_K  = 420;  // stiffness (larger = snappier)
       const SPRING_D  = 26;   // damping   (lower = bouncier)
 
-      // ── 1. Hover crystal glow ───────────────────────────────────────────
+      // ── 1. Holographic hover glow ────────────────────────────────────────
       for (let i = 0; i < voidState.hoverSlots.length; i++) {
         const slot   = voidState.hoverSlots[i];
         const spring = _springs[i];
@@ -168,7 +177,6 @@ export default function EffectsOverlay() {
         spring.vel  += (target - spring.pos) * SPRING_K * dt;
         spring.vel  -= spring.vel * SPRING_D * dt;
         spring.pos  += spring.vel * dt;
-        // Snap to zero when essentially inactive to avoid ghost-drawing
         // Hard-clamp spring to [0, 1] — prevents physics overshoot from blowing
         // out the "lighter" blended glow into a full-screen flare.
         spring.pos = Math.max(0, Math.min(spring.pos, 1.0));
@@ -181,29 +189,28 @@ export default function EffectsOverlay() {
         if (i >= 8) continue;
 
         const { sx, sy, variant } = slot;
-        // Clamp ease to [0,1] to match clamped spring, keep radius bounded
         const ease = Math.min(spring.pos, 1.0);
-        const r   = 6 * ease;   // max radius capped at 6px
-        const rot = t * 1.6 + i * 1.05;
+        // Larger base radius for more visible holographic rings
+        const r   = 12 * ease;
+        const rot = t * 1.2 + i * 1.05;
 
         ctx!.save();
         ctx!.globalCompositeOperation = "lighter";
 
-        // Iridescent rings: 3 different hues visible simultaneously (not cycling).
-        // cyan + blue + violet = holographic prism look.
-        const holoSpec = [
-          { hue: 188, phase: 0.0, rMul: 1.5 },
-          { hue: 222, phase: 1.2, rMul: 2.1 },
-          { hue: 258, phase: 2.5, rMul: 2.8 },
-        ];
-        holoSpec.forEach(({ hue, phase, rMul }) => {
-          // Max alpha 0.22 per ring — prevents "lighter" blending from blowing out
-          const a = ease * 0.22 * (0.55 + 0.45 * Math.sin(t * 1.8 + phase));
-          const rInner = r * rMul * 0.5;
-          const rOuter = r * rMul;
+        // ── Prismatic thin-film spectral rings ───────────────────────────
+        // Each ring is a narrow annular glow at increasing radii, cycling
+        // through the visible spectrum (ice-cyan → blue → indigo → violet → magenta).
+        // Opacity is individually animated so the rings shimmer independently.
+        SPECTRAL.forEach(({ hue, rMul, sat }, si) => {
+          const rInner = r * rMul * 0.70;
+          const rOuter = r * rMul * 1.30;
+          // Each ring shimmers at its own phase — thin-film interference illusion
+          const shimmer = 0.55 + 0.45 * Math.sin(t * 2.4 + si * 0.9 + i * 0.5);
+          const a = ease * 0.16 * shimmer;
           const ring = ctx!.createRadialGradient(sx, sy, rInner, sx, sy, rOuter);
-          ring.addColorStop(0.0, `hsla(${hue}, 100%, 68%, ${a})`);
-          ring.addColorStop(0.5, `hsla(${hue + 14}, 95%, 58%, ${a * 0.45})`);
+          ring.addColorStop(0.0, `hsla(${hue}, ${sat}%, 72%, 0)`);
+          ring.addColorStop(0.4, `hsla(${hue}, ${sat}%, 72%, ${a})`);
+          ring.addColorStop(0.6, `hsla(${hue}, ${sat}%, 80%, ${a * 0.7})`);
           ring.addColorStop(1.0, "rgba(0,0,0,0)");
           ctx!.fillStyle = ring;
           ctx!.beginPath();
@@ -211,42 +218,63 @@ export default function EffectsOverlay() {
           ctx!.fill();
         });
 
-        // Tight ice-white core
-        const core = ctx!.createRadialGradient(sx, sy, 0, sx, sy, r);
-        core.addColorStop(0.0, `rgba(225, 248, 255, ${ease * 0.85})`);
-        core.addColorStop(0.5, `hsla(200, 100%, 72%, ${ease * 0.40})`);
+        // ── Diffractive spikes: sharp radial rays cycling through spectrum ─
+        const spikeCount = variant % 2 === 0 ? 6 : 8;
+        const spikeR     = r * 3.5;
+        for (let si = 0; si < spikeCount; si++) {
+          const a    = rot + (si / spikeCount) * Math.PI * 2;
+          // Each spike has a different spectral hue, cycling with time
+          const hue  = (195 + si * (280 / spikeCount) + t * 18) % 360;
+          const sAlpha = ease * (0.45 + 0.25 * Math.sin(t * 3.1 + si * 1.3));
+          const sGrad  = ctx!.createLinearGradient(sx, sy, sx + Math.cos(a) * spikeR, sy + Math.sin(a) * spikeR);
+          sGrad.addColorStop(0.0, `hsla(${hue}, 100%, 88%, ${sAlpha})`);
+          sGrad.addColorStop(0.5, `hsla(${(hue + 30) % 360}, 100%, 78%, ${sAlpha * 0.4})`);
+          sGrad.addColorStop(1.0, "rgba(0,0,0,0)");
+          ctx!.strokeStyle = sGrad;
+          ctx!.lineWidth   = 0.55;
+          ctx!.beginPath();
+          ctx!.moveTo(sx + Math.cos(a) * r * 0.25, sy + Math.sin(a) * r * 0.25);
+          ctx!.lineTo(sx + Math.cos(a) * spikeR,   sy + Math.sin(a) * spikeR);
+          ctx!.stroke();
+        }
+
+        // ── Ice-white core ───────────────────────────────────────────────
+        const core = ctx!.createRadialGradient(sx, sy, 0, sx, sy, r * 0.85);
+        core.addColorStop(0.0, `rgba(235, 250, 255, ${ease * 0.95})`);
+        core.addColorStop(0.4, `rgba(200, 240, 255, ${ease * 0.55})`);
         core.addColorStop(1.0, "rgba(0,0,0,0)");
         ctx!.fillStyle = core;
         ctx!.beginPath();
-        ctx!.arc(sx, sy, r, 0, Math.PI * 2);
+        ctx!.arc(sx, sy, r * 0.85, 0, Math.PI * 2);
         ctx!.fill();
 
-        // Spinning variant outline — each star gets its own persistent shape
-        const shimHue = 200 + Math.sin(t * 1.5 + i * 0.8) * 50;
-        ctx!.strokeStyle = `hsla(${shimHue}, 100%, 78%, ${ease * 0.82})`;
-        ctx!.lineWidth   = 0.65;
-        ctx!.shadowColor = `hsla(${shimHue}, 100%, 65%, 0.8)`;
-        ctx!.shadowBlur  = 4 * ease;
+        // ── Spinning crystal shape outline (variant) ─────────────────────
+        // Hue shifts with time for a prismatic sweep effect
+        const shimHue = (200 + Math.sin(t * 1.8 + i * 0.8) * 80 + 360) % 360;
+        ctx!.strokeStyle = `hsla(${shimHue}, 100%, 82%, ${ease * 0.75})`;
+        ctx!.lineWidth   = 0.7;
+        ctx!.shadowColor = `hsla(${shimHue}, 100%, 68%, 0.9)`;
+        ctx!.shadowBlur  = 5 * ease;
         drawVariant(ctx!, sx, sy, r, rot, variant);
         ctx!.stroke();
 
-        // Counter-rotating second layer (different hue, same shape family)
-        ctx!.strokeStyle = `hsla(${shimHue + 50}, 95%, 70%, ${ease * 0.32})`;
+        // Counter-rotating layer (offset hue, larger radius)
+        ctx!.strokeStyle = `hsla(${(shimHue + 60) % 360}, 95%, 74%, ${ease * 0.28})`;
         ctx!.shadowBlur  = 2 * ease;
-        ctx!.lineWidth   = 0.45;
-        drawVariant(ctx!, sx, sy, r * 1.35, -rot * 0.6 + Math.PI / 6, (variant + 2) % 6);
+        ctx!.lineWidth   = 0.4;
+        drawVariant(ctx!, sx, sy, r * 1.4, -rot * 0.55 + Math.PI / 6, (variant + 2) % 6);
         ctx!.stroke();
 
         ctx!.restore();
       }
 
       // ── 1b. Constellation paths between active hover stars ──────────────
-      // Collect active slots (spring.pos > threshold) for line-drawing
-      const active: Array<{ sx: number; sy: number; ease: number; hue: number }> = [];
+      // Ice-white monochrome — no HSL color gradient, just pure frost lines.
+      const active: Array<{ sx: number; sy: number; ease: number }> = [];
       for (let i = 0; i < voidState.hoverSlots.length; i++) {
         if (_springs[i].pos > 0.12) { // 0.12 catches line-only slots (max ease 0.28)
           const s = voidState.hoverSlots[i];
-          active.push({ sx: s.sx, sy: s.sy, ease: _springs[i].pos, hue: s.hue });
+          active.push({ sx: s.sx, sy: s.sy, ease: _springs[i].pos });
         }
       }
       if (active.length >= 2) {
@@ -257,35 +285,30 @@ export default function EffectsOverlay() {
           for (let b = a + 1; b < active.length; b++) {
             const sa = active[a], sb = active[b];
             const dist = Math.hypot(sa.sx - sb.sx, sa.sy - sb.sy);
-            if (dist > 560 || dist < 6) continue; // wider reach
+            if (dist > 560 || dist < 6) continue;
 
             const minE = Math.min(sa.ease, sb.ease);
-            // Fade in with ease, fade out gently with distance
             const distFade = Math.max(0, 1 - dist / 560);
-            const alpha    = minE * distFade * 0.72;
+            const alpha    = minE * distFade * 0.55;
 
-            // Animated dash offset for a travelling light effect
+            // Animated dash for travelling-light effect
             const dashLen    = 8 + dist * 0.06;
             const dashOffset = (t * 45) % (dashLen * 2);
             ctx!.setLineDash([dashLen * 0.5, dashLen * 1.5]);
             ctx!.lineDashOffset = -dashOffset;
 
-            const gl = ctx!.createLinearGradient(sa.sx, sa.sy, sb.sx, sb.sy);
-            gl.addColorStop(0,   `hsla(${sa.hue}, 100%, 74%, ${alpha})`);
-            gl.addColorStop(0.5, `hsla(${(sa.hue + sb.hue) / 2}, 92%, 67%, ${alpha * 0.55})`);
-            gl.addColorStop(1,   `hsla(${sb.hue}, 100%, 74%, ${alpha})`);
-
-            ctx!.strokeStyle = gl;
-            ctx!.lineWidth   = 1.1;
-            ctx!.shadowColor = `hsla(${sa.hue}, 92%, 72%, 0.55)`;
-            ctx!.shadowBlur  = 4;
+            // Ice-white monochrome — no hue cycling
+            ctx!.strokeStyle = `rgba(184, 240, 255, ${alpha})`;
+            ctx!.lineWidth   = 1.0;
+            ctx!.shadowColor = `rgba(184, 240, 255, 0.45)`;
+            ctx!.shadowBlur  = 3;
             ctx!.beginPath();
             ctx!.moveTo(sa.sx, sa.sy);
             ctx!.lineTo(sb.sx, sb.sy);
             ctx!.stroke();
           }
         }
-        ctx!.setLineDash([]);      // reset dash for subsequent draws
+        ctx!.setLineDash([]);
         ctx!.lineDashOffset = 0;
         ctx!.restore();
       }
@@ -353,7 +376,7 @@ export default function EffectsOverlay() {
         ctx!.stroke();
 
         // ── Head spark: ice-white ────────────────────────────────────────
-        const sparkR = 1.65 * env;    // half of 3.3
+        const sparkR = 1.65 * env;
         const spark  = ctx!.createRadialGradient(hsx, hsy, 0, hsx, hsy, sparkR * 2.5);
         spark.addColorStop(0.00, `rgba(255, 255, 255, ${env})`);
         spark.addColorStop(0.30, `rgba(200, 230, 255, ${env * 0.80})`);  // ice blue
