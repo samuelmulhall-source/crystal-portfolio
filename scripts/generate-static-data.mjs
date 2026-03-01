@@ -3,11 +3,22 @@
  * Generates public/data.json by scanning public/models, public/Video renders,
  * public/Image renders. Used for static export (no API routes on Cloudflare).
  * Run before build: npm run generate-data && next build
+ *
+ * Optional: if sharp is installed, generates tiny WebP thumbnails for each
+ * model from its color/albedo texture and adds a "thumbnail" URL to the model.
  */
 
 import { readdir } from "fs/promises";
 import { join } from "path";
 import { writeFile } from "fs/promises";
+import { existsSync } from "fs";
+
+let sharp = null;
+try {
+  sharp = (await import("sharp")).default;
+} catch {
+  // sharp not installed — skip thumbnail generation
+}
 
 const SUFFIX_MAP = [
   ["_color", "map"],
@@ -137,6 +148,29 @@ async function main() {
       }));
   } catch (e) {
     console.warn("images scan failed:", e.message);
+  }
+
+  // Optional: generate tiny WebP placeholders for work grid (if sharp is installed)
+  if (sharp && models.length > 0) {
+    const root = join(process.cwd(), "public");
+    for (const model of models) {
+      const mapUrl = model.textures?.map;
+      if (!mapUrl || typeof mapUrl !== "string") continue;
+      const srcPath = join(root, mapUrl.replace(/^\//, ""));
+      const relDir = model.path.replace(/\/[^/]+$/, "");
+      const outPathThumb = join(root, relDir.replace(/^\//, ""), "thumb.webp");
+      try {
+        if (existsSync(srcPath)) {
+          await sharp(srcPath)
+            .resize(120, 120, { fit: "cover" })
+            .webp({ quality: 72 })
+            .toFile(outPathThumb);
+          model.thumbnail = `${relDir}/thumb.webp`;
+        }
+      } catch (e) {
+        console.warn("Thumbnail failed for", model.title, e.message);
+      }
+    }
   }
 
   const data = { models, videos, images };

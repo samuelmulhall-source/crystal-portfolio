@@ -15,10 +15,13 @@ const LINKS = [
   { label: "Contact", href: "#contact" },
 ];
 
+type SectionId = "hero" | "work" | "contact" | null;
+
 export default function Nav() {
   const navRef    = useRef<HTMLElement>(null);
   const [scrolled, setScrolled]     = useState(false);
   const [workOpen, setWorkOpen]     = useState(false);
+  const [activeSection, setActiveSection] = useState<SectionId>("hero");
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -32,6 +35,34 @@ export default function Nav() {
       onEnter:     () => setScrolled(true),
       onLeaveBack: () => setScrolled(false),
     });
+  }, []);
+
+  // Active section highlight: which section is in view (smooth scroll already via scrollIntoView)
+  useEffect(() => {
+    const sections = [
+      { id: "hero" as const, el: document.getElementById("hero") },
+      { id: "work" as const, el: document.getElementById("work") },
+      { id: "contact" as const, el: document.getElementById("contact") },
+    ].filter((s) => s.el) as { id: SectionId; el: HTMLElement }[];
+    if (sections.length === 0) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const byId = new Map<string, number>();
+        for (const entry of entries) {
+          const id = (entry.target as HTMLElement).id;
+          if (id === "hero" || id === "work" || id === "contact") {
+            byId.set(id, entry.intersectionRatio);
+          }
+        }
+        if (byId.size === 0) return;
+        const best = [...byId.entries()].reduce((a, b) => (a[1] >= b[1] ? a : b))[0] as SectionId;
+        setActiveSection(best);
+      },
+      { rootMargin: "-25% 0px -50% 0px", threshold: [0, 0.1, 0.5, 1] }
+    );
+    sections.forEach((s) => observer.observe(s.el));
+    return () => observer.disconnect();
   }, []);
 
   const scrollTo = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
@@ -77,11 +108,13 @@ export default function Nav() {
           fontSize:       "0.6875rem",
           letterSpacing:  "0.30em",
           textTransform:  "uppercase",
-          color:          scrolled ? "var(--text-primary)" : "rgba(238,248,255,0.90)",
+          color:          activeSection === "hero"
+            ? "rgba(238,248,255,0.98)"
+            : scrolled ? "var(--text-primary)" : "rgba(238,248,255,0.90)",
           textDecoration: "none",
-          textShadow: scrolled
-            ? "0 0 18px rgba(184,240,255,0.14)"
-            : "0 0 28px rgba(184,240,255,0.22), 0 1px 3px rgba(0,0,0,0.6)",
+          textShadow: activeSection === "hero"
+            ? "0 0 22px rgba(184,240,255,0.28), 0 1px 2px rgba(0,0,0,0.4)"
+            : scrolled ? "0 0 18px rgba(184,240,255,0.14)" : "0 0 28px rgba(184,240,255,0.22), 0 1px 3px rgba(0,0,0,0.6)",
           transition: "color 0.4s ease, text-shadow 0.4s ease",
           minHeight: "44px", display: "flex", alignItems: "center",
         }}
@@ -106,8 +139,13 @@ export default function Nav() {
               }
             }}
             style={{
-              color: linkColor, textShadow: linkShadow, display: "flex", alignItems: "center", gap: "0.28rem",
+              color: activeSection === "work" ? "rgba(220,248,255,0.92)" : linkColor,
+              textShadow: activeSection === "work" ? "0 0 14px rgba(184,240,255,0.25)" : linkShadow,
+              display: "flex", alignItems: "center", gap: "0.28rem",
               minHeight: "44px", justifyContent: "center", padding: "0 4px",
+              borderBottom: activeSection === "work" ? "1px solid rgba(184,240,255,0.35)" : "1px solid transparent",
+              marginBottom: activeSection === "work" ? "-1px" : 0,
+              transition: "color 0.25s ease, border-color 0.25s ease",
             }}
           >
             Work
@@ -184,8 +222,12 @@ export default function Nav() {
               className="frost-link"
               onClick={(e) => { scrollTo(e, href); setWorkOpen(false); }}
               style={{
-                color: linkColor, textShadow: linkShadow,
+                color: activeSection === "contact" ? "rgba(220,248,255,0.92)" : linkColor,
+                textShadow: activeSection === "contact" ? "0 0 14px rgba(184,240,255,0.25)" : linkShadow,
                 minHeight: "44px", display: "flex", alignItems: "center", padding: "0 4px",
+                borderBottom: activeSection === "contact" ? "1px solid rgba(184,240,255,0.35)" : "1px solid transparent",
+                marginBottom: activeSection === "contact" ? "-1px" : 0,
+                transition: "color 0.25s ease, border-color 0.25s ease",
               }}
             >
               {label}

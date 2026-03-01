@@ -26,6 +26,8 @@ interface Project {
   modelPath: string;
   year:      string;
   textures:  TextureSet;
+  /** Optional WebP placeholder from generate-static-data (when sharp is installed) */
+  thumbnail?: string;
 }
 interface VideoEntry { id: string; path: string; title: string; }
 interface ImageEntry { id: string; path: string; title: string; }
@@ -596,7 +598,7 @@ export default function WorkGrid() {
   // ── Load models (static data.json first for static export, else API) ───────
   useEffect(() => {
     gsap.registerPlugin(ScrollTrigger);
-    const applyModels = (models: Array<{ path: string; title: string; category: string; year: string; textures?: TextureSet }>) => {
+    const applyModels = (models: Array<{ path: string; title: string; category: string; year: string; textures?: TextureSet; thumbnail?: string }>) => {
       setProjects(models.map((m, i) => ({
         id:        `proj-${i}`,
         title:     m.title,
@@ -604,12 +606,13 @@ export default function WorkGrid() {
         modelPath: m.path,
         year:      m.year,
         textures:  m.textures ?? {},
+        thumbnail: m.thumbnail,
       })));
       setLoading(false);
     };
     fetch("/data.json")
       .then(r => (r.ok ? r.json() : Promise.reject()))
-      .then((data: { models?: Array<{ path: string; title: string; category: string; year: string; textures?: TextureSet }> }) => {
+      .then((data: { models?: Array<{ path: string; title: string; category: string; year: string; textures?: TextureSet; thumbnail?: string }> }) => {
         if (Array.isArray(data.models) && data.models.length > 0) {
           applyModels(data.models);
           return;
@@ -834,15 +837,23 @@ export default function WorkGrid() {
                         textAlign: "left",
                         opacity: active ? 1 : 0.7,
                         transition: "opacity 0.2s, border-color 0.2s, background 0.2s",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "0.5rem",
                       }}
                     >
-                      <div style={{
-                        fontFamily: "var(--font-geist-sans), sans-serif",
-                        fontSize: "0.8rem", fontWeight: active ? 500 : 400,
-                        color: active ? "rgba(220,248,255,0.98)" : "rgba(184,240,255,0.75)",
-                        marginBottom: "0.15rem",
-                      }}>{p.title}</div>
-                      <div style={{ ...MON, fontSize: "0.6rem", letterSpacing: "0.12em", color: active ? "rgba(184,240,255,0.6)" : "rgba(184,240,255,0.45)" }}>{p.year}</div>
+                      {p.thumbnail && (
+                        <img src={p.thumbnail} alt="" width={32} height={32} style={{ width: 32, height: 32, objectFit: "cover", borderRadius: 2, flexShrink: 0 }} />
+                      )}
+                      <div>
+                        <div style={{
+                          fontFamily: "var(--font-geist-sans), sans-serif",
+                          fontSize: "0.8rem", fontWeight: active ? 500 : 400,
+                          color: active ? "rgba(220,248,255,0.98)" : "rgba(184,240,255,0.75)",
+                          marginBottom: "0.15rem",
+                        }}>{p.title}</div>
+                        <div style={{ ...MON, fontSize: "0.6rem", letterSpacing: "0.12em", color: active ? "rgba(184,240,255,0.6)" : "rgba(184,240,255,0.45)" }}>{p.year}</div>
+                      </div>
                     </button>
                   );
                 })}
@@ -863,9 +874,13 @@ export default function WorkGrid() {
                     onMouseEnter={e => { if (!active) (e.currentTarget as HTMLDivElement).style.opacity = "0.75"; }}
                     onMouseLeave={e => { if (!active) (e.currentTarget as HTMLDivElement).style.opacity = "0.5"; }}
                   >
-                    <span style={{ ...MON, fontSize: "0.52rem", letterSpacing: "0.28em", color: "rgba(184,240,255,0.45)", flexShrink: 0 }}>
-                      {String(i + 1).padStart(2, "0")}
-                    </span>
+                    {p.thumbnail ? (
+                      <img src={p.thumbnail} alt="" width={36} height={36} style={{ width: 36, height: 36, objectFit: "cover", borderRadius: 2, flexShrink: 0 }} />
+                    ) : (
+                      <span style={{ ...MON, fontSize: "0.52rem", letterSpacing: "0.28em", color: "rgba(184,240,255,0.45)", flexShrink: 0, minWidth: "1.2rem" }}>
+                        {String(i + 1).padStart(2, "0")}
+                      </span>
+                    )}
                     <div style={{ flex: 1 }}>
                       <div style={{
                         fontFamily: "var(--font-geist-sans), sans-serif",

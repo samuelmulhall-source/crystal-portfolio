@@ -193,6 +193,64 @@ function StarLayer({
   );
 }
 
+// ─── Hero particles: subtle instanced particles in front of camera (hero zone) ─
+const HERO_PARTICLE_COUNT = 280;
+const HERO_BOX = { x: 5, y: 3.5, zMin: 2, zMax: 9 };
+
+function HeroParticles() {
+  const meshRef = useRef<THREE.InstancedMesh>(null);
+  const groupRef = useRef<THREE.Group>(null);
+  const { geometry, sprite } = useMemo(() => {
+    const geo = new THREE.PlaneGeometry(0.06, 0.06);
+    const sp = getStarSprite();
+    return { geometry: geo, sprite: sp };
+  }, []);
+
+  useEffect(() => {
+    const mesh = meshRef.current;
+    if (!mesh) return;
+    const mat = new THREE.Matrix4();
+    const pos = new THREE.Vector3();
+    for (let i = 0; i < HERO_PARTICLE_COUNT; i++) {
+      pos.set(
+        (sr(i * 11 + 1) - 0.5) * 2 * HERO_BOX.x,
+        (sr(i * 11 + 2) - 0.5) * 2 * HERO_BOX.y,
+        HERO_BOX.zMin + sr(i * 11 + 3) * (HERO_BOX.zMax - HERO_BOX.zMin),
+      );
+      mat.compose(pos, new THREE.Quaternion(), new THREE.Vector3(1, 1, 1));
+      mesh.setMatrixAt(i, mat);
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+  }, []);
+
+  useFrame((_, dt) => {
+    if (groupRef.current) {
+      groupRef.current.rotation.y += dt * 0.018;
+      groupRef.current.rotation.x += dt * 0.006;
+    }
+  });
+
+  return (
+    <group ref={groupRef} renderOrder={-0.5}>
+      <instancedMesh
+        ref={meshRef}
+        args={[geometry, undefined, HERO_PARTICLE_COUNT]}
+        frustumCulled={false}
+      >
+        <meshBasicMaterial
+          map={sprite ?? undefined}
+          color="#a8d8f8"
+          transparent
+          opacity={0.22}
+          depthWrite={false}
+          blending={THREE.AdditiveBlending}
+          side={THREE.DoubleSide}
+        />
+      </instancedMesh>
+    </group>
+  );
+}
+
 // ─── Void core light ───────────────────────────────────────────────────────
 function VoidCore() {
   const ref = useRef<THREE.PointLight>(null);
@@ -1227,6 +1285,8 @@ function VoidScene() {
       <StarLayer li={0} pointsRef={pts0} />
       <StarLayer li={1} pointsRef={pts1} />
       <StarLayer li={2} pointsRef={pts2} />
+
+      <HeroParticles />
 
       <VoidCore />
       <VoidCamera />
