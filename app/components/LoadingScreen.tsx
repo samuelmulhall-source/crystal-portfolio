@@ -18,11 +18,14 @@ export default function LoadingScreen() {
     let rafId: number;
     let elapsed = 0;
     const MIN_MS = 1100; // minimum display even if canvas is instant
+    const MAX_MS = 5500; // fallback: dismiss even if firstModelReady never fires (slow mobile)
     const start  = performance.now();
 
     const tick = () => {
       elapsed = performance.now() - start;
-      if (elapsed >= MIN_MS && voidState.ready && voidState.firstModelReady) {
+      const ready = voidState.ready && voidState.firstModelReady;
+      const timeout = elapsed >= MAX_MS;
+      if (elapsed >= MIN_MS && (ready || timeout)) {
         setPhase("fade");
         setTimeout(() => setPhase("gone"), 800);
       } else {

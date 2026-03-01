@@ -654,6 +654,15 @@ function WorkGridContent() {
     });
     workModels.version++;
 
+    // Set first model active immediately so it loads (needed for LoadingScreen.firstModelReady).
+    // On mobile the work section is below the fold so intersection never reaches 0.78.
+    const firstId = workModels.entries[0]?.id ?? null;
+    if (firstId && !workModels.activeModelId && activeTab === "models") {
+      workModels.activeModelId = firstId;
+      setActiveId(firstId);
+      workModels.version++;
+    }
+
     const THRESHOLDS = Array.from({ length: 21 }, (_, i) => i / 20);
     const observer = new IntersectionObserver(([entry]) => {
       workModels.sectionRatio = entry.intersectionRatio;
