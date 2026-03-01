@@ -535,6 +535,8 @@ export default function WorkGrid() {
     return () => mq.removeEventListener("change", on);
   }, []);
 
+  const DEFAULT_TITLE = "Multiscatter";
+
   // ── Deep link: open viewer from ?model=slug (e.g. ?model=torch) ─────────────
   // (viewer omitted from deps so closing with setViewer(null) doesn't re-run and re-open)
   useEffect(() => {
@@ -549,6 +551,15 @@ export default function WorkGrid() {
     workModels.version++;
     document.getElementById("work")?.scrollIntoView({ behavior: "smooth" });
   }, [searchParams, projects]);
+
+  // ── document.title: set when viewer opens, reset on close ──────────────────
+  useEffect(() => {
+    if (viewer) {
+      document.title = `${viewer.project.title} | ${DEFAULT_TITLE}`;
+      return () => { document.title = DEFAULT_TITLE; };
+    }
+    document.title = DEFAULT_TITLE;
+  }, [viewer]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
