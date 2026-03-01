@@ -86,13 +86,6 @@ export default function LoadingScreen() {
           animation: "ls-bar 1.1s cubic-bezier(0.4,0,0.2,1) forwards",
         }} />
       </div>
-
-      <style>{`
-        @keyframes ls-bar {
-          from { width: 0%; }
-          to   { width: 100%; }
-        }
-      `}</style>
     </div>
   );
 }

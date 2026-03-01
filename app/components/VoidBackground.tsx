@@ -229,11 +229,16 @@ function StarLayer({
     const t    = s.clock.elapsedTime;
     const base = 0.84 + 0.10 * Math.sin(t * 0.32 + li * 1.1);
     const dim  = 1 - voidState.scrollProgress * 0.10;
+    // eslint-disable-next-line react-hooks/immutability
     mat.uniforms.uOpacity.value += (base * dim - mat.uniforms.uOpacity.value) * 0.04;
+     
     mat.uniforms.uTime.value = t;
+     
     mat.uniforms.uScroll.value = voidState.scrollProgress;
     const vel = voidState.mouseVel + voidState.scrollVel * 5;
+     
     mat.uniforms.uVelBoost.value = Math.min(vel * 0.08, 0.60);
+     
     mat.uniforms.uSize.value = cfg.size * (1 + mat.uniforms.uVelBoost.value);
   });
 
@@ -388,7 +393,8 @@ function ExpandedOrbitControls() {
     const onInteract = () => setHasInteracted(true);
     canvas.addEventListener("pointerdown", onInteract, { once: true });
     return () => canvas.removeEventListener("pointerdown", onInteract);
-  }, [isMobile, gl, workModels.expandedModelId]);
+   
+  }, [isMobile, gl]);
 
   if (!workModels.expandedModelId) return null;
   return (
@@ -732,6 +738,7 @@ function ShootingStars({
       if (!met.active) {
         vMet.env     = Math.max(vMet.env - dt * 6, 0);
         vMet.active  = false;
+        // eslint-disable-next-line react-hooks/immutability
         light.intensity = Math.max(light.intensity - dt * 18, 0);
         continue;
       }
@@ -792,20 +799,27 @@ function ShootingStars({
           if (d2 < DR2) {
             const d   = Math.sqrt(d2);
             const str = (1 - d / DR) * env;
+            // eslint-disable-next-line react-hooks/immutability
             if (str > disp[i]) disp[i] = str;
 
             if (d > 0.05) {
               if (d < WAKE_R) {
                 // Wake zone: pull stars toward meteor's travel direction
                 const wakeStr = (1 - d / WAKE_R) * env * 0.65;
+                // eslint-disable-next-line react-hooks/immutability
                 velBufs[li][i * 3]     += met.dx * wakeStr * 2.2;
+                 
                 velBufs[li][i * 3 + 1] += met.dy * wakeStr * 2.2;
+                 
                 velBufs[li][i * 3 + 2] += met.dz * wakeStr * 2.2;
               } else {
                 // Outer zone: push away from meteor
                 const push = (str * 2.0) / d;
+                 
                 velBufs[li][i * 3]     += dx * push;
+                 
                 velBufs[li][i * 3 + 1] += dy * push;
+                 
                 velBufs[li][i * 3 + 2] += dz * push;
               }
             }
@@ -828,18 +842,26 @@ function ShootingStars({
       for (let i = 0; i < cnt; i++) {
         if (disp[i] > 0.005) {
           changed    = true;
+           
           disp[i]   *= decay;
           const fl   = disp[i];
           // Lerp toward ice-white (0.88, 0.94, 1.0) — guaranteed visible
           // on any star regardless of original color
+          // eslint-disable-next-line react-hooks/immutability
           colArr[i * 3]     = oc[i * 3]     + (0.88 - oc[i * 3])     * fl;
+           
           colArr[i * 3 + 1] = oc[i * 3 + 1] + (0.94 - oc[i * 3 + 1]) * fl;
+           
           colArr[i * 3 + 2] = oc[i * 3 + 2] + (1.00 - oc[i * 3 + 2]) * fl;
         } else if (disp[i] > 0) {
           changed = true;
+           
           disp[i] = 0;
+           
           colArr[i * 3]     = oc[i * 3];
+           
           colArr[i * 3 + 1] = oc[i * 3 + 1];
+           
           colArr[i * 3 + 2] = oc[i * 3 + 2];
         }
       }
@@ -950,6 +972,7 @@ function ShootingStars({
       for (let li = 0; li < 3; li++) {
         const mask = modelMask[li];
         const cnt  = li < 2 ? layers[li].count : layers[2].count;
+        // eslint-disable-next-line react-hooks/immutability
         for (let i = 0; i < cnt; i++) { if (mask[i] > 0) mask[i] *= MASK_DECAY; }
       }
 
@@ -1100,7 +1123,7 @@ function makeWireframeMat(): THREE.ShaderMaterial {
 export const MODEL_X_OFFSETS = [0, 0.6, -0.6, 0.3, -0.3];
 export const MODEL_Z_OFFSETS = [0, -0.3, 0.3, 0.15, -0.15];
 
-function VoidModel({ entry, idx }: { entry: WorkModelEntry; idx: number }) {
+function VoidModel({ entry }: { entry: WorkModelEntry }) {
   const scene         = useFBX(entry.modelPath);
   const posGroupRef   = useRef<THREE.Group>(null);  // world position + depth offset
   const rotGroupRef   = useRef<THREE.Group>(null);  // user/auto rotation
@@ -1120,8 +1143,8 @@ function VoidModel({ entry, idx }: { entry: WorkModelEntry; idx: number }) {
   // normScale is computed from the world-space bounding box (which already
   // accounts for FBXLoader's axis + scale corrections) and is applied as a
   // constant child group, keeping scaleGroupRef free for entrance animation.
-  const labelLike = /(normal\s*map|tangent|tris|polygon|vertex|uv\s*map|specular|roughness\s*map|metalness|debug|label)/i;
   const { normScale, centreOffset } = useMemo(() => {
+    const labelLike = /(normal\s*map|tangent|tris|polygon|vertex|uv\s*map|specular|roughness\s*map|metalness|debug|label)/i;
     allMats.current = [];
     scene.traverse((o) => {
       if (labelLike.test(o.name)) {
@@ -1209,7 +1232,7 @@ function VoidModel({ entry, idx }: { entry: WorkModelEntry; idx: number }) {
     if (posGroupRef.current) posGroupRef.current.position.set(worldX, getWorldY(), worldZ - 9);
     // Intentionally run once on mount — getWorldY() reads voidState.scrollProgress,
     // which we don't want in deps (would re-run on every scroll).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   // ── Mouse-localised wireframe edges added imperatively into each mesh ───────
@@ -1377,8 +1400,8 @@ function WorkModelsInScene() {
 
   return (
     <>
-      {toRender.map((e, idx) => (
-        <VoidModel key={e.id} entry={e} idx={entries.indexOf(e)} />
+      {toRender.map((e) => (
+        <VoidModel key={e.id} entry={e} />
       ))}
     </>
   );
@@ -1442,6 +1465,7 @@ export default function VoidBackground() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, []);
 
@@ -1502,7 +1526,8 @@ export default function VoidBackground() {
   // Sync expanded state — subscribe to workModels changes (no setInterval polling)
   useEffect(() => {
     const unsub = subscribeExpanded(() => setExpanded(!!workModels.expandedModelId));
-    setExpanded(!!workModels.expandedModelId); // initial
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setExpanded(!!workModels.expandedModelId); // initial sync
     return () => { unsub(); };
   }, []);
 

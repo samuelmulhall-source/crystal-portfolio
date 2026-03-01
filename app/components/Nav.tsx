@@ -200,12 +200,12 @@ export default function Nav() {
                     transition:    "color 0.15s ease, background 0.15s ease",
                   }}
                   onMouseEnter={e => {
-                    (e.target as HTMLElement).style.color = "rgba(184,240,255,0.92)";
-                    (e.target as HTMLElement).style.background = "rgba(184,240,255,0.05)";
+                    (e.currentTarget as HTMLElement).style.color = "rgba(184,240,255,0.92)";
+                    (e.currentTarget as HTMLElement).style.background = "rgba(184,240,255,0.05)";
                   }}
                   onMouseLeave={e => {
-                    (e.target as HTMLElement).style.color = "rgba(184,240,255,0.60)";
-                    (e.target as HTMLElement).style.background = "";
+                    (e.currentTarget as HTMLElement).style.color = "rgba(184,240,255,0.60)";
+                    (e.currentTarget as HTMLElement).style.background = "";
                   }}
                 >
                   {label}

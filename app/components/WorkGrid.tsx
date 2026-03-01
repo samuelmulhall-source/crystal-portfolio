@@ -73,9 +73,7 @@ function FullscreenViewer({
   project:  Project;
   onClose:  () => void;
 }) {
-  const overlayRef    = useRef<HTMLDivElement>(null);
-  const hovRef        = useRef(true);
-  const canvasWrapRef = useRef<HTMLDivElement>(null);
+  const overlayRef      = useRef<HTMLDivElement>(null);
   const [mobile, setMobile] = useState(false);
 
   useEffect(() => {
@@ -208,7 +206,7 @@ function FullscreenViewer({
     <div ref={overlayRef} style={{ position: "fixed", inset: 0, zIndex: 100, opacity: 0, pointerEvents: "none" }}>
       <div style={{ display: "flex", flexDirection: mobile ? "column" : "row", width: "100%", height: "100%", overflow: "hidden", pointerEvents: "none" }}>
         {/* Left: canvas area — pointer-events none so VoidBackground/OrbitControls receive drag/zoom */}
-        <div ref={canvasWrapRef} style={{ flex: mobile ? "none" : 1, height: mobile ? "55vh" : "100%", minHeight: 0, position: "relative", background: "transparent" }} />
+        <div style={{ flex: mobile ? "none" : 1, height: mobile ? "55vh" : "100%", minHeight: 0, position: "relative", background: "transparent" }} />
         <div style={{ flex: mobile ? "1 1 auto" : "0 0 380px", overflowY: "auto", position: mobile ? "relative" : "sticky", top: 0, alignSelf: "stretch", background: "rgba(0,5,18,0.96)", borderLeft: mobile ? "none" : "1px solid rgba(184,240,255,0.06)", borderTop: mobile ? "1px solid rgba(184,240,255,0.06)" : "none", pointerEvents: "auto" }}>
           {infoPanel}
         </div>
@@ -260,18 +258,9 @@ function VideosContent({ visible, isNarrow }: { visible: boolean; isNarrow?: boo
         if (Array.isArray(data.videos) && data.videos.length > 0) {
           setVideos(data.videos);
           setActiveId(data.videos[0].id);
-          return;
         }
-        throw new Error("no static videos");
       })
-      .catch(() =>
-        fetch("/api/videos")
-          .then(r => r.json())
-          .then(({ videos: v }: { videos: VideoEntry[] }) => {
-            if (v?.length) { setVideos(v); setActiveId(v[0].id); }
-          })
-          .catch(() => {})
-      );
+      .catch(() => {});
   }, []);
 
   // Pause when tab is hidden; don't autoplay on tab switch
@@ -424,16 +413,9 @@ function ImagesContent() {
       .then((data: { images?: ImageEntry[] }) => {
         if (Array.isArray(data.images) && data.images.length > 0) {
           setImages(data.images);
-          return;
         }
-        throw new Error("no static images");
       })
-      .catch(() =>
-        fetch("/api/images")
-          .then(r => r.json())
-          .then(({ images: img }: { images: ImageEntry[] }) => setImages(img ?? []))
-          .catch(() => {})
-      );
+      .catch(() => {});
   }, []);
 
   return (
@@ -510,6 +492,64 @@ function ImagesContent() {
   );
 }
 
+// ─── Module-level constants ──────────────────────────────────────────────────
+const DEFAULT_TITLE = "Multiscatter";
+
+const TAB_LABELS: Record<WorkTab, string> = {
+  models: '3D Models',
+  videos: 'Video Renders',
+  images: 'Image Renders',
+};
+
+// ─── Shared tab strip ────────────────────────────────────────────────────────
+function WorkTabButtons({
+  activeTab,
+  onTabChange,
+}: {
+  activeTab: WorkTab;
+  onTabChange: (tab: WorkTab) => void;
+}) {
+  return (
+    <div style={{ display: "flex", gap: 0, borderBottom: "1px solid rgba(184,240,255,0.10)" }}>
+      {(Object.keys(TAB_LABELS) as WorkTab[]).map((tab) => (
+        <button
+          key={tab}
+          onClick={() => onTabChange(tab)}
+          className="work-tab"
+          style={{
+            background:   "none",
+            border:       "none",
+            borderBottom: activeTab === tab
+              ? "1px solid rgba(184,240,255,0.72)"
+              : "1px solid transparent",
+            marginBottom: "-1px",
+            padding:      "0.5rem 1.0rem 0.55rem",
+            cursor:       "pointer",
+            ...MON,
+            fontSize:     "clamp(0.58rem, 1.5vw, 0.68rem)",
+            letterSpacing: "0.18em",
+            color: activeTab === tab ? "rgba(220,248,255,0.95)" : "rgba(184,240,255,0.52)",
+            transition:   "color 0.25s, border-color 0.25s, box-shadow 0.25s",
+            whiteSpace:   "nowrap",
+          }}
+          onMouseEnter={(e) => {
+            const el = e.currentTarget as HTMLButtonElement;
+            if (activeTab !== tab) el.style.color = "rgba(184,240,255,0.85)";
+            el.style.boxShadow = "0 0 20px rgba(184,240,255,0.08)";
+          }}
+          onMouseLeave={(e) => {
+            const el = e.currentTarget as HTMLButtonElement;
+            if (activeTab !== tab) el.style.color = "rgba(184,240,255,0.52)";
+            el.style.boxShadow = "none";
+          }}
+        >
+          {TAB_LABELS[tab]}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 // ─── Fallback: minimal shell to avoid layout shift during Suspense ──────────
 function WorkGridFallback() {
   return (
@@ -534,6 +574,10 @@ function WorkGridContent() {
   const [isNarrow,   setIsNarrow]   = useState(false);
 
   const dragRef = useRef({ active: false, x: 0, y: 0, moved: false });
+  // Keep a ref in sync with activeTab so IntersectionObserver callbacks
+  // always read the current tab without needing to re-register.
+  const activeTabRef = useRef<WorkTab>(activeTab);
+  useEffect(() => { activeTabRef.current = activeTab; }, [activeTab]);
 
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 768px)");
@@ -542,8 +586,6 @@ function WorkGridContent() {
     mq.addEventListener("change", on);
     return () => mq.removeEventListener("change", on);
   }, []);
-
-  const DEFAULT_TITLE = "Multiscatter";
 
   // ── Deep link: open viewer from ?model=slug (e.g. ?model=torch) ─────────────
   // (viewer omitted from deps so closing with setViewer(null) doesn't re-run and re-open)
@@ -624,16 +666,11 @@ function WorkGridContent() {
       .then((data: { models?: Array<{ path: string; title: string; category: string; year: string; textures?: TextureSet; thumbnail?: string }> }) => {
         if (Array.isArray(data.models) && data.models.length > 0) {
           applyModels(data.models);
-          return;
+        } else {
+          setLoading(false);
         }
-        throw new Error("no static models");
       })
-      .catch(() =>
-        fetch("/api/models")
-          .then(r => r.json())
-          .then(({ models }: { models: Array<{ path: string; title: string; category: string; year: string; textures: TextureSet }> }) => applyModels(models))
-          .catch(() => setLoading(false))
-      );
+      .catch(() => setLoading(false));
   }, []);
 
   // ── Register models + IntersectionObserver ────────────────────────────────
@@ -670,7 +707,7 @@ function WorkGridContent() {
       // 0.78 was unreachable on screens with nav/chrome reducing viewport height.
       const ACTIVE_THRESH = 0.25;
       const DEACTIVE_THRESH = 0.15;
-      if (entry.isIntersecting && entry.intersectionRatio >= ACTIVE_THRESH && activeTab === 'models') {
+      if (entry.isIntersecting && entry.intersectionRatio >= ACTIVE_THRESH && activeTabRef.current === 'models') {
         const firstId = workModels.entries[0]?.id ?? null;
         if (firstId && !workModels.activeModelId) {
           workModels.activeModelId = firstId;
@@ -741,12 +778,6 @@ function WorkGridContent() {
     if (activeId) { const e = workModels.entries.find(en => en.id === activeId); if (e) { e.isDragging = false; e.wasDragged = wasDrag; } }
   };
 
-  const TAB_LABELS: Record<WorkTab, string> = {
-    models: '3D Models',
-    videos: 'Video Renders',
-    images: 'Image Renders',
-  };
-
   return (
     <section
       id="work"
@@ -793,43 +824,7 @@ function WorkGridContent() {
 
         {/* Tab strip: desktop only here; mobile shows tabs at bottom */}
         {!isNarrow && (
-          <div style={{ display: "flex", gap: 0, borderBottom: "1px solid rgba(184,240,255,0.10)" }}>
-            {(Object.keys(TAB_LABELS) as WorkTab[]).map(tab => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className="work-tab"
-                style={{
-                  background:  "none",
-                  border:      "none",
-                  borderBottom: activeTab === tab
-                    ? "1px solid rgba(184,240,255,0.72)"
-                    : "1px solid transparent",
-                  marginBottom: "-1px",
-                  padding:     "0.5rem 1.0rem 0.55rem",
-                  cursor:      "pointer",
-                  ...MON,
-                  fontSize:    "clamp(0.58rem, 1.5vw, 0.68rem)",
-                  letterSpacing: "0.18em",
-                  color: activeTab === tab ? "rgba(220,248,255,0.95)" : "rgba(184,240,255,0.52)",
-                  transition:  "color 0.25s, border-color 0.25s, box-shadow 0.25s",
-                  whiteSpace:  "nowrap",
-                }}
-                onMouseEnter={e => {
-                  const el = e.currentTarget as HTMLButtonElement;
-                  if (activeTab !== tab) el.style.color = "rgba(184,240,255,0.85)";
-                  el.style.boxShadow = "0 0 20px rgba(184,240,255,0.08)";
-                }}
-                onMouseLeave={e => {
-                  const el = e.currentTarget as HTMLButtonElement;
-                  if (activeTab !== tab) el.style.color = "rgba(184,240,255,0.52)";
-                  el.style.boxShadow = "none";
-                }}
-              >
-                {TAB_LABELS[tab]}
-              </button>
-            ))}
-          </div>
+          <WorkTabButtons activeTab={activeTab} onTabChange={setActiveTab} />
         )}
       </div>
 
@@ -843,41 +838,7 @@ function WorkGridContent() {
           zIndex: 3,
           pointerEvents: "auto",
         }}>
-          <div style={{ display: "flex", gap: 0, borderBottom: "1px solid rgba(184,240,255,0.10)" }}>
-            {(Object.keys(TAB_LABELS) as WorkTab[]).map(tab => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className="work-tab"
-                style={{
-                  background: "none",
-                  border: "none",
-                  borderBottom: activeTab === tab ? "1px solid rgba(184,240,255,0.72)" : "1px solid transparent",
-                  marginBottom: "-1px",
-                  padding: "0.5rem 1.0rem 0.55rem",
-                  cursor: "pointer",
-                  ...MON,
-                  fontSize: "clamp(0.58rem, 1.5vw, 0.68rem)",
-                  letterSpacing: "0.18em",
-                  color: activeTab === tab ? "rgba(220,248,255,0.95)" : "rgba(184,240,255,0.52)",
-                  transition: "color 0.25s, border-color 0.25s, box-shadow 0.25s",
-                  whiteSpace: "nowrap",
-                }}
-                onMouseEnter={e => {
-                  const el = e.currentTarget as HTMLButtonElement;
-                  if (activeTab !== tab) el.style.color = "rgba(184,240,255,0.85)";
-                  el.style.boxShadow = "0 0 20px rgba(184,240,255,0.08)";
-                }}
-                onMouseLeave={e => {
-                  const el = e.currentTarget as HTMLButtonElement;
-                  if (activeTab !== tab) el.style.color = "rgba(184,240,255,0.52)";
-                  el.style.boxShadow = "none";
-                }}
-              >
-                {TAB_LABELS[tab]}
-              </button>
-            ))}
-          </div>
+          <WorkTabButtons activeTab={activeTab} onTabChange={setActiveTab} />
         </div>
       )}
 
@@ -898,7 +859,7 @@ function WorkGridContent() {
               <span className="label" style={{ opacity: 0.4 }}>Loading…</span>
             ) : isNarrow ? (
               <div style={{ display: "flex", gap: "0.5rem", paddingBottom: "0.5rem" }}>
-                {projects.map((p, i) => {
+                {projects.map((p) => {
                   const active = activeId === p.id;
                   return (
                     <button

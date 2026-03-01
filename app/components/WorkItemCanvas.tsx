@@ -405,6 +405,15 @@ export default function WorkItemCanvas({
     return () => obs.disconnect();
   }, [containerRef, fullscreen]);
 
+  const onCreated = useCallback((state: { gl: THREE.WebGLRenderer & { domElement?: HTMLCanvasElement } }) => {
+    const canvas = state.gl?.domElement;
+    if (!canvas?.addEventListener) return;
+    const onContextLost = (e: Event) => {
+      (e as { preventDefault?: () => void }).preventDefault?.();
+    };
+    canvas.addEventListener("webglcontextlost", onContextLost, false);
+  }, []);
+
   // Server / pre-mount: avoid any Canvas or browser APIs (hydration safety)
   if (typeof window === "undefined" || !mounted) {
     return (
@@ -427,15 +436,6 @@ export default function WorkItemCanvas({
         return r;
       }
     : { alpha: true, premultipliedAlpha: false, antialias: true };
-
-  const onCreated = useCallback((state: { gl: THREE.WebGLRenderer & { domElement?: HTMLCanvasElement } }) => {
-    const canvas = state.gl?.domElement;
-    if (!canvas?.addEventListener) return;
-    const onContextLost = (e: Event) => {
-      (e as { preventDefault?: () => void }).preventDefault?.();
-    };
-    canvas.addEventListener("webglcontextlost", onContextLost, false);
-  }, []);
 
   return (
     <WebGPUContext.Provider value={useWebGPU ? webgpuModule : null}>

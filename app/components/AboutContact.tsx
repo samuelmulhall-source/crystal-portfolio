@@ -36,6 +36,9 @@ export default function AboutContact() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const subject = encodeURIComponent(`Portfolio enquiry — ${form.name}`);
+    const body = encodeURIComponent(`Name: ${form.name}\nEmail: ${form.email}\n\n${form.message}`);
+    window.location.href = `mailto:?subject=${subject}&body=${body}`;
     setSent(true);
   };
 

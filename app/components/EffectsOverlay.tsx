@@ -79,8 +79,11 @@ function drawTriCrystal(ctx: CanvasRenderingContext2D, cx: number, cy: number, r
   ctx.beginPath();
   for (let i = 0; i < 3; i++) {
     const a = rot - Math.PI / 2 + i * (Math.PI * 2 / 3);
-    i === 0 ? ctx.moveTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r)
-            : ctx.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+    if (i === 0) {
+      ctx.moveTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+    } else {
+      ctx.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+    }
   }
   ctx.closePath();
   // Inner centroid detail line

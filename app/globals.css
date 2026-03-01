@@ -300,6 +300,9 @@ main {
 /* ─── Loading orbit ring ──────────────────────────────────────────────────── */
 @keyframes orbit-ring { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
+/* ─── Loading screen progress bar ─────────────────────────────────────────── */
+@keyframes ls-bar { from { width: 0%; } to { width: 100%; } }
+
 /* ─── Responsive ──────────────────────────────────────────────────────────── */
 @media (max-width: 700px) {
   .hero-title { letter-spacing: 0.14em; }
