@@ -17,7 +17,7 @@
 
 import React, { useRef, useMemo, useEffect, useState, useCallback, Suspense } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { Environment, useFBX } from "@react-three/drei";
+import { Environment, useFBX, OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 import { voidState } from "../lib/voidState";
 import { workModels, WorkModelEntry } from "../lib/workModels";
@@ -143,6 +143,62 @@ function buildStarGeo(count: number, rMin: number, rMax: number, seed: number) {
   return g;
 }
 
+// ─── Holographic star shader: fresnel edge iridescence + foil shimmer ─────
+// fresnel proxy via gl_PointCoord (rim = edge of sprite); sin(time)+noise for shimmer
+function makeHoloStarMat(): THREE.ShaderMaterial {
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      uTime: { value: 0 },
+      uSize: { value: 0.22 },
+      uOpacity: { value: 0.84 },
+      uScroll: { value: 0 },
+      uVelBoost: { value: 0 },
+    },
+    vertexShader: /* glsl */`
+      attribute vec3 color;
+      varying vec3 vColor;
+      uniform float uSize;
+      void main() {
+        vColor = color;
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        gl_Position = projectionMatrix * mv;
+        gl_PointSize = uSize * (300.0 / -mv.z);
+      }
+    `,
+    fragmentShader: /* glsl */`
+      uniform float uTime;
+      uniform float uOpacity;
+      varying vec3 vColor;
+      void main() {
+        vec2 uv = gl_PointCoord - 0.5;
+        float dist = length(uv) * 2.0;
+        // Fresnel-like: rim only at edges (pow for trim thickness)
+        float rim = pow(smoothstep(0.25, 0.55, dist), 3.0);
+        // Noise proxy: sin(time + vertex offset) — cheap, no texture
+        float n = sin(uTime * 1.2 + gl_FragCoord.x * 0.02 + gl_FragCoord.y * 0.03) * 0.5 + 0.5;
+        float shimmer = rim * (0.7 + 0.3 * n);
+        // Chromatic shift: hue offset on rim (ice→violet)
+        float hueOff = shimmer * 0.15 * sin(uTime * 0.8);
+        vec3 base = vColor;
+        vec3 chroma = vec3(
+          base.r + hueOff * 0.5,
+          base.g,
+          base.b + hueOff
+        );
+        float core = 1.0 - smoothstep(0.0, 0.4, dist);
+        vec3 col = mix(base, chroma, shimmer) + vec3(0.08, 0.12, 0.18) * shimmer;
+        float a = uOpacity * (core * 0.6 + 0.4 + shimmer * 0.3);
+        gl_FragColor = vec4(col, a);
+      }
+    `,
+    transparent: true,
+    depthWrite: false,
+    depthTest: true,
+    blending: THREE.AdditiveBlending,
+    vertexColors: true,
+  });
+}
+
 // ─── Star layer component ─────────────────────────────────────────────────
 function StarLayer({
   li,
@@ -152,43 +208,31 @@ function StarLayer({
   pointsRef: React.RefObject<THREE.Points | null>;
 }) {
   const cfg    = LAYERS[li];
-  const matRef = useRef<THREE.PointsMaterial>(null);
   const geo    = useMemo(() => buildStarGeo(cfg.count, cfg.rMin, cfg.rMax, cfg.seed), [cfg]);
-  const sprite = useMemo(() => getStarSprite(), []);
+  const mat    = useMemo(() => makeHoloStarMat(), []);
+
+  useEffect(() => () => mat.dispose(), [mat]);
 
   useFrame((s, dt) => {
-    if (!pointsRef.current || !matRef.current) return;
+    if (!pointsRef.current || !mat.uniforms) return;
     pointsRef.current.rotation.y += dt * cfg.rotSpd;
     pointsRef.current.rotation.x += dt * cfg.rotSpd * 0.32;
 
     const t    = s.clock.elapsedTime;
     const base = 0.84 + 0.10 * Math.sin(t * 0.32 + li * 1.1);
     const dim  = 1 - voidState.scrollProgress * 0.10;
-    matRef.current.opacity += (base * dim - matRef.current.opacity) * 0.04;
-
-    // Motion blur: size grows with mouse + scroll velocity
-    const vel      = voidState.mouseVel + voidState.scrollVel * 5;
-    const velBoost = Math.min(vel * 0.08, 0.60);
-    matRef.current.size = cfg.size * (1 + velBoost);
+    mat.uniforms.uOpacity.value += (base * dim - mat.uniforms.uOpacity.value) * 0.04;
+    mat.uniforms.uTime.value = t;
+    mat.uniforms.uScroll.value = voidState.scrollProgress;
+    const vel = voidState.mouseVel + voidState.scrollVel * 5;
+    mat.uniforms.uVelBoost.value = Math.min(vel * 0.08, 0.60);
+    mat.uniforms.uSize.value = cfg.size * (1 + mat.uniforms.uVelBoost.value);
   });
 
   return (
-    // renderOrder=-1 ensures stars are drawn before (behind) models at renderOrder=0
     <points ref={pointsRef} renderOrder={-1}>
       <primitive object={geo} attach="geometry" />
-      <pointsMaterial
-        ref={matRef}
-        attach="material"
-        map={sprite ?? undefined}
-        size={cfg.size}
-        vertexColors
-        transparent
-        opacity={0.84}
-        sizeAttenuation
-        blending={THREE.AdditiveBlending}
-        depthWrite={false}
-        depthTest={true}
-      />
+      <primitive object={mat} attach="material" />
     </points>
   );
 }
@@ -273,6 +317,7 @@ function VoidCamera() {
   const lt2 = useMemo(() => new THREE.Vector3(), []);
 
   useFrame((s, dt) => {
+    if (workModels.expandedModelId) return; // OrbitControls takes over
     const t  = s.clock.elapsedTime;
     const dx = Math.sin(t * 0.038) * 0.55;
     const dy = Math.cos(t * 0.028) * 0.32;
@@ -296,6 +341,39 @@ function VoidCamera() {
   });
 
   return null;
+}
+
+// ─── Expanded view: OrbitControls when fullscreen viewer open ─────────────
+function ExpandedOrbitControls() {
+  const { camera } = useThree();
+  const prevExpandedRef = useRef<string | null>(null);
+
+  useFrame(() => {
+    const expanded = workModels.expandedModelId;
+    if (expanded && prevExpandedRef.current !== expanded) {
+      prevExpandedRef.current = expanded;
+      camera.position.set(0, 0, 8);
+      camera.lookAt(0, 0, 0);
+    } else if (!expanded) {
+      prevExpandedRef.current = null;
+    }
+  });
+
+  if (!workModels.expandedModelId) return null;
+  return (
+    <OrbitControls
+      enablePan={false}
+      enableZoom
+      enableRotate
+      autoRotate
+      autoRotateSpeed={0.4}
+      dampingFactor={0.08}
+      enableDamping
+      minDistance={0.5}
+      maxDistance={40}
+      target={[0, 0, 0]}
+    />
+  );
 }
 
 // ─── Velocity decay ────────────────────────────────────────────────────────
@@ -1290,6 +1368,7 @@ function VoidScene() {
 
       <VoidCore />
       <VoidCamera />
+      <ExpandedOrbitControls />
       <VoidMotion />
 
       <StarHoverSystem pts={[pts0, pts1, pts2]} />
@@ -1305,7 +1384,16 @@ function VoidScene() {
 
 // ─── Root export ───────────────────────────────────────────────────────────
 export default function VoidBackground() {
+  const [mounted, setMounted] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted || typeof window === "undefined") return;
     let prevMX = 0, prevMY = 0, prevMT = performance.now();
     let prevSP = 0, prevST = performance.now();
 
@@ -1347,6 +1435,14 @@ export default function VoidBackground() {
       document.removeEventListener("mouseleave", onLeave);
       window.removeEventListener("scroll",       onScroll);
     };
+  }, [mounted]);
+
+  // Sync expanded state so we can raise z-index for OrbitControls pointer events
+  useEffect(() => {
+    const id = setInterval(() => {
+      setExpanded(!!workModels.expandedModelId);
+    }, 100);
+    return () => clearInterval(id);
   }, []);
 
   const onCanvasCreated = useCallback((state: { gl: THREE.WebGLRenderer & { domElement?: HTMLCanvasElement } }) => {
@@ -1358,9 +1454,25 @@ export default function VoidBackground() {
     canvas.addEventListener("webglcontextlost", onContextLost, false);
   }, []);
 
+  // Client-only: avoid hydration mismatch — R3F/Three.js runs only after mount
+  if (!mounted || typeof window === "undefined") {
+    return (
+      <div
+        style={{ position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none", background: "#000005" }}
+        role="presentation"
+        aria-hidden="true"
+      />
+    );
+  }
+
   return (
     <div
-      style={{ position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none" }}
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: expanded ? 50 : 0,
+        pointerEvents: expanded ? "auto" : "none",
+      }}
       role="presentation"
       aria-hidden="true"
     >

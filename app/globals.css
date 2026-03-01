@@ -156,22 +156,14 @@ main {
 .frost-link:hover { color: var(--ice); }
 .frost-link:hover::after { width: 100%; }
 
-/* ─── Glitch (nav wordmark) ───────────────────────────────────────────────── */
-@keyframes glitch-clip {
-  0%, 90%, 100% { clip-path: none; transform: none; opacity: 1; }
-  92% { clip-path: inset(42% 0 48% 0); transform: translate(-2px,  1px); opacity: 0.85; }
-  94% { clip-path: inset(68% 0 22% 0); transform: translate( 2px, -1px); opacity: 0.90; }
-  96% { clip-path: inset( 8% 0 82% 0); transform: translate(-1px,  0);   opacity: 0.85; }
+/* ─── Nav wordmark: single clean title (no glitch duplication) ────────────── */
+.glitch {
+  position: relative;
 }
-.glitch { position: relative; animation: glitch-clip 10s infinite; }
-.glitch::before {
-  content: attr(data-text);
-  position: absolute; inset: 0;
-  color: var(--ice);
-  clip-path: inset(0 0 100% 0);
-  animation: glitch-clip 10s infinite reverse;
-  opacity: 0.38;
-  pointer-events: none;
+
+/* ─── Work tabs: sharp minimal active state, cosmic hover glow ────────────── */
+.work-tab:hover {
+  box-shadow: 0 0 20px rgba(184, 240, 255, 0.08);
 }
 
 /* ─── Scroll indicator ────────────────────────────────────────────────────── */

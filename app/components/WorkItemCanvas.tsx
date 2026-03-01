@@ -378,13 +378,19 @@ export default function WorkItemCanvas({
   const [mounted, setMounted] = useState(fullscreen);
   const [webgpuModule, setWebgpuModule] = useState<WebGPUModule>(null);
 
+  // Client-only: never run WebGPU import on server (avoid hydration mismatch)
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    let cancelled = false;
     import("three/webgpu")
-      .then((T) => setWebgpuModule(T))
+      .then((T) => { if (!cancelled) setWebgpuModule(T); })
       .catch(() => {
-        console.warn("WebGPU not supported, using WebGL.");
-        setWebgpuModule(false);
+        if (!cancelled) {
+          console.warn("WebGPU not supported, using WebGL.");
+          setWebgpuModule(false);
+        }
       });
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
@@ -399,9 +405,10 @@ export default function WorkItemCanvas({
     return () => obs.disconnect();
   }, [containerRef, fullscreen]);
 
-  if (!mounted) {
+  // Server / pre-mount: avoid any Canvas or browser APIs (hydration safety)
+  if (typeof window === "undefined" || !mounted) {
     return (
-      <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "transparent" }}>
         <span style={{ fontFamily: "var(--font-geist-mono), monospace", fontSize: "0.5rem", letterSpacing: "0.3em", color: "rgba(184,240,255,0.10)", textTransform: "uppercase" }}>·</span>
       </div>
     );

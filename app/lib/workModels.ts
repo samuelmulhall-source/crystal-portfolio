@@ -52,4 +52,6 @@ export const workModels = {
   sectionRatio: 0,
   /** Set by Nav to request a specific tab; WorkSection reads + clears it. */
   pendingTab: null as 'models' | 'videos' | 'images' | null,
+  /** When set, expanded view reuses VoidBackground — no new canvas/model. */
+  expandedModelId: null as string | null,
 };

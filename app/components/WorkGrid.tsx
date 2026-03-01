@@ -2,18 +2,17 @@
 
 /**
  * WorkGrid — unified Work section with three selectable sub-views:
- *   ① 3D Models   ② Final Renders   ③ Gallery (images)
+ *   ① 3D Models   ② Video Renders   ③ Image Renders
  *
  * Tabs switch the view in-place; no new scroll section is needed.
  * The 3D model renders in VoidBackground and is hidden when another tab is active.
  */
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { Suspense, useEffect, useRef, useState, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import WorkItemCanvas from "./WorkItemCanvas";
 import { workModels, TextureSet } from "../lib/workModels";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -206,12 +205,11 @@ function FullscreenViewer({
   );
 
   return (
-    <div ref={overlayRef} style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(0,0,3,0.96)", opacity: 0 }}>
+    <div ref={overlayRef} style={{ position: "fixed", inset: 0, zIndex: 100, opacity: 0, pointerEvents: "auto" }}>
       <div style={{ display: "flex", flexDirection: mobile ? "column" : "row", width: "100%", height: "100%", overflow: "hidden" }}>
-        <div ref={canvasWrapRef} style={{ flex: mobile ? "none" : 1, height: mobile ? "55vh" : "100%", minHeight: 0, position: "relative" }}>
-          <WorkItemCanvas modelPath={project.modelPath} textures={project.textures} hoveredRef={hovRef} containerRef={canvasWrapRef} fullscreen />
-        </div>
-        <div style={{ flex: mobile ? "1 1 auto" : "0 0 380px", overflowY: "auto", position: mobile ? "relative" : "sticky", top: 0, alignSelf: "stretch" }}>
+        {/* Left: transparent, pointer-events none — VoidBackground (reused) receives orbit controls */}
+        <div ref={canvasWrapRef} style={{ flex: mobile ? "none" : 1, height: mobile ? "55vh" : "100%", minHeight: 0, position: "relative", background: "transparent", pointerEvents: "none" }} />
+        <div style={{ flex: mobile ? "1 1 auto" : "0 0 380px", overflowY: "auto", position: mobile ? "relative" : "sticky", top: 0, alignSelf: "stretch", background: "rgba(0,5,18,0.96)", borderLeft: mobile ? "none" : "1px solid rgba(184,240,255,0.06)", borderTop: mobile ? "1px solid rgba(184,240,255,0.06)" : "none" }}>
           {infoPanel}
         </div>
       </div>
@@ -511,8 +509,15 @@ function ImagesContent() {
   );
 }
 
-// ─── Section ───────────────────────────────────────────────────────────────
-export default function WorkGrid() {
+// ─── Fallback: minimal shell to avoid layout shift during Suspense ──────────
+function WorkGridFallback() {
+  return (
+    <section id="work" style={{ position: "relative", height: "100vh", overflow: "hidden", background: "transparent" }} />
+  );
+}
+
+// ─── Section (uses useSearchParams — must be inside Suspense) ────────────────
+function WorkGridContent() {
   const sectionRef  = useRef<HTMLElement>(null);
   const dragZoneRef = useRef<HTMLDivElement>(null);
   const searchParams = useSearchParams();
@@ -550,6 +555,7 @@ export default function WorkGrid() {
     setActiveTab("models");
     setActiveId(project.id);
     workModels.activeModelId = project.id;
+    workModels.expandedModelId = project.id;
     workModels.version++;
     document.getElementById("work")?.scrollIntoView({ behavior: "smooth" });
   }, [searchParams, projects]);
@@ -566,7 +572,10 @@ export default function WorkGrid() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     const onPopState = () => {
-      if (!new URLSearchParams(window.location.search).has("model")) setViewer(null);
+      if (!new URLSearchParams(window.location.search).has("model")) {
+        setViewer(null);
+        workModels.expandedModelId = null;
+      }
     };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
@@ -723,8 +732,8 @@ export default function WorkGrid() {
 
   const TAB_LABELS: Record<WorkTab, string> = {
     models: '3D Models',
-    videos: 'Final Renders',
-    images: 'Gallery',
+    videos: 'Video Renders',
+    images: 'Image Renders',
   };
 
   return (
@@ -761,47 +770,105 @@ export default function WorkGrid() {
         </div>
       ))}
 
-      {/* ── Header + tab switcher (top-left) ── */}
+      {/* ── Header (top-left); on mobile tabs move to bottom below canvas ── */}
       <div style={{
-        position: "absolute", top: "clamp(80px, 12vh, 110px)", left: "clamp(1rem, 4vw, 2.5rem)",
-        zIndex: 3, pointerEvents: "auto",
+        position: "absolute",
+        top: "clamp(80px, 12vh, 110px)",
+        left: "clamp(1rem, 4vw, 2.5rem)",
+        zIndex: 3,
+        pointerEvents: "auto",
       }}>
-        <p className="label" style={{ marginBottom: "1.2rem", opacity: 0.85 }}>01 — Work</p>
+        <p className="label" style={{ marginBottom: isNarrow ? "0.6rem" : "1.2rem", opacity: 0.85 }}>01 — Work</p>
 
-        {/* Tab strip */}
-        <div style={{ display: "flex", gap: "0", borderBottom: "1px solid rgba(184,240,255,0.10)" }}>
-          {(Object.keys(TAB_LABELS) as WorkTab[]).map(tab => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              style={{
-                background:  "none",
-                border:      "none",
-                borderBottom: activeTab === tab
-                  ? "1px solid rgba(184,240,255,0.65)"
-                  : "1px solid transparent",
-                marginBottom: "-1px",
-                padding:     "0.5rem 1.0rem 0.55rem",
-                cursor:      "pointer",
-                ...MON,
-                fontSize:    "clamp(0.58rem, 1.5vw, 0.68rem)",
-                letterSpacing: "0.18em",
-                color: activeTab === tab ? "rgba(220,248,255,0.95)" : "rgba(184,240,255,0.52)",
-                transition:  "color 0.25s, border-color 0.25s",
-                whiteSpace:  "nowrap",
-              }}
-              onMouseEnter={e => {
-                if (activeTab !== tab) (e.currentTarget as HTMLButtonElement).style.color = "rgba(184,240,255,0.78)";
-              }}
-              onMouseLeave={e => {
-                if (activeTab !== tab) (e.currentTarget as HTMLButtonElement).style.color = "rgba(184,240,255,0.52)";
-              }}
-            >
-              {TAB_LABELS[tab]}
-            </button>
-          ))}
-        </div>
+        {/* Tab strip: desktop only here; mobile shows tabs at bottom */}
+        {!isNarrow && (
+          <div style={{ display: "flex", gap: 0, borderBottom: "1px solid rgba(184,240,255,0.10)" }}>
+            {(Object.keys(TAB_LABELS) as WorkTab[]).map(tab => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className="work-tab"
+                style={{
+                  background:  "none",
+                  border:      "none",
+                  borderBottom: activeTab === tab
+                    ? "1px solid rgba(184,240,255,0.72)"
+                    : "1px solid transparent",
+                  marginBottom: "-1px",
+                  padding:     "0.5rem 1.0rem 0.55rem",
+                  cursor:      "pointer",
+                  ...MON,
+                  fontSize:    "clamp(0.58rem, 1.5vw, 0.68rem)",
+                  letterSpacing: "0.18em",
+                  color: activeTab === tab ? "rgba(220,248,255,0.95)" : "rgba(184,240,255,0.52)",
+                  transition:  "color 0.25s, border-color 0.25s, box-shadow 0.25s",
+                  whiteSpace:  "nowrap",
+                }}
+                onMouseEnter={e => {
+                  const el = e.currentTarget as HTMLButtonElement;
+                  if (activeTab !== tab) el.style.color = "rgba(184,240,255,0.85)";
+                  el.style.boxShadow = "0 0 20px rgba(184,240,255,0.08)";
+                }}
+                onMouseLeave={e => {
+                  const el = e.currentTarget as HTMLButtonElement;
+                  if (activeTab !== tab) el.style.color = "rgba(184,240,255,0.52)";
+                  el.style.boxShadow = "none";
+                }}
+              >
+                {TAB_LABELS[tab]}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
+
+      {/* Mobile: tabs at bottom (below canvas) — user sees canvas first, then tabs */}
+      {isNarrow && (
+        <div style={{
+          position: "absolute",
+          bottom: "clamp(1rem, 5vh, 2rem)",
+          left: "clamp(1rem, 4vw, 2.5rem)",
+          right: "clamp(1rem, 4vw, 2.5rem)",
+          zIndex: 3,
+          pointerEvents: "auto",
+        }}>
+          <div style={{ display: "flex", gap: 0, borderBottom: "1px solid rgba(184,240,255,0.10)" }}>
+            {(Object.keys(TAB_LABELS) as WorkTab[]).map(tab => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className="work-tab"
+                style={{
+                  background: "none",
+                  border: "none",
+                  borderBottom: activeTab === tab ? "1px solid rgba(184,240,255,0.72)" : "1px solid transparent",
+                  marginBottom: "-1px",
+                  padding: "0.5rem 1.0rem 0.55rem",
+                  cursor: "pointer",
+                  ...MON,
+                  fontSize: "clamp(0.58rem, 1.5vw, 0.68rem)",
+                  letterSpacing: "0.18em",
+                  color: activeTab === tab ? "rgba(220,248,255,0.95)" : "rgba(184,240,255,0.52)",
+                  transition: "color 0.25s, border-color 0.25s, box-shadow 0.25s",
+                  whiteSpace: "nowrap",
+                }}
+                onMouseEnter={e => {
+                  const el = e.currentTarget as HTMLButtonElement;
+                  if (activeTab !== tab) el.style.color = "rgba(184,240,255,0.85)";
+                  el.style.boxShadow = "0 0 20px rgba(184,240,255,0.08)";
+                }}
+                onMouseLeave={e => {
+                  const el = e.currentTarget as HTMLButtonElement;
+                  if (activeTab !== tab) el.style.color = "rgba(184,240,255,0.52)";
+                  el.style.boxShadow = "none";
+                }}
+              >
+                {TAB_LABELS[tab]}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── Models tab content ── */}
       {activeTab === 'models' && (
@@ -837,14 +904,8 @@ export default function WorkGrid() {
                         textAlign: "left",
                         opacity: active ? 1 : 0.7,
                         transition: "opacity 0.2s, border-color 0.2s, background 0.2s",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "0.5rem",
                       }}
                     >
-                      {p.thumbnail && (
-                        <img src={p.thumbnail} alt="" width={32} height={32} style={{ width: 32, height: 32, objectFit: "cover", borderRadius: 2, flexShrink: 0 }} />
-                      )}
                       <div>
                         <div style={{
                           fontFamily: "var(--font-geist-sans), sans-serif",
@@ -874,13 +935,9 @@ export default function WorkGrid() {
                     onMouseEnter={e => { if (!active) (e.currentTarget as HTMLDivElement).style.opacity = "0.75"; }}
                     onMouseLeave={e => { if (!active) (e.currentTarget as HTMLDivElement).style.opacity = "0.5"; }}
                   >
-                    {p.thumbnail ? (
-                      <img src={p.thumbnail} alt="" width={36} height={36} style={{ width: 36, height: 36, objectFit: "cover", borderRadius: 2, flexShrink: 0 }} />
-                    ) : (
-                      <span style={{ ...MON, fontSize: "0.52rem", letterSpacing: "0.28em", color: "rgba(184,240,255,0.45)", flexShrink: 0, minWidth: "1.2rem" }}>
-                        {String(i + 1).padStart(2, "0")}
-                      </span>
-                    )}
+                    <span style={{ ...MON, fontSize: "0.52rem", letterSpacing: "0.28em", color: "rgba(184,240,255,0.45)", flexShrink: 0, minWidth: "1.2rem" }}>
+                      {String(i + 1).padStart(2, "0")}
+                    </span>
                     <div style={{ flex: 1 }}>
                       <div style={{
                         fontFamily: "var(--font-geist-sans), sans-serif",
@@ -917,6 +974,7 @@ export default function WorkGrid() {
                 const p   = projects.find(p => p.id === activeId);
                 if (p) {
                   router.push(`/?model=${slugFromTitle(p.title)}`);
+                  workModels.expandedModelId = p.id;
                   setViewer({ project: p });
                 }
               }}
@@ -984,9 +1042,18 @@ export default function WorkGrid() {
       {viewer && (
         <FullscreenViewer
           project={viewer.project}
-          onClose={() => { router.replace("/"); setViewer(null); }}
+          onClose={() => { router.replace("/"); workModels.expandedModelId = null; setViewer(null); }}
         />
       )}
     </section>
+  );
+}
+
+// Default: wrap in Suspense so useSearchParams does not cause static export / hydration issues
+export default function WorkGrid() {
+  return (
+    <Suspense fallback={<WorkGridFallback />}>
+      <WorkGridContent />
+    </Suspense>
   );
 }

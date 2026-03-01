@@ -7,9 +7,9 @@ import { workModels } from "../lib/workModels";
 
 type WorkTab = 'models' | 'videos' | 'images';
 const WORK_SUBS: { label: string; tab: WorkTab }[] = [
-  { label: "3D Models",     tab: "models" },
-  { label: "Final Renders", tab: "videos" },
-  { label: "Gallery",       tab: "images" },
+  { label: "3D Models",      tab: "models" },
+  { label: "Video Renders",  tab: "videos" },
+  { label: "Image Renders",  tab: "images" },
 ];
 const LINKS = [
   { label: "Contact", href: "#contact" },
