@@ -92,6 +92,10 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
       <head>
+        {/* Preload first model + key texture for instant first frame */}
+        <link rel="preload" href="/models/Torch/torch.fbx" as="fetch" crossOrigin="anonymous" />
+        <link rel="preload" href="/models/Torch/Torch_color.png" as="image" />
+        <link rel="preload" href="/data.json" as="fetch" crossOrigin="anonymous" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}

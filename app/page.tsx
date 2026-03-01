@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import VoidBackground from "./components/VoidBackground";
 import EffectsOverlay from "./components/EffectsOverlay";
 import LoadingScreen  from "./components/LoadingScreen";
+import CosmicLoader   from "./components/CosmicLoader";
 import Hero           from "./components/Hero";
 import WorkGrid       from "./components/WorkGrid";
 import AboutContact   from "./components/AboutContact";
@@ -11,14 +12,16 @@ export default function Home() {
   return (
     <>
       <LoadingScreen />
-      <VoidBackground />
+      <Suspense fallback={<CosmicLoader />}>
+        <VoidBackground />
+      </Suspense>
       <EffectsOverlay />
 
       {/* ── Scrollable page content ── */}
       <main>
         <Nav />
         <Hero />
-        <Suspense fallback={<section id="work" style={{ height: "100vh", background: "transparent" }} />}>
+        <Suspense fallback={<CosmicLoader />}>
           <WorkGrid />
         </Suspense>
         <AboutContact />

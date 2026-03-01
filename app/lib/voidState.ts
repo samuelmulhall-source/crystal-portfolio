@@ -8,6 +8,7 @@
  */
 export const voidState = {
   ready:          false,   // set true by VoidBackground after first rendered frame
+  firstModelReady: false,  // set when first model opacity > 0.3 (canvas + first FBX loaded)
   mouseNX:        0,       // cursor NDC-X  (−1..+1, +1 = right)
   mouseNY:        0,       // cursor screen-Y (−1..+1, +1 = bottom — INVERTED vs NDC)
   scrollProgress: 0,       // 0 (top) → 1 (bottom of page)

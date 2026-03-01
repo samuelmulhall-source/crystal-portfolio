@@ -15,12 +15,29 @@
  * EffectsOverlay can read them without needing Three.js camera access.
  */
 
-import React, { useRef, useMemo, useEffect, useState, useCallback, Suspense } from "react";
+import React, { useRef, useMemo, useEffect, useState, useCallback, Suspense, createContext, useContext } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Environment, useFBX, OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 import { voidState } from "../lib/voidState";
 import { workModels, WorkModelEntry } from "../lib/workModels";
+
+type LayerConfig = readonly { count: number; rMin: number; rMax: number; rotSpd: number; size: number; seed: number }[];
+
+// ─── Star layer config ─────────────────────────────────────────────────────
+// Desktop: full density. Mobile: reduced for <5% GPU cost.
+const LAYERS_DESKTOP = [
+  { count: 1800, rMin: 14, rMax: 30, rotSpd: 0.007, size: 0.22, seed: 11111 },
+  { count: 1400, rMin: 26, rMax: 44, rotSpd: 0.011, size: 0.28, seed: 22222 },
+  { count:  900, rMin: 36, rMax: 58, rotSpd: 0.017, size: 0.34, seed: 33333 },
+] as const;
+const LAYERS_MOBILE = [
+  { count: 600, rMin: 14, rMax: 30, rotSpd: 0.008, size: 0.24, seed: 11111 },
+  { count: 500, rMin: 26, rMax: 44, rotSpd: 0.012, size: 0.28, seed: 22222 },
+  { count: 350, rMin: 36, rMax: 58, rotSpd: 0.018, size: 0.32, seed: 33333 },
+] as const;
+
+const VoidContext = createContext<{ isMobile: boolean; layers: LayerConfig }>({ isMobile: false, layers: LAYERS_DESKTOP });
 
 // ─── Seeded random ─────────────────────────────────────────────────────────
 function sr(seed: number) {
@@ -82,15 +99,6 @@ function buildStarColors(count: number, seed: number): Float32Array {
   }
   return col;
 }
-
-// ─── Star layer config ─────────────────────────────────────────────────────
-// Higher counts give a real night-sky density; three shells at different radii
-// create natural parallax depth as the camera rotates.
-const LAYERS = [
-  { count: 1800, rMin: 14, rMax: 30, rotSpd: 0.007, size: 0.22, seed: 11111 },
-  { count: 1400, rMin: 26, rMax: 44, rotSpd: 0.011, size: 0.28, seed: 22222 },
-  { count:  900, rMin: 36, rMax: 58, rotSpd: 0.017, size: 0.34, seed: 33333 },
-] as const;
 
 // Galactic tilt angle for the Milky Way band (radians)
 const MW_TILT = Math.PI * 0.38;
@@ -155,7 +163,6 @@ function makeHoloStarMat(): THREE.ShaderMaterial {
       uVelBoost: { value: 0 },
     },
     vertexShader: /* glsl */`
-      attribute vec3 color;
       varying vec3 vColor;
       uniform float uSize;
       void main() {
@@ -207,7 +214,8 @@ function StarLayer({
   li: 0 | 1 | 2;
   pointsRef: React.RefObject<THREE.Points | null>;
 }) {
-  const cfg    = LAYERS[li];
+  const { layers } = useContext(VoidContext);
+  const cfg    = layers[li];
   const geo    = useMemo(() => buildStarGeo(cfg.count, cfg.rMin, cfg.rMax, cfg.seed), [cfg]);
   const mat    = useMemo(() => makeHoloStarMat(), []);
 
@@ -344,9 +352,12 @@ function VoidCamera() {
 }
 
 // ─── Expanded view: OrbitControls when fullscreen viewer open ─────────────
+// On mobile: autoRotate off until first interaction (performance)
 function ExpandedOrbitControls() {
-  const { camera } = useThree();
+  const { camera, gl } = useThree();
   const prevExpandedRef = useRef<string | null>(null);
+  const [hasInteracted, setHasInteracted] = useState(false);
+  const { isMobile } = useContext(VoidContext);
 
   useFrame(() => {
     const expanded = workModels.expandedModelId;
@@ -354,10 +365,19 @@ function ExpandedOrbitControls() {
       prevExpandedRef.current = expanded;
       camera.position.set(0, 0, 8);
       camera.lookAt(0, 0, 0);
+      setHasInteracted(false);
     } else if (!expanded) {
       prevExpandedRef.current = null;
     }
   });
+
+  useEffect(() => {
+    if (!isMobile || !workModels.expandedModelId) return;
+    const canvas = gl.domElement;
+    const onInteract = () => setHasInteracted(true);
+    canvas.addEventListener("pointerdown", onInteract, { once: true });
+    return () => canvas.removeEventListener("pointerdown", onInteract);
+  }, [isMobile, gl, workModels.expandedModelId]);
 
   if (!workModels.expandedModelId) return null;
   return (
@@ -365,7 +385,7 @@ function ExpandedOrbitControls() {
       enablePan={false}
       enableZoom
       enableRotate
-      autoRotate
+      autoRotate={!isMobile || hasInteracted}
       autoRotateSpeed={0.4}
       dampingFactor={0.08}
       enableDamping
@@ -603,39 +623,38 @@ function ShootingStars({
   const camR  = useMemo(() => new THREE.Vector3(), []); // camera right
   const camU  = useMemo(() => new THREE.Vector3(), []); // camera up
 
+  const { layers } = useContext(VoidContext);
   // Per-star disruption strength buffer
   const disruption = useMemo(() => [
-    new Float32Array(LAYERS[0].count),
-    new Float32Array(LAYERS[1].count),
-  ], []);
+    new Float32Array(layers[0].count),
+    new Float32Array(layers[1].count),
+  ], [layers]);
 
   // Original star colors (seeded, exact match to buildStarGeo) — all 3 layers
-  // needed so the model mask can restore layer-2 colours after fading them.
   const origColors = useMemo(() => [
-    buildStarColors(LAYERS[0].count, LAYERS[0].seed),
-    buildStarColors(LAYERS[1].count, LAYERS[1].seed),
-    buildStarColors(LAYERS[2].count, LAYERS[2].seed),
-  ], []);
+    buildStarColors(layers[0].count, layers[0].seed),
+    buildStarColors(layers[1].count, layers[1].seed),
+    buildStarColors(layers[2].count, layers[2].seed),
+  ], [layers]);
 
   // Original star positions — rest positions for the spring simulation
   const origPosBufs = useMemo(() => [
-    buildStarPositions(LAYERS[0].count, LAYERS[0].rMin, LAYERS[0].rMax, LAYERS[0].seed),
-    buildStarPositions(LAYERS[1].count, LAYERS[1].rMin, LAYERS[1].rMax, LAYERS[1].seed),
-  ], []);
+    buildStarPositions(layers[0].count, layers[0].rMin, layers[0].rMax, layers[0].seed),
+    buildStarPositions(layers[1].count, layers[1].rMin, layers[1].rMax, layers[1].seed),
+  ], [layers]);
 
   // Per-star velocity buffer for physical displacement (world-units / second)
   const velBufs = useMemo(() => [
-    new Float32Array(LAYERS[0].count * 3),
-    new Float32Array(LAYERS[1].count * 3),
-  ], []);
+    new Float32Array(layers[0].count * 3),
+    new Float32Array(layers[1].count * 3),
+  ], [layers]);
 
   // Per-star model mask (0–1): how much to fade this star toward void-black.
-  // Covers all 3 layers so even distant background stars can be cleared.
   const modelMask = useMemo(() => [
-    new Float32Array(LAYERS[0].count),
-    new Float32Array(LAYERS[1].count),
-    new Float32Array(LAYERS[2].count),
-  ], []);
+    new Float32Array(layers[0].count),
+    new Float32Array(layers[1].count),
+    new Float32Array(layers[2].count),
+  ], [layers]);
 
   // Traveling point lights (Three.js only — add atmosphere to 3D starfield)
   const lights = useMemo(() =>
@@ -752,7 +771,7 @@ function ShootingStars({
         tmpV.applyMatrix4(tmpM.copy(pObj.matrixWorld).invert());
         const lx = tmpV.x, ly = tmpV.y, lz = tmpV.z;
         const posArr = pObj.geometry.attributes.position.array as Float32Array;
-        const cnt    = LAYERS[li].count;
+        const cnt    = layers[li].count;
         const disp   = disruption[li];
         for (let i = 0; i < cnt; i++) {
           const dx = posArr[i * 3] - lx;
@@ -792,7 +811,7 @@ function ShootingStars({
       const colArr = pObj.geometry.attributes.color.array as Float32Array;
       const oc     = origColors[li];
       const disp   = disruption[li];
-      const cnt    = LAYERS[li].count;
+      const cnt    = layers[li].count;
       let changed  = false;
 
       for (let i = 0; i < cnt; i++) {
@@ -826,7 +845,7 @@ function ShootingStars({
       const posArr  = pObj.geometry.attributes.position.array as Float32Array;
       const origPos = origPosBufs[li];
       const vel     = velBufs[li];
-      const cnt     = LAYERS[li].count;
+      const cnt     = layers[li].count;
       let posChanged = false;
 
       for (let i = 0; i < cnt; i++) {
@@ -873,7 +892,7 @@ function ShootingStars({
         if (!pObj) continue;
         const posArr = pObj.geometry.attributes.position.array as Float32Array;
         const vel    = velBufs[li];
-        const cnt    = LAYERS[li].count;
+        const cnt    = layers[li].count;
 
         for (let i = 0; i < cnt; i++) {
           tmpV2.set(posArr[i * 3], posArr[i * 3 + 1], posArr[i * 3 + 2]);
@@ -919,7 +938,7 @@ function ShootingStars({
       // Decay all masks toward 0 — refreshed below for currently visible models
       for (let li = 0; li < 3; li++) {
         const mask = modelMask[li];
-        const cnt  = li < 2 ? LAYERS[li].count : LAYERS[2].count;
+        const cnt  = li < 2 ? layers[li].count : layers[2].count;
         for (let i = 0; i < cnt; i++) { if (mask[i] > 0) mask[i] *= MASK_DECAY; }
       }
 
@@ -944,7 +963,7 @@ function ShootingStars({
           const pObj = pts[li]?.current;
           if (!pObj) continue;
           const posArr = pObj.geometry.attributes.position.array as Float32Array;
-          const cnt    = LAYERS[li].count;
+          const cnt    = layers[li].count;
           const mask   = modelMask[li];
           const vel    = li < 2 ? velBufs[li] : null;
 
@@ -1001,7 +1020,7 @@ function ShootingStars({
         const mask   = modelMask[li];
         const colArr = pObj.geometry.attributes.color.array as Float32Array;
         const oc     = origColors[li];
-        const cnt    = LAYERS[li].count;
+        const cnt    = layers[li].count;
         let   changed = false;
 
         for (let i = 0; i < cnt; i++) {
@@ -1235,6 +1254,11 @@ function VoidModel({ entry, idx }: { entry: WorkModelEntry; idx: number }) {
     const op = opacityRef.current;
     allMats.current.forEach((m) => { if (m) m.opacity = op; });
 
+    // ── Signal first model ready for LoadingScreen ───────────────────────
+    if (op > 0.3 && workModels.entries[0]?.id === entry.id) {
+      voidState.firstModelReady = true;
+    }
+
     // ── Depth: model arrives from / recedes into background ───────────────
     if (posGroupRef.current) {
       const depthBack = (1 - op) * 9;
@@ -1312,36 +1336,50 @@ function VoidModel({ entry, idx }: { entry: WorkModelEntry; idx: number }) {
   );
 }
 
-// ─── All work models in the void ─────────────────────────────────────────
+// ─── All work models in the void — first model eager, others lazy on select ─
 function WorkModelsInScene() {
   const [entries, setEntries] = useState<WorkModelEntry[]>([]);
+  const [loadedIds, setLoadedIds] = useState<Set<string>>(new Set());
   const versionRef = useRef(-1);
 
   useFrame(() => {
     if (workModels.version !== versionRef.current) {
       versionRef.current = workModels.version;
       setEntries([...workModels.entries]);
+      const firstId = workModels.entries[0]?.id;
+      const activeId = workModels.activeModelId;
+      setLoadedIds((prev) => {
+        const next = new Set(prev);
+        if (firstId) next.add(firstId);
+        if (activeId) next.add(activeId);
+        return next;
+      });
     }
   });
 
   if (entries.length === 0) return null;
 
+  // Only mount VoidModel for first + active (lazy-load others on select)
+  const toRender = entries.filter((e) => loadedIds.has(e.id));
+
   return (
     <>
-      {entries.map((e, idx) => (
-        <VoidModel key={e.id} entry={e} idx={idx} />
+      {toRender.map((e, idx) => (
+        <VoidModel key={e.id} entry={e} idx={entries.indexOf(e)} />
       ))}
     </>
   );
 }
 
 // ─── Scene ─────────────────────────────────────────────────────────────────
-function VoidScene() {
+function VoidScene({ isMobile }: { isMobile: boolean }) {
   const pts0 = useRef<THREE.Points>(null);
   const pts1 = useRef<THREE.Points>(null);
   const pts2 = useRef<THREE.Points>(null);
 
+  const layers = isMobile ? LAYERS_MOBILE : LAYERS_DESKTOP;
   return (
+    <VoidContext.Provider value={{ isMobile, layers }}>
     <>
       <color attach="background" args={["#000005"]} />
       {/* ── Studio three-point lighting for PBR model display ── */}
@@ -1379,6 +1417,7 @@ function VoidScene() {
         <WorkModelsInScene />
       </Suspense>
     </>
+    </VoidContext.Provider>
   );
 }
 
@@ -1386,10 +1425,20 @@ function VoidScene() {
 export default function VoidBackground() {
   const [mounted, setMounted] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mq = window.matchMedia("(max-width: 768px)");
+    const on = () => setIsMobile(mq.matches);
+    on();
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
   }, []);
 
   useEffect(() => {
@@ -1483,7 +1532,7 @@ export default function VoidBackground() {
         aria-label="Interactive 3D star field with model viewer"
         onCreated={onCanvasCreated}
       >
-        <VoidScene />
+        <VoidScene isMobile={isMobile} />
       </Canvas>
     </div>
   );

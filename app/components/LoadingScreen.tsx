@@ -22,7 +22,7 @@ export default function LoadingScreen() {
 
     const tick = () => {
       elapsed = performance.now() - start;
-      if (elapsed >= MIN_MS && voidState.ready) {
+      if (elapsed >= MIN_MS && voidState.ready && voidState.firstModelReady) {
         setPhase("fade");
         setTimeout(() => setPhase("gone"), 800);
       } else {
