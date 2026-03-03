@@ -134,7 +134,7 @@ export default function EffectsOverlay() {
 
         const ease = Math.min(spring.pos, 1.0);
         const { sx, sy } = slot;
-        const scale = ease * 20;
+        const scale = ease * 12;
         const FOV   = 4;
 
         // N continuously cycles from 3 → 10 per slot

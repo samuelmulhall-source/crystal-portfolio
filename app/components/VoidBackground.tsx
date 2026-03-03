@@ -121,43 +121,35 @@ function makeHoloStarMat(): THREE.ShaderMaterial {
     },
     vertexShader: /* glsl */`
       varying vec3 vColor;
-      varying float vFade;
       uniform float uSize;
       void main() {
         vColor = color;
         vec4 mv = modelViewMatrix * vec4(position, 1.0);
         float nat = uSize * (300.0 / -mv.z);
-        // Cull sub-pixel stars entirely — they flicker as they cross pixel
-        // boundaries. Stars below 1.2px natural size are moved off-screen so
-        // the GPU never rasterizes them, eliminating the flicker entirely.
-        if (nat < 1.2) {
-          gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
-          vFade = 0.0;
+        // Hard-cull sub-pixel stars by moving them off-screen.
+        // No per-star fade so brightness is constant — nothing to flicker.
+        if (nat < 1.0) {
+          gl_Position = vec4(10.0, 10.0, 10.0, 1.0);
           gl_PointSize = 2.0;
           return;
         }
         gl_Position = projectionMatrix * mv;
-        vFade = smoothstep(1.2, 3.5, nat);
         gl_PointSize = max(2.0, nat);
       }
     `,
     fragmentShader: /* glsl */`
       uniform float uOpacity;
       varying vec3 vColor;
-      varying float vFade;
 
       void main() {
         vec2 uv = gl_PointCoord * 2.0 - 1.0;
         float r = length(uv);
         if (r > 1.0) discard;
 
-        // Crisp core only — no halo term so additive blending stays clean.
         float core = exp(-r * r * 18.0);
-
-        vec3 col = vColor * core;
-        float a   = uOpacity * core * vFade;
+        float a    = uOpacity * core;
         if (a < 0.005) discard;
-        gl_FragColor = vec4(col, a);
+        gl_FragColor = vec4(vColor * core, a);
       }
     `,
     transparent: true,
