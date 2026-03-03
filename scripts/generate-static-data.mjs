@@ -8,7 +8,7 @@
  * model from its color/albedo texture and adds a "thumbnail" URL to the model.
  */
 
-import { readdir } from "fs/promises";
+import { readdir, readFile } from "fs/promises";
 import { join } from "path";
 import { writeFile } from "fs/promises";
 import { existsSync } from "fs";
@@ -109,12 +109,24 @@ async function main() {
   const root = join(process.cwd(), "public");
   const outPath = join(root, "data.json");
 
+  // Load hand-written overrides (descriptions, corrected titles, etc.)
+  // Keyed by model title, video filename, or image filename.
+  let overrides = { models: {}, videos: {}, images: {} };
+  try {
+    const raw = await readFile(join(process.cwd(), "scripts/data-overrides.json"), "utf8");
+    overrides = JSON.parse(raw);
+  } catch {
+    // file missing or invalid — skip overrides silently
+  }
+
   let models = [];
   let videos = [];
   let images = [];
 
   try {
     models = await scanModels(join(root, "models"), "/models");
+    // Merge model overrides (keyed by title)
+    models = models.map((m) => ({ ...m, ...(overrides.models?.[m.title] ?? {}) }));
   } catch (e) {
     console.warn("models scan failed:", e.message);
   }
@@ -124,11 +136,15 @@ async function main() {
     const videoFiles = await readdir(videoDir);
     videos = videoFiles
       .filter((f) => /\.(mp4|webm|mov)$/i.test(f))
-      .map((f, i) => ({
-        id: `vid-${i}`,
-        path: `/Video renders/${f}`,
-        title: f.replace(/\.(mp4|webm|mov)$/i, ""),
-      }));
+      .map((f, i) => {
+        const ov = overrides.videos?.[f] ?? {};
+        return {
+          id: `vid-${i}`,
+          path: `/Video renders/${f}`,
+          title: f.replace(/\.(mp4|webm|mov)$/i, ""),
+          ...ov,
+        };
+      });
   } catch (e) {
     console.warn("videos scan failed:", e.message);
   }
@@ -138,14 +154,18 @@ async function main() {
     const imageFiles = await readdir(imageDir);
     images = imageFiles
       .filter((f) => /\.(jpg|jpeg|png|webp|gif|avif)$/i.test(f))
-      .map((f, i) => ({
-        id: `img-${i}`,
-        path: `/Image renders/${f}`,
-        title: f
-          .replace(/\.(jpg|jpeg|png|webp|gif|avif)$/i, "")
-          .replace(/[-_]/g, " ")
-          .replace(/\b\w/g, (c) => c.toUpperCase()),
-      }));
+      .map((f, i) => {
+        const ov = overrides.images?.[f] ?? {};
+        return {
+          id: `img-${i}`,
+          path: `/Image renders/${f}`,
+          title: f
+            .replace(/\.(jpg|jpeg|png|webp|gif|avif)$/i, "")
+            .replace(/[-_]/g, " ")
+            .replace(/\b\w/g, (c) => c.toUpperCase()),
+          ...ov,
+        };
+      });
   } catch (e) {
     console.warn("images scan failed:", e.message);
   }
