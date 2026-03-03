@@ -468,11 +468,21 @@ function StarHoverSystem({
       if (s.ease > 0.01) {
         tmpV.set(s.wx, s.wy, s.wz).project(camera);
         if (tmpV.z <= 1) {
-          vSlot.ease    = s.ease;
-          vSlot.sx      = (tmpV.x + 1) / 2 * W;
-          vSlot.sy      = (1 - tmpV.y) / 2 * H;
-          vSlot.hue     = 195 + Math.sin(t * 1.45 + i * 0.72) * 55;
-          vSlot.variant = s.variant; // which of the 6 shapes to draw
+          const px = (tmpV.x + 1) / 2 * W;
+          const py = (1 - tmpV.y) / 2 * H;
+          // Suppress hover effects if star is inside the active model footprint
+          const mr = voidState.modelRegion;
+          const overModel = mr.rPx > 20 &&
+            (px - mr.x) * (px - mr.x) + (py - mr.y) * (py - mr.y) < mr.rPx * mr.rPx;
+          if (overModel) {
+            vSlot.ease = 0;
+          } else {
+            vSlot.ease    = s.ease;
+            vSlot.sx      = px;
+            vSlot.sy      = py;
+            vSlot.hue     = 195 + Math.sin(t * 1.45 + i * 0.72) * 55;
+            vSlot.variant = s.variant;
+          }
         } else {
           vSlot.ease = 0;
         }
@@ -989,6 +999,7 @@ function VoidModel({ entry }: { entry: WorkModelEntry }) {
   // Locked Y: captured when work section is in view so model stays anchored
   // to the work section's viewport position rather than drifting with global scroll.
   const lockedWorkY   = useRef<number | null>(null);
+  const tmpMp         = useMemo(() => new THREE.Vector3(), []);
 
   // ── Replace FBX materials + compute normScale ──────────────────────────────
   // FBXLoader applies a cm→m scale correction to the root group (scale 0.01).
@@ -1198,6 +1209,19 @@ function VoidModel({ entry }: { entry: WorkModelEntry }) {
       if (!m) return;
       m.uniforms.uOpacity.value += (0 - m.uniforms.uOpacity.value) * 0.12;
     });
+
+    // ── Write model screen region so hover effects are suppressed on model ─
+    if (workModels.activeModelId === entry.id && posGroupRef.current && op > 0.08) {
+      posGroupRef.current.getWorldPosition(tmpMp);
+      tmpMp.project(s.camera);
+      const W = s.size.width, H = s.size.height;
+      voidState.modelRegion.x   = (tmpMp.x + 1) / 2 * W;
+      voidState.modelRegion.y   = (1 - tmpMp.y) / 2 * H;
+      voidState.modelRegion.rPx = Math.min(W, H) * 0.22 * Math.min(op, 1);
+    } else if (workModels.activeModelId !== entry.id) {
+      // Zero out only if no other model is active (last active model clears it)
+      if (workModels.activeModelId === null) voidState.modelRegion.rPx = 0;
+    }
   });
 
   return (
@@ -1271,22 +1295,23 @@ function VoidScene({ isMobile }: { isMobile: boolean }) {
     <>
       <color attach="background" args={["#000005"]} />
       {/* ── Neutral studio lighting for PBR models on dark void background ── */}
-      {/* Global fill — soft neutral to lift shadow areas */}
       <ambientLight intensity={0.40} color="#e0e0e0" />
-      {/* Key light: upper-left, primary illumination — pure white */}
+      {/* Hemisphere: sky-ice from above, void from below — fills dark metallic surfaces */}
+      <hemisphereLight args={["#b8d0ff", "#05070f", 0.85]} />
+      {/* Key light: upper-left, primary illumination */}
       <directionalLight position={[-4, 10, 7]}  intensity={2.2} color="#ffffff" />
-      {/* Fill light: opposite side — near-white, prevent pure-black shadows */}
-      <directionalLight position={[ 5, 3, 5]}   intensity={1.8} color="#f8f8f8" />
-      {/* Front fill: ensures model legible from camera direction */}
-      <directionalLight position={[ 0, 2, 12]}  intensity={1.4} color="#f4f4f4" />
-      {/* Rim/back light: cool edge separation (subtle blue-grey only) */}
+      {/* Fill: opposite side */}
+      <directionalLight position={[ 5,  3,  5]}  intensity={1.8} color="#f8f8f8" />
+      {/* Front fill: camera-aligned — essential for smooth dark objects */}
+      <directionalLight position={[ 0,  2, 12]}  intensity={2.2} color="#f4f4f4" />
+      {/* Rim/back: cool blue-grey edge separation */}
       <directionalLight position={[ 0, -4, -10]} intensity={0.9} color="#b0c8e0" />
       {/* Overhead kicker */}
-      <directionalLight position={[ 0, 12, 2]}   intensity={0.8} color="#f0f0f0" />
-      {/* Close point light at model centre */}
-      <pointLight position={[0, 0, 5]} intensity={1.5} color="#ffffff" distance={22} />
-      {/* IBL — studio preset is the most neutral/white for accurate PBR */}
-      <Environment preset="studio" environmentIntensity={0.7} />
+      <directionalLight position={[ 0, 12,  2]}  intensity={0.8} color="#f0f0f0" />
+      {/* Camera-adjacent point: brightens camera-facing surfaces of smooth metals */}
+      <pointLight position={[0, 0, 5]} intensity={2.5} color="#ffffff" distance={22} />
+      {/* IBL: studio preset, elevated intensity for metallic reflections */}
+      <Environment preset="studio" environmentIntensity={1.1} />
 
       <StarLayer li={0} pointsRef={pts0} />
       <StarLayer li={1} pointsRef={pts1} />

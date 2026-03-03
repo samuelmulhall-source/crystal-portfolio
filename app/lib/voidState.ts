@@ -38,4 +38,9 @@ export const voidState = {
     tsx:    0,    // tail screen X px
     tsy:    0,    // tail screen Y px
   })),
+
+  // ── Active model screen region ────────────────────────────────────────────
+  // Written by the active VoidModel each frame. EffectsOverlay and
+  // StarHoverSystem suppress hover effects inside this circle.
+  modelRegion: { x: 0, y: 0, rPx: 0 },
 };

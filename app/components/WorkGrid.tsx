@@ -281,9 +281,27 @@ function FullscreenViewer({
   return (
     <div ref={overlayRef} style={{ position: "fixed", inset: 0, zIndex: 100, opacity: 0, pointerEvents: "none" }}>
       <div style={{ display: "flex", flexDirection: mobile ? "column" : "row", width: "100%", height: "100%", overflow: "hidden", pointerEvents: "none" }}>
-        {/* Left: canvas area — pointer-events none so VoidBackground/OrbitControls receive drag/zoom */}
-        <div style={{ flex: mobile ? "none" : 1, height: mobile ? "55vh" : "100%", minHeight: 0, position: "relative", background: "transparent" }} />
-        <div style={{ flex: mobile ? "1 1 auto" : "0 0 380px", overflowY: "auto", position: mobile ? "relative" : "sticky", top: 0, alignSelf: "stretch", background: "rgba(0,5,18,0.96)", borderLeft: mobile ? "none" : "1px solid rgba(184,240,255,0.06)", borderTop: mobile ? "1px solid rgba(184,240,255,0.06)" : "none", pointerEvents: "auto" }}>
+        {/* Canvas area — transparent so VoidBackground shows through; pointer-events none */}
+        <div style={{
+          flex: mobile ? "none" : 1,
+          height: mobile ? "47vh" : "100%",
+          flexShrink: 0,
+          position: "relative",
+          background: "transparent",
+        }} />
+        {/* Info panel — fixed height on mobile to prevent model overlap */}
+        <div style={{
+          flex: mobile ? "none" : "0 0 380px",
+          height: mobile ? "53vh" : "100%",
+          overflowY: "auto",
+          overflowX: "hidden",
+          position: mobile ? "relative" : "sticky",
+          top: 0,
+          background: "rgba(0,5,18,0.97)",
+          borderLeft: mobile ? "none" : "1px solid rgba(184,240,255,0.06)",
+          borderTop: mobile ? "1px solid rgba(184,240,255,0.08)" : "none",
+          pointerEvents: "auto",
+        }}>
           {infoPanel}
         </div>
       </div>
@@ -1058,64 +1076,77 @@ function WorkGridContent() {
             )}
           </div>
 
-          {/* Drag hint */}
+          {/* Drag hint — bottom-center, visible on hover */}
           <div style={{
-            position: "absolute", bottom: "2rem", right: "clamp(1rem, 4vw, 2rem)", zIndex: 2, pointerEvents: "none",
-            ...MON, fontSize: "clamp(0.4rem, 1.2vw, 0.5rem)", letterSpacing: "0.22em",
-            color: isHovered ? "rgba(184,240,255,0.4)" : "rgba(184,240,255,0.18)",
-            transition: "color 0.4s ease",
+            position: "absolute",
+            bottom: isNarrow
+              ? "calc(clamp(2.4rem, 6vh, 3rem) + clamp(1rem, 5vh, 2rem) + 9rem)"
+              : "2.25rem",
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 2,
+            pointerEvents: "none",
+            display: "flex", alignItems: "center", gap: "0.5rem",
+            opacity: isHovered ? 0.55 : 0,
+            transition: "opacity 0.4s ease",
           }}>
-            DRAG TO ROTATE
+            <div style={{ width: "18px", height: "1px", background: "rgba(184,240,255,0.35)" }} />
+            <span style={{ ...MON, fontSize: "0.4rem", letterSpacing: "0.24em", color: "rgba(184,240,255,0.7)", whiteSpace: "nowrap" }}>
+              DRAG TO ROTATE
+            </span>
+            <div style={{ width: "18px", height: "1px", background: "rgba(184,240,255,0.35)" }} />
           </div>
 
-          {/* ── "Double-click to expand" hint — positioned to the right of model ── */}
+          {/* ── Expand hint — right margin desktop, bottom-center mobile ── */}
           {activeId && !loading && (
             <div style={{
               position: "absolute",
-              top: "50%",
-              // Desktop: offset right of the centered model
-              // Mobile: center-bottom above the chip strip
-              left: isNarrow ? "50%" : "calc(50% + min(20vw, 18rem))",
-              transform: isNarrow
-                ? "translate(-50%, calc(-50% - 5rem))"
-                : "translateY(-50%)",
+              ...(isNarrow
+                ? {
+                    left: "50%",
+                    bottom: "calc(clamp(2.4rem, 6vh, 3rem) + clamp(1rem, 5vh, 2rem) + 4.5rem)",
+                    transform: "translateX(-50%)",
+                  }
+                : {
+                    right: "clamp(1.5rem, 4vw, 2.5rem)",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                  }),
               zIndex: 2,
               pointerEvents: "none",
               opacity: isHovered ? 1 : 0,
-              transition: "opacity 0.7s ease",
+              transition: "opacity 0.55s ease",
               display: "flex",
               flexDirection: "column",
-              alignItems: isNarrow ? "center" : "flex-start",
-              gap: "0.3rem",
+              alignItems: "center",
+              gap: "0.55rem",
             }}>
+              {/* Expand icon box */}
+              <div style={{
+                width: "34px", height: "34px",
+                border: "1px solid rgba(184,240,255,0.30)",
+                borderRadius: "2px",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                background: "rgba(0,8,22,0.65)",
+                boxShadow: "0 0 14px rgba(184,240,255,0.12), inset 0 0 8px rgba(184,240,255,0.04)",
+              }}>
+                <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+                  <path d="M1 4.5V1H4.5" stroke="rgba(184,240,255,0.85)" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M8.5 1H12V4.5" stroke="rgba(184,240,255,0.85)" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M12 8.5V12H8.5" stroke="rgba(184,240,255,0.85)" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M4.5 12H1V8.5" stroke="rgba(184,240,255,0.85)" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
               <span style={{
                 ...MON,
-                fontSize: "clamp(0.38rem, 1.0vw, 0.44rem)",
-                letterSpacing: "0.30em",
-                color: "rgba(184,240,255,0.75)",
-                textShadow: "0 0 14px rgba(184,240,255,0.55), 0 0 40px rgba(120,200,255,0.22)",
+                fontSize: "0.42rem",
+                letterSpacing: "0.28em",
+                color: "rgba(184,240,255,0.55)",
+                textShadow: "0 0 12px rgba(184,240,255,0.35)",
                 whiteSpace: "nowrap",
               }}>
-                {isNarrow ? "DOUBLE TAP" : "DOUBLE CLICK"}
+                {isNarrow ? "DBL TAP" : "DBL CLICK"}
               </span>
-              <span style={{
-                ...MON,
-                fontSize: "clamp(0.34rem, 0.85vw, 0.38rem)",
-                letterSpacing: "0.26em",
-                color: "rgba(184,240,255,0.42)",
-                textShadow: "0 0 10px rgba(184,240,255,0.28)",
-                whiteSpace: "nowrap",
-              }}>
-                TO EXPAND
-              </span>
-              {!isNarrow && (
-                <div style={{
-                  marginTop: "0.2rem",
-                  width: "clamp(1.5rem, 4vw, 3rem)",
-                  height: "1px",
-                  background: "linear-gradient(to right, rgba(184,240,255,0.40), rgba(184,240,255,0))",
-                }} />
-              )}
             </div>
           )}
         </>
