@@ -27,14 +27,14 @@ type LayerConfig = readonly { count: number; rMin: number; rMax: number; rotSpd:
 // ─── Star layer config ─────────────────────────────────────────────────────
 // Desktop: full density. Mobile: reduced for <5% GPU cost.
 const LAYERS_DESKTOP = [
-  { count: 1800, rMin: 14, rMax: 30, rotSpd: 0.007, size: 0.22, seed: 11111 },
-  { count: 1400, rMin: 26, rMax: 44, rotSpd: 0.011, size: 0.28, seed: 22222 },
-  { count:  900, rMin: 36, rMax: 58, rotSpd: 0.017, size: 0.34, seed: 33333 },
+  { count: 1800, rMin: 14, rMax: 30, rotSpd: 0.007, size: 0.26, seed: 11111 },
+  { count: 1400, rMin: 26, rMax: 44, rotSpd: 0.011, size: 0.33, seed: 22222 },
+  { count:  900, rMin: 36, rMax: 58, rotSpd: 0.017, size: 0.42, seed: 33333 },
 ] as const;
 const LAYERS_MOBILE = [
-  { count: 600, rMin: 14, rMax: 30, rotSpd: 0.008, size: 0.24, seed: 11111 },
-  { count: 500, rMin: 26, rMax: 44, rotSpd: 0.012, size: 0.28, seed: 22222 },
-  { count: 350, rMin: 36, rMax: 58, rotSpd: 0.018, size: 0.32, seed: 33333 },
+  { count: 600, rMin: 14, rMax: 30, rotSpd: 0.008, size: 0.28, seed: 11111 },
+  { count: 500, rMin: 26, rMax: 44, rotSpd: 0.012, size: 0.34, seed: 22222 },
+  { count: 350, rMin: 36, rMax: 58, rotSpd: 0.018, size: 0.40, seed: 33333 },
 ] as const;
 
 const VoidContext = createContext<{ isMobile: boolean; layers: LayerConfig }>({ isMobile: false, layers: LAYERS_DESKTOP });
@@ -45,53 +45,12 @@ function sr(seed: number) {
   return x - Math.floor(x);
 }
 
-// ─── Star sprite texture ───────────────────────────────────────────────────
-// Radial gradient: bright white core → wide ice-blue halo → transparent.
-// Star sprite: round glow core with a subtle vertical smear for motion-blur feel.
-// The mild Y-stretch simulates depth/parallax so the void looks alive even when still.
-let _starSprite: THREE.CanvasTexture | null = null;
-function getStarSprite(): THREE.CanvasTexture | null {
-  if (_starSprite) return _starSprite;
-  if (typeof document === "undefined") return null;
-  const N   = 64;
-  const cv  = document.createElement("canvas");
-  cv.width  = cv.height = N;
-  const ctx = cv.getContext("2d");
-  if (!ctx) return null;
-  const cx = N / 2, cy = N / 2;
-
-  // Core: crisp bright point
-  const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, N * 0.12);
-  core.addColorStop(0.0,  "rgba(255,255,255,1.00)");
-  core.addColorStop(1.0,  "rgba(220,240,255,0.80)");
-  ctx.fillStyle = core;
-  ctx.beginPath();
-  ctx.ellipse(cx, cy, N * 0.12, N * 0.12, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Halo: wide soft glow slightly taller than wide (motion-blur hint)
-  const halo = ctx.createRadialGradient(cx, cy, 0, cx, cy, N * 0.5);
-  halo.addColorStop(0.00, "rgba(180,225,255,0.60)");
-  halo.addColorStop(0.30, "rgba(120,195,255,0.30)");
-  halo.addColorStop(0.65, "rgba( 60,150,255,0.10)");
-  halo.addColorStop(1.00, "rgba(  0,  0,  0,0.00)");
-  ctx.globalCompositeOperation = "screen";
-  ctx.fillStyle = halo;
-  ctx.beginPath();
-  // Subtle vertical elongation: 1.15× taller than wide
-  ctx.ellipse(cx, cy, N * 0.46, N * 0.50, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.globalCompositeOperation = "source-over";
-
-  _starSprite = new THREE.CanvasTexture(cv);
-  return _starSprite;
-}
 
 // ─── Star color builder ────────────────────────────────────────────────────
 function buildStarColors(count: number, seed: number): Float32Array {
   const col = new Float32Array(count * 3);
   for (let i = 0; i < count; i++) {
-    const br   = 0.22 + sr(seed + i * 7 + 4) * 0.65;
+    const br   = 0.36 + sr(seed + i * 7 + 4) * 0.58;
     const cool = sr(seed + i * 7 + 5) > 0.55;
     col[i * 3]     = br * (cool ? 0.68 : 1.00);
     col[i * 3 + 1] = br * (cool ? 0.88 : 1.00);
@@ -157,8 +116,8 @@ function buildStarGeo(count: number, rMin: number, rMax: number, seed: number) {
 function makeHoloStarMat(): THREE.ShaderMaterial {
   return new THREE.ShaderMaterial({
     uniforms: {
-      uSize:    { value: 0.22 },
-      uOpacity: { value: 0.84 },
+      uSize:    { value: 0.26 },
+      uOpacity: { value: 0.92 },
     },
     vertexShader: /* glsl */`
       varying vec3 vColor;
@@ -167,7 +126,7 @@ function makeHoloStarMat(): THREE.ShaderMaterial {
         vColor = color;
         vec4 mv = modelViewMatrix * vec4(position, 1.0);
         gl_Position = projectionMatrix * mv;
-        gl_PointSize = uSize * (300.0 / -mv.z);
+        gl_PointSize = max(1.5, uSize * (300.0 / -mv.z));
       }
     `,
     fragmentShader: /* glsl */`
@@ -179,10 +138,10 @@ function makeHoloStarMat(): THREE.ShaderMaterial {
         float r = length(uv);
         if (r > 1.0) discard;
 
-        // Tight bright core + minimal soft glow.
+        // Bright core + subtle ice glow.
         // No wide halo: prevents additive-blending flicker from overlapping stars.
-        float core = exp(-r * r * 18.0);
-        float glow = exp(-r * r * 7.0) * 0.06;
+        float core = exp(-r * r * 16.0);
+        float glow = exp(-r * r * 5.0) * 0.13;
 
         vec3 col = vColor * (core + glow);
         float a   = uOpacity * (core + glow);
@@ -219,7 +178,7 @@ function StarLayer({
     pointsRef.current.rotation.x += dt * cfg.rotSpd * 0.32;
 
     const t    = s.clock.elapsedTime;
-    const base = 0.84 + 0.10 * Math.sin(t * 0.32 + li * 1.1);
+    const base = 0.92 + 0.07 * Math.sin(t * 0.32 + li * 1.1);
     const dim  = 1 - voidState.scrollProgress * 0.10;
     // eslint-disable-next-line react-hooks/immutability
     mat.uniforms.uOpacity.value += (base * dim - mat.uniforms.uOpacity.value) * 0.04;
@@ -236,63 +195,6 @@ function StarLayer({
   );
 }
 
-// ─── Hero particles: subtle instanced particles in front of camera (hero zone) ─
-const HERO_PARTICLE_COUNT = 280;
-const HERO_BOX = { x: 5, y: 3.5, zMin: 2, zMax: 9 };
-
-function HeroParticles() {
-  const meshRef = useRef<THREE.InstancedMesh>(null);
-  const groupRef = useRef<THREE.Group>(null);
-  const { geometry, sprite } = useMemo(() => {
-    const geo = new THREE.PlaneGeometry(0.06, 0.06);
-    const sp = getStarSprite();
-    return { geometry: geo, sprite: sp };
-  }, []);
-
-  useEffect(() => {
-    const mesh = meshRef.current;
-    if (!mesh) return;
-    const mat = new THREE.Matrix4();
-    const pos = new THREE.Vector3();
-    for (let i = 0; i < HERO_PARTICLE_COUNT; i++) {
-      pos.set(
-        (sr(i * 11 + 1) - 0.5) * 2 * HERO_BOX.x,
-        (sr(i * 11 + 2) - 0.5) * 2 * HERO_BOX.y,
-        HERO_BOX.zMin + sr(i * 11 + 3) * (HERO_BOX.zMax - HERO_BOX.zMin),
-      );
-      mat.compose(pos, new THREE.Quaternion(), new THREE.Vector3(1, 1, 1));
-      mesh.setMatrixAt(i, mat);
-    }
-    mesh.instanceMatrix.needsUpdate = true;
-  }, []);
-
-  useFrame((_, dt) => {
-    if (groupRef.current) {
-      groupRef.current.rotation.y += dt * 0.018;
-      groupRef.current.rotation.x += dt * 0.006;
-    }
-  });
-
-  return (
-    <group ref={groupRef} renderOrder={-0.5}>
-      <instancedMesh
-        ref={meshRef}
-        args={[geometry, undefined, HERO_PARTICLE_COUNT]}
-        frustumCulled={false}
-      >
-        <meshBasicMaterial
-          map={sprite ?? undefined}
-          color="#a8d8f8"
-          transparent
-          opacity={0.22}
-          depthWrite={false}
-          blending={THREE.AdditiveBlending}
-          side={THREE.DoubleSide}
-        />
-      </instancedMesh>
-    </group>
-  );
-}
 
 // ─── Void core light ───────────────────────────────────────────────────────
 function VoidCore() {
@@ -1386,8 +1288,6 @@ function VoidScene({ isMobile }: { isMobile: boolean }) {
       <StarLayer li={0} pointsRef={pts0} />
       <StarLayer li={1} pointsRef={pts1} />
       <StarLayer li={2} pointsRef={pts2} />
-
-      <HeroParticles />
 
       <VoidCore />
       <VoidCamera />

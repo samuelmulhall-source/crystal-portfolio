@@ -27,12 +27,13 @@ const _springs: Array<{ pos: number; vel: number }> =
 
 // Spectral ring wavelengths for thin-film iridescence (hue, radial multiplier)
 const SPECTRAL: Array<{ hue: number; rMul: number; sat: number }> = [
-  { hue: 195, rMul: 1.0, sat: 100 }, // ice-cyan   (innermost)
-  { hue: 210, rMul: 1.4, sat: 95  },
-  { hue: 230, rMul: 1.85, sat: 95 }, // blue
-  { hue: 255, rMul: 2.3, sat: 90  }, // indigo
-  { hue: 280, rMul: 2.8, sat: 88  }, // violet
-  { hue: 300, rMul: 3.3, sat: 85  }, // magenta (outermost)
+  { hue: 188, rMul: 0.70, sat: 100 }, // aqua-ice   (innermost — tight halo)
+  { hue: 200, rMul: 1.10, sat: 100 }, // ice-cyan
+  { hue: 218, rMul: 1.60, sat: 100 }, // blue
+  { hue: 242, rMul: 2.15, sat: 100 }, // indigo
+  { hue: 268, rMul: 2.75, sat: 100 }, // violet
+  { hue: 295, rMul: 3.40, sat: 100 }, // magenta
+  { hue: 320, rMul: 4.10, sat: 95  }, // pink (outermost)
 ];
 
 export default function EffectsOverlay() {
@@ -93,8 +94,8 @@ export default function EffectsOverlay() {
 
         const { sx, sy, variant } = slot;
         const ease = Math.min(spring.pos, 1.0);
-        const r   = 8 * ease;  // reduced from 12 — cleaner, less overwhelming
-        const rot = t * 1.2 + i * 1.05;
+        const r   = 20 * ease;
+        const rot = t * 0.9 + i * 1.05;
 
         ctx!.save();
         ctx!.globalCompositeOperation = "lighter";
@@ -107,12 +108,12 @@ export default function EffectsOverlay() {
           const rInner = r * rMul * 0.70;
           const rOuter = r * rMul * 1.30;
           // Each ring shimmers at its own phase — thin-film interference illusion
-          const shimmer = 0.55 + 0.45 * Math.sin(t * 2.4 + si * 0.9 + i * 0.5);
-          const a = ease * 0.10 * shimmer;  // reduced opacity — subtler rings
+          const shimmer = 0.60 + 0.40 * Math.sin(t * 3.8 + si * 0.85 + i * 0.65);
+          const a = ease * 0.32 * shimmer;
           const ring = ctx!.createRadialGradient(sx, sy, rInner, sx, sy, rOuter);
-          ring.addColorStop(0.0, `hsla(${hue}, ${sat}%, 72%, 0)`);
-          ring.addColorStop(0.4, `hsla(${hue}, ${sat}%, 72%, ${a})`);
-          ring.addColorStop(0.6, `hsla(${hue}, ${sat}%, 80%, ${a * 0.7})`);
+          ring.addColorStop(0.0, `hsla(${hue}, ${sat}%, 88%, 0)`);
+          ring.addColorStop(0.4, `hsla(${hue}, ${sat}%, 88%, ${a})`);
+          ring.addColorStop(0.6, `hsla(${hue}, ${sat}%, 96%, ${a * 0.65})`);
           ring.addColorStop(1.0, "rgba(0,0,0,0)");
           ctx!.fillStyle = ring;
           ctx!.beginPath();
@@ -122,32 +123,33 @@ export default function EffectsOverlay() {
 
         // ── Diffractive spikes: sharp radial rays cycling through spectrum ─
         const spikeCount = variant % 2 === 0 ? 6 : 8;
-        const spikeR     = r * 3.0;  // slightly shorter spikes
+        const spikeR     = r * 5.2;
         for (let si = 0; si < spikeCount; si++) {
-          const a    = rot + (si / spikeCount) * Math.PI * 2;
-          // Each spike has a different spectral hue, cycling with time
-          const hue  = (195 + si * (280 / spikeCount) + t * 18) % 360;
-          const sAlpha = ease * (0.28 + 0.15 * Math.sin(t * 3.1 + si * 1.3));  // reduced
+          const a      = rot + (si / spikeCount) * Math.PI * 2;
+          // Each spike cycles through the full visible spectrum
+          const hue    = (188 + si * (310 / spikeCount) + t * 28) % 360;
+          const sAlpha = ease * (0.75 + 0.22 * Math.sin(t * 4.2 + si * 1.3));
           const sGrad  = ctx!.createLinearGradient(sx, sy, sx + Math.cos(a) * spikeR, sy + Math.sin(a) * spikeR);
-          sGrad.addColorStop(0.0, `hsla(${hue}, 100%, 88%, ${sAlpha})`);
-          sGrad.addColorStop(0.5, `hsla(${(hue + 30) % 360}, 100%, 78%, ${sAlpha * 0.4})`);
+          sGrad.addColorStop(0.0, `hsla(${hue}, 100%, 95%, ${sAlpha})`);
+          sGrad.addColorStop(0.35, `hsla(${(hue + 25) % 360}, 100%, 85%, ${sAlpha * 0.55})`);
           sGrad.addColorStop(1.0, "rgba(0,0,0,0)");
           ctx!.strokeStyle = sGrad;
-          ctx!.lineWidth   = 0.55;
+          ctx!.lineWidth   = 1.1;
           ctx!.beginPath();
-          ctx!.moveTo(sx + Math.cos(a) * r * 0.25, sy + Math.sin(a) * r * 0.25);
+          ctx!.moveTo(sx + Math.cos(a) * r * 0.18, sy + Math.sin(a) * r * 0.18);
           ctx!.lineTo(sx + Math.cos(a) * spikeR,   sy + Math.sin(a) * spikeR);
           ctx!.stroke();
         }
 
-        // ── Ice-white core ───────────────────────────────────────────────
-        const core = ctx!.createRadialGradient(sx, sy, 0, sx, sy, r * 0.85);
-        core.addColorStop(0.0, `rgba(235, 250, 255, ${ease * 0.95})`);
-        core.addColorStop(0.4, `rgba(200, 240, 255, ${ease * 0.55})`);
-        core.addColorStop(1.0, "rgba(0,0,0,0)");
+        // ── Crystallisation core: pure white-hot point → ice bloom ───────
+        const core = ctx!.createRadialGradient(sx, sy, 0, sx, sy, r * 1.1);
+        core.addColorStop(0.0,  `rgba(255, 255, 255, ${ease})`);
+        core.addColorStop(0.18, `rgba(240, 252, 255, ${ease * 0.90})`);
+        core.addColorStop(0.50, `rgba(190, 235, 255, ${ease * 0.55})`);
+        core.addColorStop(1.0,  "rgba(0,0,0,0)");
         ctx!.fillStyle = core;
         ctx!.beginPath();
-        ctx!.arc(sx, sy, r * 0.85, 0, Math.PI * 2);
+        ctx!.arc(sx, sy, r * 1.1, 0, Math.PI * 2);
         ctx!.fill();
 
         ctx!.restore();
