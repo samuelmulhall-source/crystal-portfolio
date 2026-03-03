@@ -90,11 +90,14 @@ export default function Nav() {
         justifyContent: "space-between",
         padding:        "0 clamp(1rem, 4vw, 2.5rem)",
         height:          scrolled ? "50px" : "66px",
-        background:     scrolled ? "rgba(5,7,15,0.90)" : "transparent",
-        backdropFilter:  scrolled ? "blur(32px) saturate(1.5)" : "none",
-        WebkitBackdropFilter: scrolled ? "blur(32px) saturate(1.5)" : "none",
-        borderBottom:    scrolled ? "1px solid rgba(184,240,255,0.08)" : "none",
-        transition:     "height 0.4s ease, background 0.4s ease, border-color 0.4s ease",
+        background:     scrolled ? "rgba(3, 6, 20, 0.72)" : "transparent",
+        backdropFilter:  scrolled ? "blur(40px) saturate(1.80) brightness(1.05)" : "none",
+        WebkitBackdropFilter: scrolled ? "blur(40px) saturate(1.80) brightness(1.05)" : "none",
+        borderBottom:    scrolled ? "1px solid rgba(255,255,255,0.07)" : "none",
+        boxShadow:       scrolled
+          ? "inset 0 1px 0 rgba(255,255,255,0.045), 0 8px 32px rgba(0,0,14,0.40), 0 0 0 1px rgba(184,240,255,0.03)"
+          : "none",
+        transition:     "height 0.4s ease, background 0.4s ease, box-shadow 0.4s ease",
       }}
     >
       {/* Wordmark */}
@@ -167,11 +170,11 @@ export default function Nav() {
             transform:  workOpen
               ? "translateX(-50%) translateY(0)"
               : "translateX(-50%) translateY(-6px)",
-            background: "rgba(5,7,15,0.92)",
-            backdropFilter: "blur(20px)",
-            WebkitBackdropFilter: "blur(20px)",
-            border:     "1px solid rgba(184,240,255,0.10)",
-            borderRadius: "4px",
+            background: "rgba(4, 8, 26, 0.82)",
+            backdropFilter: "blur(32px) saturate(1.70) brightness(1.04)",
+            WebkitBackdropFilter: "blur(32px) saturate(1.70) brightness(1.04)",
+            border:     "1px solid rgba(255,255,255,0.07)",
+            borderRadius: "6px",
             padding:    "6px 0",
             listStyle:  "none",
             margin:     0,
@@ -179,6 +182,7 @@ export default function Nav() {
             opacity:    workOpen ? 1 : 0,
             pointerEvents: workOpen ? "auto" : "none",
             transition: "opacity 0.18s ease, transform 0.18s ease",
+            boxShadow:  "inset 0 1px 0 rgba(255,255,255,0.06), 0 16px 48px rgba(0,0,14,0.60), 0 0 0 1px rgba(184,240,255,0.03)",
           }}>
             {WORK_SUBS.map(({ label, tab }) => (
               <li key={tab}>
@@ -200,12 +204,16 @@ export default function Nav() {
                     transition:    "color 0.15s ease, background 0.15s ease",
                   }}
                   onMouseEnter={e => {
-                    (e.currentTarget as HTMLElement).style.color = "rgba(184,240,255,0.92)";
-                    (e.currentTarget as HTMLElement).style.background = "rgba(184,240,255,0.05)";
+                    const el = e.currentTarget as HTMLElement;
+                    el.style.color      = "rgba(220,248,255,0.95)";
+                    el.style.background = "rgba(184,240,255,0.06)";
+                    el.style.textShadow = "0 0 12px rgba(184,240,255,0.40)";
                   }}
                   onMouseLeave={e => {
-                    (e.currentTarget as HTMLElement).style.color = "rgba(184,240,255,0.60)";
-                    (e.currentTarget as HTMLElement).style.background = "";
+                    const el = e.currentTarget as HTMLElement;
+                    el.style.color      = "rgba(184,240,255,0.60)";
+                    el.style.background = "";
+                    el.style.textShadow = "";
                   }}
                 >
                   {label}

@@ -1,32 +1,30 @@
 "use client";
 
 /**
- * CursorFollower — dot + lagging ring cursor.
+ * CursorFollower — refractive glass arrow cursor + click particles.
  *
- * Dot  — 5px, snaps to cursor exactly, mix-blend-mode: difference so it
- *         always inverts the background (white on dark, dark on stars).
- * Ring — 34px circle, follows with spring physics (~100ms lag).
- *         Grows and brightens on hover, cyan tint on nav links.
+ * Arrow   — SVG classic pointer with gradient glass body, bright edge
+ *           highlights (simulating a beveled glass prism), tip sparkle,
+ *           and a layered CSS filter glow in ice-blue.
  *
- * Click — ring pulses outward + 10 scatter particles from the dot.
- * Scroll state removed (was cheap). Crosshair removed (was cheap).
+ * States:
+ *   Default — 1× scale, base glow
+ *   Hover   — 1.28× scale (from tip), glow brightens
+ *   Click   — particles burst from tip; glow pulses to 3× then decays
  *
- * Canvas is particle-only with mix-blend-mode: difference.
+ * Canvas  — particles only (screen blend-mode for additive brightness).
  * Desktop-only (no-op on pointer:coarse / touch).
  */
 
 import { useEffect, useRef } from "react";
-import { voidState } from "../lib/voidState";
 
 type Particle = { x: number; y: number; vx: number; vy: number; life: number };
 
 const INTERACT = "a, button, [role=button], input, textarea, label, select, [data-cursor=expand]";
-const NAV_SEL  = "nav a, nav button";
 
 export default function CursorFollower() {
-  const dotRef  = useRef<HTMLDivElement>(null);
-  const ringRef = useRef<HTMLDivElement>(null);
-  const cvRef   = useRef<HTMLCanvasElement>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
+  const cvRef  = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
@@ -35,7 +33,7 @@ export default function CursorFollower() {
     styleTag.textContent = "*, *::before, *::after { cursor: none !important; }";
     document.head.appendChild(styleTag);
 
-    // ── Particle canvas ───────────────────────────────────────────────────────
+    // ── Canvas setup ────────────────────────────────────────────────────────
     const cv  = cvRef.current!;
     const ctx = cv.getContext("2d")!;
     let dpr   = window.devicePixelRatio || 1;
@@ -51,44 +49,32 @@ export default function CursorFollower() {
     resize();
     window.addEventListener("resize", resize, { passive: true });
 
-    // ── Mouse / hover state ───────────────────────────────────────────────────
+    // ── State ────────────────────────────────────────────────────────────────
     let mouseX = window.innerWidth  / 2;
     let mouseY = window.innerHeight / 2;
-    let ringX  = mouseX, ringY = mouseY;
-    let onPage = false, hovering = false, onNav = false;
+    let onPage = false, hovering = false;
 
-    // ── Lerped values ─────────────────────────────────────────────────────────
-    let cDotOpacity  = 0;
-    let cRingSize    = 34;   // diameter px
-    let cRingOpacity = 0;
-    let cRingCyan    = 0;    // 0 = white, 1 = cyan
-    let cModelHover  = 0;    // 0 → 1 when cursor is over the active 3D model
+    // Lerped animation values
+    let cScale    = 1.0;   // 1.0 → 1.28 on hover
+    let cOpacity  = 0;
+    let cBaseGlow = 1.0;   // 1.0 default, 1.6 on hover
+    let cFlash    = 0;     // extra glow from click — decays exponentially
 
     const particles: Particle[] = [];
 
-    // ── Events ────────────────────────────────────────────────────────────────
-    const onMove = (e: MouseEvent) => {
-      mouseX = e.clientX; mouseY = e.clientY; onPage = true;
-    };
-    const onLeave = () => { onPage = false; };
-    const onEnter = () => { onPage = true;  };
-    const onPtrOver = (e: PointerEvent) => {
-      const el = e.target as Element;
-      hovering = !!el.closest(INTERACT);
-      onNav    = !!el.closest(NAV_SEL);
-    };
-    const onDown = (e: MouseEvent) => {
-      // Pulse ring outward — lerp will pull it back
-      cRingSize = 56;
+    // ── Events ───────────────────────────────────────────────────────────────
+    const onMove    = (e: MouseEvent) => { mouseX = e.clientX; mouseY = e.clientY; onPage = true; };
+    const onLeave   = () => { onPage = false; };
+    const onEnter   = () => { onPage = true; };
+    const onPtrOver = (e: PointerEvent) => { hovering = !!(e.target as Element).closest(INTERACT); };
+    const onDown    = (e: MouseEvent) => {
+      // Glow pulse
+      cFlash = 2.4;
       // Scatter burst from exact click point
       for (let i = 0; i < 10; i++) {
         const a = (Math.PI * 2 * i / 10) + (Math.random() - 0.5) * 0.6;
         const s = 2.4 + Math.random() * 3.4;
-        particles.push({
-          x: e.clientX, y: e.clientY,
-          vx: Math.cos(a) * s, vy: Math.sin(a) * s,
-          life: 1,
-        });
+        particles.push({ x: e.clientX, y: e.clientY, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 1 });
       }
     };
 
@@ -98,7 +84,7 @@ export default function CursorFollower() {
     document.addEventListener("pointerover", onPtrOver, { passive: true });
     document.addEventListener("mousedown",   onDown,    { passive: true });
 
-    // ── Render loop ───────────────────────────────────────────────────────────
+    // ── Render loop ──────────────────────────────────────────────────────────
     let raf: number;
     let lastT = performance.now();
 
@@ -106,99 +92,48 @@ export default function CursorFollower() {
       raf = requestAnimationFrame(tick);
       const dt = Math.min((now - lastT) / 1000, 0.05);
       lastT = now;
-      const f = Math.min(dt * 60, 6);
+      const f  = Math.min(dt * 60, 6);
 
-      const dot  = dotRef.current;
-      const ring = ringRef.current;
-      if (!dot || !ring) return;
+      const svg = svgRef.current;
+      if (!svg) return;
 
-      // Ring spring — lags behind mouse
-      ringX += (mouseX - ringX) * Math.min(0.09 * f, 1);
-      ringY += (mouseY - ringY) * Math.min(0.09 * f, 1);
+      // Lerp cursor state
+      const tScale = hovering ? 1.28 : 1.0;
+      const tGlow  = hovering ? 1.6  : 1.0;
+      cScale    += (tScale            - cScale)    * Math.min(0.12 * f, 1);
+      cOpacity  += ((onPage ? 1 : 0)  - cOpacity)  * Math.min(0.15 * f, 1);
+      cBaseGlow += (tGlow             - cBaseGlow)  * Math.min(0.11 * f, 1);
+      // Flash decays exponentially — ~200ms half-life
+      cFlash    *= Math.pow(0.82, f);
 
-      // Model region hover detection
-      const mr = voidState.modelRegion;
-      const inModel = mr.rPx > 20 &&
-        (mouseX - mr.x) ** 2 + (mouseY - mr.y) ** 2 < mr.rPx ** 2;
-      cModelHover += ((inModel ? 1 : 0) - cModelHover) * Math.min(0.10 * f, 1);
+      // Apply SVG transform (scale from tip = origin 0,0)
+      svg.style.transform = `translate(${mouseX}px,${mouseY}px) scale(${cScale.toFixed(4)})`;
+      svg.style.opacity   = cOpacity.toFixed(3);
 
-      // Target states
-      const tDotOpacity  = onPage ? 1 : 0;
-      const tRingSize    = hovering ? (onNav ? 52 : 46) : (inModel ? 42 : 34);
-      const tRingOpacity = onPage ? (hovering ? 0.82 : inModel ? 0.55 : 0.65) : 0;
-      const tRingCyan    = onNav ? 1 : (hovering ? 0.22 : 0);
+      // Layered ice-blue drop-shadow glow — three radii for soft falloff
+      const g = Math.max(cBaseGlow + cFlash, 0);
+      svg.style.filter = [
+        `drop-shadow(0 0 ${(4  * g).toFixed(1)}px rgba(215,240,255,${Math.min(0.70 * g, 1.00).toFixed(2)}))`,
+        `drop-shadow(0 0 ${(14 * g).toFixed(1)}px rgba(184,240,255,${Math.min(0.38 * g, 0.90).toFixed(2)}))`,
+        `drop-shadow(0 0 ${(38 * g).toFixed(1)}px rgba(184,240,255,${Math.min(0.14 * g, 0.45).toFixed(2)}))`,
+      ].join(" ");
 
-      // Lerp all values
-      cDotOpacity  += (tDotOpacity  - cDotOpacity)  * Math.min(0.14 * f, 1);
-      cRingSize    += (tRingSize    - cRingSize)    * Math.min(0.13 * f, 1);
-      cRingOpacity += (tRingOpacity - cRingOpacity) * Math.min(0.11 * f, 1);
-      cRingCyan    += (tRingCyan    - cRingCyan)    * Math.min(0.10 * f, 1);
-
-      // ── Dot: exact mouse position, difference-blended ──────────────────────
-      dot.style.transform = `translate(${mouseX}px,${mouseY}px)`;
-      dot.style.opacity   = cDotOpacity.toFixed(3);
-
-      // ── Ring: spring position, lerped size + tint ──────────────────────────
-      const half = cRingSize / 2;
-      const rC   = Math.round(255 - 115 * cRingCyan);
-      const gC   = Math.round(255 -  35 * cRingCyan);
-      ring.style.transform   = `translate(${(ringX - half).toFixed(2)}px,${(ringY - half).toFixed(2)}px)`;
-      ring.style.width       = `${cRingSize.toFixed(2)}px`;
-      ring.style.height      = `${cRingSize.toFixed(2)}px`;
-      ring.style.borderColor = `rgba(${rC},${gC},255,${cRingOpacity.toFixed(3)})`;
-
-      // ── Canvas: particles + model-hover rotation arc ───────────────────────
+      // ── Canvas: scatter particles ─────────────────────────────────────────
       ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
-
-      // Scatter particles
       for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i];
         p.x  += p.vx; p.y  += p.vy;
         p.vx *= 0.91; p.vy *= 0.91;
         p.life -= dt * 1.6;
         if (p.life <= 0) { particles.splice(i, 1); continue; }
-        ctx.fillStyle = `rgba(255,255,255,${(p.life * 0.92).toFixed(3)})`;
+        ctx.fillStyle = `rgba(200,240,255,${(p.life * 0.90).toFixed(3)})`;
         ctx.beginPath();
         ctx.arc(p.x, p.y, Math.max(0.4, 2.2 * p.life), 0, Math.PI * 2);
         ctx.fill();
       }
-
-      // Rotation arc — fades in when cursor enters the 3D model region
-      if (cModelHover > 0.01) {
-        const arcR = 24;
-        const startA = -Math.PI * 0.15;
-        const endA   =  Math.PI * 1.55;
-        ctx.save();
-        ctx.translate(mouseX, mouseY);
-        ctx.globalAlpha = cModelHover * 0.70;
-
-        // Arc stroke
-        ctx.beginPath();
-        ctx.arc(0, 0, arcR, startA, endA);
-        ctx.strokeStyle = "rgba(255,255,255,0.90)";
-        ctx.lineWidth = 1.2;
-        ctx.lineCap = "round";
-        ctx.stroke();
-
-        // Arrowhead at the end of the arc
-        const ax = Math.cos(endA) * arcR;
-        const ay = Math.sin(endA) * arcR;
-        const tang = endA + Math.PI * 0.5;
-        ctx.beginPath();
-        ctx.moveTo(ax + Math.cos(tang - 0.5) * 5, ay + Math.sin(tang - 0.5) * 5);
-        ctx.lineTo(ax, ay);
-        ctx.lineTo(ax + Math.cos(tang + 0.5) * 5, ay + Math.sin(tang + 0.5) * 5);
-        ctx.strokeStyle = "rgba(255,255,255,0.90)";
-        ctx.lineWidth = 1.2;
-        ctx.stroke();
-
-        ctx.globalAlpha = 1;
-        ctx.restore();
-      }
     }
 
     raf = requestAnimationFrame(tick);
-
     return () => {
       cancelAnimationFrame(raf);
       document.head.removeChild(styleTag);
@@ -211,50 +146,76 @@ export default function CursorFollower() {
     };
   }, []);
 
+  // Classic cursor shape — tip at (0,0), pointing upper-left.
+  // viewBox "0 0 12 19.5" rendered at 24×39 CSS px (2× for sharpness).
+  // Three overlaid paths:
+  //   1. Gradient fill  — glassy translucent body
+  //   2. Spec fill      — radial highlight near tip (refracted light pool)
+  //   3. Edge highlight — bright leading edges (lit side of the glass prism)
+  //   4. Tip sparkle    — white dot at the hotspot
   return (
     <>
-      {/* Dot — exact cursor position, inverts background via difference */}
-      <div
-        ref={dotRef}
+      <svg
+        ref={svgRef}
         aria-hidden="true"
+        width="24"
+        height="39"
+        viewBox="0 0 12 19.5"
         style={{
-          position:      "fixed",
-          top:           0,
-          left:          0,
-          width:         "5px",
-          height:        "5px",
-          marginLeft:    "-2.5px",
-          marginTop:     "-2.5px",
-          borderRadius:  "50%",
-          background:    "white",
-          boxShadow:     "0 0 8px rgba(255,255,255,0.85), 0 0 18px rgba(184,240,255,0.45)",
-          pointerEvents: "none",
-          zIndex:        9999,
-          willChange:    "transform, opacity",
-          opacity:       0,
-          mixBlendMode:  "difference",
+          position:        "fixed",
+          top:             0,
+          left:            0,
+          pointerEvents:   "none",
+          zIndex:          9999,
+          willChange:      "transform, opacity, filter",
+          opacity:         0,
+          overflow:        "visible",
+          transformOrigin: "0 0",
         }}
-      />
+      >
+        <defs>
+          {/* Gradient fill: bright ice at tip, dims toward tail */}
+          <linearGradient id="gc-body" x1="0" y1="0" x2="12" y2="19.5" gradientUnits="userSpaceOnUse">
+            <stop offset="0%"   stopColor="#cce8ff" stopOpacity="0.24" />
+            <stop offset="50%"  stopColor="#9ec8f0" stopOpacity="0.10" />
+            <stop offset="100%" stopColor="#78aae0" stopOpacity="0.03" />
+          </linearGradient>
+          {/* Radial spec: refracted-light pool near the tip */}
+          <radialGradient id="gc-spec" cx="1.8" cy="1.8" r="6.5" gradientUnits="userSpaceOnUse">
+            <stop offset="0%"   stopColor="white" stopOpacity="0.20" />
+            <stop offset="70%"  stopColor="white" stopOpacity="0.04" />
+            <stop offset="100%" stopColor="white" stopOpacity="0"    />
+          </radialGradient>
+        </defs>
 
-      {/* Ring — springs behind, grows on hover, tints cyan on nav */}
-      <div
-        ref={ringRef}
-        aria-hidden="true"
-        style={{
-          position:      "fixed",
-          top:           0,
-          left:          0,
-          width:         "34px",
-          height:        "34px",
-          borderRadius:  "50%",
-          border:        "1.5px solid rgba(255,255,255,0.65)",
-          pointerEvents: "none",
-          zIndex:        9998,
-          willChange:    "transform, width, height, border-color",
-        }}
-      />
+        {/* Glass body */}
+        <path
+          d="M 0,0 L 0,17 L 4.5,13 L 7,18.5 L 9,17.5 L 6.5,12 L 12,12 Z"
+          fill="url(#gc-body)"
+          stroke="rgba(255,255,255,0.55)"
+          strokeWidth="0.65"
+          strokeLinejoin="round"
+        />
+        {/* Refracted-light spec overlay */}
+        <path
+          d="M 0,0 L 0,17 L 4.5,13 L 7,18.5 L 9,17.5 L 6.5,12 L 12,12 Z"
+          fill="url(#gc-spec)"
+          stroke="none"
+        />
+        {/* Lit leading edges — top + left face the implied light source */}
+        <path
+          d="M 12,12 L 0,0 L 0,17 L 4.5,13"
+          fill="none"
+          stroke="rgba(255,255,255,0.86)"
+          strokeWidth="0.80"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        {/* Tip sparkle at the hotspot */}
+        <circle cx="0" cy="0" r="0.90" fill="white" opacity="0.90" />
+      </svg>
 
-      {/* Canvas — scatter particles only, difference-blended */}
+      {/* Canvas — particles only, screen-blended for additive brightness */}
       <canvas
         ref={cvRef}
         aria-hidden="true"
@@ -264,7 +225,7 @@ export default function CursorFollower() {
           left:          0,
           pointerEvents: "none",
           zIndex:        9997,
-          mixBlendMode:  "difference",
+          mixBlendMode:  "screen",
         }}
       />
     </>

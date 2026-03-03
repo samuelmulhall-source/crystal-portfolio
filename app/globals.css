@@ -15,12 +15,24 @@
   --ice:            #b8f0ff;
   --ice-bright:     #c8faff;
   --ice-dim:        rgba(184, 240, 255, 0.14);
-  --ice-border:     rgba(184, 240, 255, 0.13);
-  --glass:          rgba(6, 12, 28, 0.82);
+  --ice-border:     rgba(184, 240, 255, 0.10);
+
+  /* Liquid glass surface */
+  --glass-bg:       rgba(4, 8, 24, 0.62);
+  --glass-blur:     blur(22px) saturate(1.70) brightness(1.06);
+  --glass-border:   rgba(255, 255, 255, 0.07);
+  --glass-hi:       rgba(255, 255, 255, 0.055); /* inner top highlight */
+  --glass-shadow:   0 8px 40px rgba(0, 0, 16, 0.55), 0 1px 0 var(--glass-hi) inset;
+
   --text-primary:   #eef8ff;
   --text-secondary: #a8c8e0;
   --text-muted:     #6088a0;
   --text-faint:     rgba(184, 240, 255, 0.5);
+
+  /* Glow layers */
+  --glow-ice-sm:    0 0 14px rgba(184, 240, 255, 0.28);
+  --glow-ice-md:    0 0 28px rgba(184, 240, 255, 0.18), 0 0 70px rgba(184, 240, 255, 0.08);
+  --glow-ice-lg:    0 0 40px rgba(184, 240, 255, 0.22), 0 0 100px rgba(184, 240, 255, 0.10);
 }
 
 @theme inline {
@@ -31,17 +43,20 @@
 }
 
 /* ─── Base — z-index architecture ────────────────────────────────────────────
-   z-index 0 : VoidBackground fixed canvas  (behind everything)
-   z-index 1 : star symbol + cursor halo overlays
-   z-index 2 : page <main> + all sections
-   z-index 50: Nav fixed bar
-   z-index 100: ProjectViewer modal
+   z-index 0   : VoidBackground fixed canvas
+   z-index 1   : star hover overlays
+   z-index 2   : page <main> + sections
+   z-index 50  : Nav fixed bar
+   z-index 100 : ProjectViewer modal
+   z-index 200 : scanlines overlay
+   z-index 9997: cursor canvas
+   z-index 9999: cursor SVG
  ─────────────────────────────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; }
 
 html {
   scroll-behavior: auto;
-  background: #000005;   /* fallback before CSS variables load — no inline style on html tag */
+  background: #000005;
 }
 
 body {
@@ -54,9 +69,7 @@ body {
   overflow-x: hidden;
 }
 
-/* ─── Scanlines — fixed CRT-style overlay, hides gradient banding ────────────
-   3px pitch, 5.5% opacity: visible up close, invisible at reading distance.
-   z-index 200: above nav (50) and modal (100), below cursor (9997+).        */
+/* ─── Scanlines ───────────────────────────────────────────────────────────── */
 body::after {
   content: '';
   position: fixed;
@@ -67,8 +80,8 @@ body::after {
     to bottom,
     transparent        0px,
     transparent        2px,
-    rgba(0, 0, 8, 0.055) 2px,
-    rgba(0, 0, 8, 0.055) 3px
+    rgba(0, 0, 8, 0.048) 2px,
+    rgba(0, 0, 8, 0.048) 3px
   );
 }
 
@@ -91,9 +104,10 @@ main {
   text-transform: uppercase;
   color: rgba(184, 240, 255, 0.58);
   display: block;
+  text-shadow: 0 0 12px rgba(184, 240, 255, 0.22);
 }
 
-/* Hero title — one word, frost glow, never wraps */
+/* Hero title */
 .hero-title {
   font-size: clamp(2rem, 5.4vw, 5.2rem);
   font-weight: 300;
@@ -104,9 +118,9 @@ main {
   line-height: 1;
   color: var(--text-primary);
   text-shadow:
-    0 0 48px  rgba(184, 240, 255, 0.25),
-    0 0 96px  rgba(184, 240, 255, 0.12),
-    0 0 200px rgba(184, 240, 255, 0.05);
+    0 0 30px  rgba(184, 240, 255, 0.30),
+    0 0 80px  rgba(184, 240, 255, 0.15),
+    0 0 180px rgba(184, 240, 255, 0.07);
 }
 
 .heading-xl {
@@ -116,6 +130,9 @@ main {
   text-transform: uppercase;
   line-height: 0.95;
   color: var(--text-primary);
+  text-shadow:
+    0 0 28px rgba(184, 240, 255, 0.20),
+    0 0 70px rgba(184, 240, 255, 0.09);
 }
 
 .heading-lg {
@@ -125,30 +142,55 @@ main {
   text-transform: uppercase;
   line-height: 1.1;
   color: var(--text-primary);
+  text-shadow:
+    0 0 22px rgba(184, 240, 255, 0.18),
+    0 0 55px rgba(184, 240, 255, 0.08);
 }
 
-/* ─── Floating content panel (About, Contact) ─────────────────────────────── */
+/* ─── Liquid glass panel ──────────────────────────────────────────────────── */
+.glass-panel {
+  background:         var(--glass-bg);
+  backdrop-filter:    var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border:             1px solid var(--glass-border);
+  border-radius:      6px;
+  box-shadow:
+    inset 0  1px 0 var(--glass-hi),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.18),
+    0 8px 40px rgba(0, 0, 16, 0.50),
+    0 0 0 1px rgba(184, 240, 255, 0.03);
+}
+
+/* ─── Section panel (About backdrop) ──────────────────────────────────────── */
 .section-panel {
-  background: rgba(5, 7, 15, 0.70);
-  backdrop-filter: blur(10px) saturate(1.3);
-  -webkit-backdrop-filter: blur(10px) saturate(1.3);
-  border-top:    1px solid rgba(184, 240, 255, 0.08);
-  border-bottom: 1px solid rgba(184, 240, 255, 0.08);
+  background:         rgba(4, 6, 18, 0.72);
+  backdrop-filter:    blur(24px) saturate(1.65) brightness(1.04);
+  -webkit-backdrop-filter: blur(24px) saturate(1.65) brightness(1.04);
+  border-top:    1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(184, 240, 255, 0.07);
+  box-shadow:
+    inset 0  1px 0 rgba(255, 255, 255, 0.04),
+    inset 0 -1px 0 rgba(184, 240, 255, 0.02);
 }
 
 /* ─── Void divider ────────────────────────────────────────────────────────── */
 .void-divider {
   width: 100%;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(184,240,255,0.12), transparent);
+  background: linear-gradient(90deg, transparent, rgba(184,240,255,0.14), transparent);
+  box-shadow: 0 0 8px rgba(184,240,255,0.06);
 }
 
-/* ─── Glass ───────────────────────────────────────────────────────────────── */
+/* ─── Legacy .glass helper ───────────────────────────────────────────────── */
 .glass {
-  background: var(--glass);
-  backdrop-filter: blur(28px) saturate(1.3);
-  -webkit-backdrop-filter: blur(28px) saturate(1.3);
-  border: 1px solid var(--ice-border);
+  background:         rgba(5, 10, 28, 0.66);
+  backdrop-filter:    blur(28px) saturate(1.75) brightness(1.05);
+  -webkit-backdrop-filter: blur(28px) saturate(1.75) brightness(1.05);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 8px 32px rgba(0, 0, 12, 0.50),
+    0 0 0 1px rgba(184, 240, 255, 0.03);
 }
 
 /* ─── Frost link ──────────────────────────────────────────────────────────── */
@@ -159,7 +201,7 @@ main {
   text-transform: uppercase;
   color: rgba(184, 240, 255, 0.48);
   text-decoration: none;
-  transition: color 0.3s ease;
+  transition: color 0.3s ease, text-shadow 0.3s ease;
   position: relative;
 }
 .frost-link::after {
@@ -168,16 +210,17 @@ main {
   bottom: -3px; left: 0;
   width: 0; height: 1px;
   background: var(--ice);
-  box-shadow: 0 0 8px rgba(184,240,255,0.6);
+  box-shadow: 0 0 10px rgba(184,240,255,0.70);
   transition: width 0.38s cubic-bezier(0.23,1,0.32,1);
 }
-.frost-link:hover { color: var(--ice); }
+.frost-link:hover {
+  color: var(--ice);
+  text-shadow: 0 0 14px rgba(184,240,255,0.45);
+}
 .frost-link:hover::after { width: 100%; }
 
-/* ─── Nav wordmark glitch — rare horizontal slice shift, fires every ~8s ──── */
-.glitch {
-  position: relative;
-}
+/* ─── Nav wordmark glitch ─────────────────────────────────────────────────── */
+.glitch { position: relative; }
 .glitch::before,
 .glitch::after {
   content: attr(data-text);
@@ -211,9 +254,10 @@ main {
   94%            { transform: none; opacity: 0; }
 }
 
-/* ─── Work tabs: sharp minimal active state, cosmic hover glow ────────────── */
+/* ─── Work tabs ───────────────────────────────────────────────────────────── */
 .work-tab:hover {
-  box-shadow: 0 0 20px rgba(184, 240, 255, 0.08);
+  box-shadow: 0 0 18px rgba(184, 240, 255, 0.10);
+  text-shadow: 0 0 10px rgba(184, 240, 255, 0.25);
 }
 
 /* ─── Scroll indicator ────────────────────────────────────────────────────── */
@@ -228,28 +272,31 @@ main {
   display: inline-block;
   padding: 0.28rem 0.75rem;
   border: 1px solid rgba(184,240,255,0.10);
-  border-radius: 2px;
+  border-radius: 3px;
   font-size: 0.595rem;
   letter-spacing: 0.20em;
   text-transform: uppercase;
   color: var(--text-secondary);
   font-family: var(--font-geist-mono), monospace;
-  transition: all 0.3s ease;
+  transition: all 0.28s cubic-bezier(0.22, 1, 0.36, 1);
   cursor: default;
+  background: rgba(184, 240, 255, 0.018);
 }
 .skill-tag:hover {
-  border-color: rgba(184,240,255,0.35);
-  color: var(--ice);
-  background: rgba(184,240,255,0.04);
-  box-shadow: 0 0 12px rgba(184,240,255,0.07);
+  border-color: rgba(184,240,255,0.40);
+  color: var(--ice-bright);
+  background: rgba(184,240,255,0.055);
+  box-shadow:
+    0 0 14px rgba(184,240,255,0.12),
+    inset 0 1px 0 rgba(255,255,255,0.06);
+  transform: translateY(-1px);
+  text-shadow: 0 0 10px rgba(184,240,255,0.35);
 }
 
-/* ─── Work showcase items (no boxes — immersive floating) ─────────────────── */
-
-/* Holographic halo on work items — hue cycles via @property animation */
+/* ─── Work showcase items ─────────────────────────────────────────────────── */
 @keyframes holo-hue-cycle {
-  0%,  100% { --holo-hue: 215; }   /* ice blue  */
-  50%        { --holo-hue: 255; }   /* indigo/violet */
+  0%,  100% { --holo-hue: 215; }
+  50%        { --holo-hue: 255; }
 }
 
 .work-item-halo {
@@ -263,7 +310,6 @@ main {
   mix-blend-mode: screen;
 }
 
-/* Work item baseline */
 .work-showcase-item {
   position: relative;
   margin-bottom: 7rem;
@@ -274,62 +320,81 @@ main {
   width: 100%;
   height: 1px;
   background: linear-gradient(90deg, transparent, rgba(184,240,255,0.06), transparent);
-  transition: background 0.45s ease;
+  transition: background 0.45s ease, box-shadow 0.45s ease;
 }
 .work-showcase-item:hover .work-showcase-border {
-  background: linear-gradient(90deg, transparent, rgba(184,240,255,0.22), transparent);
+  background: linear-gradient(90deg, transparent, rgba(184,240,255,0.24), transparent);
+  box-shadow: 0 0 12px rgba(184,240,255,0.08);
 }
 
 /* ─── Form inputs ─────────────────────────────────────────────────────────── */
 .void-input {
   width: 100%;
-  background: rgba(184,240,255,0.025);
+  background: rgba(184,240,255,0.022);
   border: 1px solid rgba(184,240,255,0.10);
-  border-radius: 2px;
+  border-radius: 3px;
   padding: 0.85rem 1rem;
   color: var(--text-primary);
   font-family: var(--font-geist-sans), sans-serif;
   font-size: 0.875rem;
   outline: none;
-  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  transition: border-color 0.28s ease, box-shadow 0.28s ease, background 0.28s ease;
   resize: none;
 }
 .void-input::placeholder { color: var(--text-muted); }
 .void-input:focus {
-  border-color: rgba(184,240,255,0.30);
-  box-shadow: 0 0 0 1px rgba(184,240,255,0.07), 0 0 16px rgba(184,240,255,0.05);
+  border-color: rgba(184,240,255,0.32);
+  background: rgba(184,240,255,0.038);
+  box-shadow:
+    0 0 0 1px rgba(184,240,255,0.08),
+    0 0 20px rgba(184,240,255,0.07),
+    inset 0 1px 0 rgba(255,255,255,0.04);
 }
 
-/* ─── Button ──────────────────────────────────────────────────────────────── */
+/* ─── Buttons ─────────────────────────────────────────────────────────────── */
 .void-btn {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
   padding: 0.75rem 1.75rem;
   border: 1px solid rgba(184,240,255,0.18);
-  border-radius: 2px;
-  background: rgba(184,240,255,0.03);
+  border-radius: 3px;
+  background: rgba(184,240,255,0.032);
   color: var(--ice);
   font-family: var(--font-geist-mono), monospace;
   font-size: 0.6875rem;
   letter-spacing: 0.26em;
   text-transform: uppercase;
   cursor: pointer;
-  transition: all 0.38s ease;
+  transition: all 0.32s cubic-bezier(0.22, 1, 0.36, 1);
   text-decoration: none;
+  position: relative;
+  overflow: hidden;
+}
+.void-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, transparent 60%);
+  pointer-events: none;
 }
 .void-btn:hover {
-  background: rgba(184,240,255,0.07);
-  border-color: rgba(184,240,255,0.45);
-  box-shadow: 0 0 24px rgba(184,240,255,0.14), 0 0 48px rgba(184,240,255,0.06);
+  background: rgba(184,240,255,0.075);
+  border-color: rgba(184,240,255,0.50);
+  box-shadow:
+    0 0 28px rgba(184,240,255,0.18),
+    0 0 60px rgba(184,240,255,0.08),
+    inset 0 1px 0 rgba(255,255,255,0.08);
   color: var(--ice-bright);
+  transform: translateY(-1px);
+  text-shadow: 0 0 14px rgba(184,240,255,0.50);
 }
 
 /* ─── Viewer close button ─────────────────────────────────────────────────── */
 .viewer-close-btn {
   background: rgba(184,240,255,0.03);
-  border: 1px solid rgba(184,240,255,0.15);
-  border-radius: 2px;
+  border: 1px solid rgba(184,240,255,0.14);
+  border-radius: 3px;
   color: rgba(184,240,255,0.50);
   cursor: pointer;
   padding: 0.28rem 0.8rem;
@@ -344,7 +409,8 @@ main {
   background: rgba(184,240,255,0.07);
   border-color: rgba(184,240,255,0.45);
   color: var(--ice);
-  box-shadow: 0 0 14px rgba(184,240,255,0.14);
+  box-shadow: 0 0 16px rgba(184,240,255,0.16);
+  text-shadow: 0 0 10px rgba(184,240,255,0.40);
 }
 
 /* ─── Holographic sheen sweep on tab buttons ──────────────────────────────── */
@@ -363,7 +429,7 @@ main {
   inset: 0;
   background: linear-gradient(90deg,
     transparent 0%,
-    rgba(184,240,255,0.12) 50%,
+    rgba(184,240,255,0.14) 50%,
     transparent 100%);
   transform: translateX(-100%) skewX(-15deg);
   pointer-events: none;

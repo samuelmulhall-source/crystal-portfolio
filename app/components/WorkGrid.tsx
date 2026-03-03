@@ -14,6 +14,7 @@ import { createPortal } from "react-dom";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { workModels, TextureSet, subscribePendingTab } from "../lib/workModels";
+import { voidState } from "../lib/voidState";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 type WorkTab = 'models' | 'videos' | 'images';
@@ -674,8 +675,10 @@ function WorkGridFallback() {
 
 // ─── Section (uses useSearchParams — must be inside Suspense) ────────────────
 function WorkGridContent() {
-  const sectionRef  = useRef<HTMLElement>(null);
-  const dragZoneRef = useRef<HTMLDivElement>(null);
+  const sectionRef   = useRef<HTMLElement>(null);
+  const dragZoneRef  = useRef<HTMLDivElement>(null);
+  const headerRef    = useRef<HTMLDivElement>(null);
+  const modelListRef = useRef<HTMLDivElement>(null);
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -687,6 +690,8 @@ function WorkGridContent() {
   const [loading,    setLoading]    = useState(true);
   const [activeTab,  setActiveTab]  = useState<WorkTab>('models');
   const [isNarrow,   setIsNarrow]   = useState(false);
+  // Anchor: when work section fills the viewport, fix UI elements to screen
+  const [inWorkView, setInWorkView] = useState(false);
 
   const dragRef      = useRef({ active: false, x: 0, y: 0, moved: false });
   const lastTouchRef = useRef(0); // for double-tap detection on mobile
@@ -701,6 +706,23 @@ function WorkGridContent() {
     on();
     mq.addEventListener("change", on);
     return () => mq.removeEventListener("change", on);
+  }, []);
+
+  // ── Camera-reference parallax on work header ──────────────────────────────
+  useEffect(() => {
+    if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
+    let raf: number;
+    let hx = 0, hy = 0;
+    const tick = () => {
+      raf = requestAnimationFrame(tick);
+      hx += (voidState.mouseNX * 2.8 - hx) * 0.038;
+      hy += (voidState.mouseNY * 1.6 - hy) * 0.038;
+      if (headerRef.current) {
+        headerRef.current.style.transform = `translate(${hx.toFixed(2)}px, ${hy.toFixed(2)}px)`;
+      }
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
   }, []);
 
   // ── Deep link: open viewer from ?model=slug (e.g. ?model=torch) ─────────────
@@ -820,8 +842,8 @@ function WorkGridContent() {
     const THRESHOLDS = Array.from({ length: 21 }, (_, i) => i / 20);
     const observer = new IntersectionObserver(([entry]) => {
       workModels.sectionRatio = entry.intersectionRatio;
-      // Hysteresis: activate when ≥25% visible, deactivate when <15%.
-      // 0.78 was unreachable on screens with nav/chrome reducing viewport height.
+      // Anchor: fix UI to screen when section fills the viewport
+      setInWorkView(entry.intersectionRatio >= 0.96);
       const ACTIVE_THRESH = 0.25;
       const DEACTIVE_THRESH = 0.15;
       if (entry.isIntersecting && entry.intersectionRatio >= ACTIVE_THRESH && activeTabRef.current === 'models') {
@@ -910,7 +932,14 @@ function WorkGridContent() {
     <section
       id="work"
       ref={sectionRef}
-      style={{ position: "relative", height: "100vh", overflow: "hidden", background: "transparent" }}
+      style={{
+        position: "relative",
+        height: "100vh",
+        overflow: "hidden",
+        background: "transparent",
+        // Subtle inset frame reinforces the "anchored HUD viewport" feel
+        boxShadow: "inset 0 0 0 1px rgba(184,240,255,0.04), inset 0 40px 80px rgba(0,0,20,0.18)",
+      }}
     >
       {/* ── Drag zone (only active on models tab) ── */}
       {activeTab === 'models' && (
@@ -950,15 +979,26 @@ function WorkGridContent() {
         </div>
       ))}
 
-      {/* ── Header (top-left); on mobile tabs move to bottom below canvas ── */}
-      <div style={{
-        position: "absolute",
-        top: "clamp(80px, 12vh, 110px)",
-        left: "clamp(1rem, 4vw, 2.5rem)",
-        zIndex: 3,
-        pointerEvents: "auto",
-      }}>
-        <p className="label" style={{ marginBottom: isNarrow ? "0.6rem" : "1.2rem", opacity: 0.85 }}>01 — Work</p>
+      {/* ── Header (top-left) — glass panel, anchors to screen when section fills viewport ── */}
+      <div
+        ref={headerRef}
+        style={{
+          position:  inWorkView ? "fixed" : "absolute",
+          top:       "clamp(80px, 12vh, 110px)",
+          left:      "clamp(1rem, 4vw, 2.5rem)",
+          zIndex:    inWorkView ? 3 : 3,
+          pointerEvents: "auto",
+          // Glass panel
+          background:    "rgba(4, 8, 26, 0.60)",
+          backdropFilter: "blur(20px) saturate(1.60) brightness(1.04)",
+          WebkitBackdropFilter: "blur(20px) saturate(1.60) brightness(1.04)",
+          border:        "1px solid rgba(255,255,255,0.065)",
+          borderRadius:  "6px",
+          padding:       isNarrow ? "0.6rem 0.8rem" : "0.8rem 1rem",
+          boxShadow:     "inset 0 1px 0 rgba(255,255,255,0.05), 0 8px 32px rgba(0,0,14,0.40), 0 0 0 1px rgba(184,240,255,0.025)",
+        }}
+      >
+        <p className="label" style={{ marginBottom: isNarrow ? "0.5rem" : "1.0rem", opacity: 0.85 }}>01 — Work</p>
 
         {/* Tab strip: desktop only here; mobile shows tabs at bottom */}
         {!isNarrow && (
@@ -966,19 +1006,21 @@ function WorkGridContent() {
         )}
       </div>
 
-      {/* Mobile: tabs anchored at very bottom — safe below model chips */}
+      {/* Mobile: tabs anchored at very bottom */}
       {isNarrow && (
         <div style={{
-          position: "absolute",
+          position: inWorkView ? "fixed" : "absolute",
           bottom: "clamp(0.6rem, 2.5vh, 1.25rem)",
           left: "clamp(1rem, 4vw, 2.5rem)",
           right: "clamp(1rem, 4vw, 2.5rem)",
           zIndex: 3,
           pointerEvents: "auto",
-          background: "rgba(0,4,16,0.72)",
-          backdropFilter: "blur(12px)",
-          borderRadius: "3px",
-          border: "1px solid rgba(184,240,255,0.07)",
+          background:    "rgba(4, 8, 26, 0.80)",
+          backdropFilter: "blur(28px) saturate(1.65) brightness(1.04)",
+          WebkitBackdropFilter: "blur(28px) saturate(1.65) brightness(1.04)",
+          borderRadius: "6px",
+          border: "1px solid rgba(255,255,255,0.07)",
+          boxShadow: "inset 0 1px 0 rgba(255,255,255,0.055), 0 8px 32px rgba(0,0,14,0.50)",
         }}>
           <WorkTabButtons activeTab={activeTab} onTabChange={setActiveTab} />
         </div>
@@ -987,23 +1029,39 @@ function WorkGridContent() {
       {/* ── Models tab content ── */}
       {activeTab === 'models' && (
         <>
-          {/* Model list: on narrow screens horizontal strip at bottom (above tabs); on desktop left sidebar */}
-          <div style={{
-            position: "absolute",
-            ...(isNarrow
-              ? {
-                  left: 0, right: 0,
-                  bottom: "calc(clamp(2.4rem, 6vh, 3rem) + clamp(1rem, 5vh, 2rem))",
-                  height: "auto",
-                  overflowX: "auto", overflowY: "hidden",
-                  display: "flex", flexDirection: "row", gap: 0, alignItems: "stretch", flexWrap: "nowrap",
-                  padding: "0 clamp(1rem, 4vw, 2.5rem)",
-                }
-              : { left: "2.5rem", top: "50%", transform: "translateY(-50%)", width: "clamp(160px, 18vw, 240px)" }
-            ),
-            zIndex: 2,
-            pointerEvents: "auto",
-          }}>
+          {/* Model list: on narrow screens horizontal strip at bottom; on desktop left sidebar */}
+          <div
+            ref={modelListRef}
+            style={{
+              position: inWorkView ? "fixed" : "absolute",
+              ...(isNarrow
+                ? {
+                    left: 0, right: 0,
+                    bottom: "calc(clamp(2.4rem, 6vh, 3rem) + clamp(1rem, 5vh, 2rem))",
+                    height: "auto",
+                    overflowX: "auto", overflowY: "hidden",
+                    display: "flex", flexDirection: "row", gap: 0, alignItems: "stretch", flexWrap: "nowrap",
+                    padding: "0 clamp(1rem, 4vw, 2.5rem)",
+                  }
+                : {
+                    left: "2.5rem",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    width: "clamp(160px, 18vw, 240px)",
+                    // Glass panel for desktop model list
+                    background:    "rgba(4, 8, 26, 0.58)",
+                    backdropFilter: "blur(18px) saturate(1.55) brightness(1.03)",
+                    WebkitBackdropFilter: "blur(18px) saturate(1.55) brightness(1.03)",
+                    border:        "1px solid rgba(255,255,255,0.060)",
+                    borderRadius:  "8px",
+                    padding:       "0.6rem",
+                    boxShadow:     "inset 0 1px 0 rgba(255,255,255,0.05), 0 8px 40px rgba(0,0,16,0.45), 0 0 0 1px rgba(184,240,255,0.02)",
+                  }
+              ),
+              zIndex: 2,
+              pointerEvents: "auto",
+            }}
+          >
             {loading ? (
               <span className="label" style={{ opacity: 0.4 }}>Loading…</span>
             ) : isNarrow ? (
@@ -1048,13 +1106,26 @@ function WorkGridContent() {
                     key={p.id}
                     onClick={() => selectModel(p.id)}
                     style={{
-                      cursor: "pointer", padding: "0.8rem 0",
+                      cursor: "pointer", padding: "0.8rem 0.4rem",
                       borderTop: `1px solid rgba(184,240,255,${active ? 0.14 : 0.05})`,
                       display: "flex", alignItems: "center", gap: "0.85rem",
-                      opacity: active ? 1 : 0.5, transition: "opacity 0.25s ease",
+                      opacity: active ? 1 : 0.5,
+                      transition: "opacity 0.25s ease, transform 0.25s cubic-bezier(0.22,1,0.36,1)",
                     }}
-                    onMouseEnter={e => { if (!active) (e.currentTarget as HTMLDivElement).style.opacity = "0.75"; }}
-                    onMouseLeave={e => { if (!active) (e.currentTarget as HTMLDivElement).style.opacity = "0.5"; }}
+                    onMouseEnter={e => {
+                      const el = e.currentTarget as HTMLDivElement;
+                      if (!active) {
+                        el.style.opacity   = "0.80";
+                        el.style.transform = "translateX(3px)";
+                      }
+                    }}
+                    onMouseLeave={e => {
+                      const el = e.currentTarget as HTMLDivElement;
+                      if (!active) {
+                        el.style.opacity   = "0.5";
+                        el.style.transform = "";
+                      }
+                    }}
                   >
                     {/* Active bracket — L-shape: vertical bar + top/bottom caps */}
                     <div style={{ position: "relative", width: "10px", height: "28px", flexShrink: 0 }}>
@@ -1089,7 +1160,8 @@ function WorkGridContent() {
                         fontSize: "clamp(0.8rem, 1.2vw, 0.92rem)", fontWeight: active ? 400 : 300,
                         letterSpacing: "0.03em",
                         color: active ? "rgba(220,248,255,0.95)" : "rgba(184,240,255,0.72)",
-                        transition: "color 0.25s ease", marginBottom: "0.2rem",
+                        textShadow: active ? "0 0 16px rgba(184,240,255,0.30)" : "none",
+                        transition: "color 0.25s ease, text-shadow 0.25s ease", marginBottom: "0.2rem",
                       }}>{p.title}</div>
                       <div style={{ ...MON, fontSize: "0.62rem", letterSpacing: "0.16em", color: active ? "rgba(184,240,255,0.55)" : "rgba(184,240,255,0.4)", transition: "color 0.25s ease" }}>
                         {p.year}
