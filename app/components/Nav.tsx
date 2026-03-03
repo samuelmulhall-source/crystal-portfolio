@@ -90,12 +90,14 @@ export default function Nav() {
         justifyContent: "space-between",
         padding:        "0 clamp(1rem, 4vw, 2.5rem)",
         height:          scrolled ? "50px" : "66px",
-        background:     scrolled ? "rgba(3, 6, 20, 0.72)" : "transparent",
-        backdropFilter:  scrolled ? "blur(40px) saturate(1.80) brightness(1.05)" : "none",
-        WebkitBackdropFilter: scrolled ? "blur(40px) saturate(1.80) brightness(1.05)" : "none",
-        borderBottom:    scrolled ? "1px solid rgba(255,255,255,0.07)" : "none",
+        background:     scrolled
+          ? "linear-gradient(180deg, rgba(255,255,255,0.07) 0%, rgba(3,6,20,0.78) 100%)"
+          : "transparent",
+        backdropFilter:  scrolled ? "blur(44px) saturate(2.0) brightness(1.06)" : "none",
+        WebkitBackdropFilter: scrolled ? "blur(44px) saturate(2.0) brightness(1.06)" : "none",
+        borderBottom:    scrolled ? "1px solid rgba(255,255,255,0.14)" : "none",
         boxShadow:       scrolled
-          ? "inset 0 1px 0 rgba(255,255,255,0.045), 0 8px 32px rgba(0,0,14,0.40), 0 0 0 1px rgba(184,240,255,0.03)"
+          ? "inset 0 1px 0 rgba(255,255,255,0.14), 0 8px 32px rgba(0,0,14,0.40), 0 0 0 1px rgba(255,255,255,0.05)"
           : "none",
         transition:     "height 0.4s ease, background 0.4s ease, box-shadow 0.4s ease",
       }}
@@ -170,11 +172,11 @@ export default function Nav() {
             transform:  workOpen
               ? "translateX(-50%) translateY(0)"
               : "translateX(-50%) translateY(-6px)",
-            background: "rgba(4, 8, 26, 0.82)",
-            backdropFilter: "blur(32px) saturate(1.70) brightness(1.04)",
-            WebkitBackdropFilter: "blur(32px) saturate(1.70) brightness(1.04)",
-            border:     "1px solid rgba(255,255,255,0.07)",
-            borderRadius: "6px",
+            background: "linear-gradient(145deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.03) 50%, rgba(184,240,255,0.04) 100%)",
+            backdropFilter: "blur(44px) saturate(2.0) brightness(1.07)",
+            WebkitBackdropFilter: "blur(44px) saturate(2.0) brightness(1.07)",
+            border:     "1px solid rgba(255,255,255,0.16)",
+            borderRadius: "8px",
             padding:    "6px 0",
             listStyle:  "none",
             margin:     0,
@@ -182,7 +184,7 @@ export default function Nav() {
             opacity:    workOpen ? 1 : 0,
             pointerEvents: workOpen ? "auto" : "none",
             transition: "opacity 0.18s ease, transform 0.18s ease",
-            boxShadow:  "inset 0 1px 0 rgba(255,255,255,0.06), 0 16px 48px rgba(0,0,14,0.60), 0 0 0 1px rgba(184,240,255,0.03)",
+            boxShadow:  "inset 0 1px 0 rgba(255,255,255,0.20), inset 0 -1px 0 rgba(0,0,14,0.18), 0 16px 48px rgba(0,0,18,0.60), 0 0 0 1px rgba(255,255,255,0.06), 0 0 20px rgba(184,240,255,0.06)",
           }}>
             {WORK_SUBS.map(({ label, tab }) => (
               <li key={tab}>

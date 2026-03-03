@@ -158,8 +158,8 @@ export default function CursorFollower() {
       <svg
         ref={svgRef}
         aria-hidden="true"
-        width="24"
-        height="39"
+        width="15"
+        height="24"
         viewBox="0 0 12 19.5"
         style={{
           position:        "fixed",

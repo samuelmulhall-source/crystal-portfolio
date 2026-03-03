@@ -843,7 +843,8 @@ function WorkGridContent() {
     const observer = new IntersectionObserver(([entry]) => {
       workModels.sectionRatio = entry.intersectionRatio;
       // Anchor: fix UI to screen when section fills the viewport
-      setInWorkView(entry.intersectionRatio >= 0.96);
+      // Fade in UI when section reaches ~30% visible; never switch position — always fixed
+      setInWorkView(entry.intersectionRatio >= 0.30);
       const ACTIVE_THRESH = 0.25;
       const DEACTIVE_THRESH = 0.15;
       if (entry.isIntersecting && entry.intersectionRatio >= ACTIVE_THRESH && activeTabRef.current === 'models') {
@@ -983,19 +984,21 @@ function WorkGridContent() {
       <div
         ref={headerRef}
         style={{
-          position:  inWorkView ? "fixed" : "absolute",
-          top:       "clamp(80px, 12vh, 110px)",
-          left:      "clamp(1rem, 4vw, 2.5rem)",
-          zIndex:    inWorkView ? 3 : 3,
-          pointerEvents: "auto",
-          // Glass panel
-          background:    "rgba(4, 8, 26, 0.60)",
-          backdropFilter: "blur(20px) saturate(1.60) brightness(1.04)",
-          WebkitBackdropFilter: "blur(20px) saturate(1.60) brightness(1.04)",
-          border:        "1px solid rgba(255,255,255,0.065)",
-          borderRadius:  "6px",
+          position:      "fixed",
+          top:           "clamp(80px, 12vh, 110px)",
+          left:          "clamp(1rem, 4vw, 2.5rem)",
+          zIndex:        4,
+          pointerEvents: inWorkView ? "auto" : "none",
+          opacity:       inWorkView ? 1 : 0,
+          transition:    "opacity 0.35s ease",
+          // Premium liquid glass
+          background:    "linear-gradient(145deg, rgba(255,255,255,0.11) 0%, rgba(255,255,255,0.04) 45%, rgba(184,240,255,0.05) 100%)",
+          backdropFilter: "blur(40px) saturate(2.0) brightness(1.08)",
+          WebkitBackdropFilter: "blur(40px) saturate(2.0) brightness(1.08)",
+          border:        "1px solid rgba(255,255,255,0.16)",
+          borderRadius:  "8px",
           padding:       isNarrow ? "0.6rem 0.8rem" : "0.8rem 1rem",
-          boxShadow:     "inset 0 1px 0 rgba(255,255,255,0.05), 0 8px 32px rgba(0,0,14,0.40), 0 0 0 1px rgba(184,240,255,0.025)",
+          boxShadow:     "inset 0 1px 0 rgba(255,255,255,0.20), inset 0 -1px 0 rgba(0,0,14,0.18), inset 1px 0 0 rgba(255,255,255,0.07), 0 8px 40px rgba(0,0,18,0.55), 0 0 0 1px rgba(255,255,255,0.06), 0 0 22px rgba(184,240,255,0.07)",
         }}
       >
         <p className="label" style={{ marginBottom: isNarrow ? "0.5rem" : "1.0rem", opacity: 0.85 }}>01 — Work</p>
@@ -1009,18 +1012,20 @@ function WorkGridContent() {
       {/* Mobile: tabs anchored at very bottom */}
       {isNarrow && (
         <div style={{
-          position: inWorkView ? "fixed" : "absolute",
-          bottom: "clamp(0.6rem, 2.5vh, 1.25rem)",
-          left: "clamp(1rem, 4vw, 2.5rem)",
-          right: "clamp(1rem, 4vw, 2.5rem)",
-          zIndex: 3,
-          pointerEvents: "auto",
-          background:    "rgba(4, 8, 26, 0.80)",
-          backdropFilter: "blur(28px) saturate(1.65) brightness(1.04)",
-          WebkitBackdropFilter: "blur(28px) saturate(1.65) brightness(1.04)",
-          borderRadius: "6px",
-          border: "1px solid rgba(255,255,255,0.07)",
-          boxShadow: "inset 0 1px 0 rgba(255,255,255,0.055), 0 8px 32px rgba(0,0,14,0.50)",
+          position:      "fixed",
+          bottom:        "clamp(0.6rem, 2.5vh, 1.25rem)",
+          left:          "clamp(1rem, 4vw, 2.5rem)",
+          right:         "clamp(1rem, 4vw, 2.5rem)",
+          zIndex:        4,
+          pointerEvents: inWorkView ? "auto" : "none",
+          opacity:       inWorkView ? 1 : 0,
+          transition:    "opacity 0.35s ease",
+          background:    "linear-gradient(145deg, rgba(255,255,255,0.11) 0%, rgba(255,255,255,0.04) 45%, rgba(184,240,255,0.05) 100%)",
+          backdropFilter: "blur(40px) saturate(2.0) brightness(1.08)",
+          WebkitBackdropFilter: "blur(40px) saturate(2.0) brightness(1.08)",
+          borderRadius: "8px",
+          border: "1px solid rgba(255,255,255,0.16)",
+          boxShadow: "inset 0 1px 0 rgba(255,255,255,0.20), inset 0 -1px 0 rgba(0,0,14,0.18), 0 8px 40px rgba(0,0,18,0.55), 0 0 0 1px rgba(255,255,255,0.06)",
         }}>
           <WorkTabButtons activeTab={activeTab} onTabChange={setActiveTab} />
         </div>
@@ -1033,7 +1038,11 @@ function WorkGridContent() {
           <div
             ref={modelListRef}
             style={{
-              position: inWorkView ? "fixed" : "absolute",
+              position:      "fixed",
+              pointerEvents: inWorkView ? "auto" : "none",
+              opacity:       inWorkView ? 1 : 0,
+              transition:    "opacity 0.35s ease",
+              zIndex:        4,
               ...(isNarrow
                 ? {
                     left: 0, right: 0,
@@ -1048,18 +1057,15 @@ function WorkGridContent() {
                     top: "50%",
                     transform: "translateY(-50%)",
                     width: "clamp(160px, 18vw, 240px)",
-                    // Glass panel for desktop model list
-                    background:    "rgba(4, 8, 26, 0.58)",
-                    backdropFilter: "blur(18px) saturate(1.55) brightness(1.03)",
-                    WebkitBackdropFilter: "blur(18px) saturate(1.55) brightness(1.03)",
-                    border:        "1px solid rgba(255,255,255,0.060)",
-                    borderRadius:  "8px",
-                    padding:       "0.6rem",
-                    boxShadow:     "inset 0 1px 0 rgba(255,255,255,0.05), 0 8px 40px rgba(0,0,16,0.45), 0 0 0 1px rgba(184,240,255,0.02)",
+                    background:    "linear-gradient(160deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.03) 50%, rgba(184,240,255,0.05) 100%)",
+                    backdropFilter: "blur(40px) saturate(2.0) brightness(1.08)",
+                    WebkitBackdropFilter: "blur(40px) saturate(2.0) brightness(1.08)",
+                    border:        "1px solid rgba(255,255,255,0.16)",
+                    borderRadius:  "10px",
+                    padding:       "0.5rem 0.6rem",
+                    boxShadow:     "inset 0 1px 0 rgba(255,255,255,0.20), inset 0 -1px 0 rgba(0,0,14,0.18), inset 1px 0 0 rgba(255,255,255,0.07), 0 8px 40px rgba(0,0,18,0.55), 0 0 0 1px rgba(255,255,255,0.06), 0 0 22px rgba(184,240,255,0.07)",
                   }
               ),
-              zIndex: 2,
-              pointerEvents: "auto",
             }}
           >
             {loading ? (
