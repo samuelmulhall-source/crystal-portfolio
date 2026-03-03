@@ -217,8 +217,8 @@ function ShowcaseModel({
         matRefs.current.forEach(m => { if (m && "map" in m) { fn(m as THREE.MeshStandardMaterial); (m as THREE.MeshStandardMaterial).needsUpdate = true; } });
       if (t.map)          loader.loadAsync(t.map).then(tx => { tx.colorSpace = THREE.SRGBColorSpace; apply(m => { m.map = tx; }); }).catch(() => {});
       if (t.normalMap)    loader.loadAsync(t.normalMap).then(tx => { tx.colorSpace = THREE.NoColorSpace; apply(m => { m.normalMap = tx; m.normalMapType = THREE.TangentSpaceNormalMap; }); }).catch(() => {});
-      if (t.roughnessMap) loader.loadAsync(t.roughnessMap).then(tx => { apply(m => { m.roughnessMap = tx; m.roughness = 1; }); }).catch(() => {});
-      if (t.metalnessMap) loader.loadAsync(t.metalnessMap).then(tx => { apply(m => { m.metalnessMap = tx; m.metalness = 1; }); }).catch(() => {});
+      if (t.roughnessMap) loader.loadAsync(t.roughnessMap).then(tx => { apply(m => { m.roughnessMap = tx; m.roughness = 0.88; }); }).catch(() => {});
+      if (t.metalnessMap) loader.loadAsync(t.metalnessMap).then(tx => { apply(m => { m.metalnessMap = tx; m.metalness = 0.85; }); }).catch(() => {});
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [texSig, webgpu]);
@@ -331,12 +331,13 @@ function ShowcaseScene({
     <>
       {/* Lighting — synced with VoidBackground VoidScene rig */}
       <ambientLight intensity={0.40} color="#e0e0e0" />
-      <hemisphereLight args={["#b8d0ff", "#05070f", 0.85]} />
+      <hemisphereLight args={["#b8d0ff", "#1a2035", 0.85]} />
       <directionalLight position={[-4, 10,  7]}  intensity={2.2} color="#ffffff" />
       <directionalLight position={[ 5,  3,  5]}  intensity={1.8} color="#f8f8f8" />
       <directionalLight position={[ 0,  2, 12]}  intensity={2.2} color="#f4f4f4" />
       <directionalLight position={[ 0, -4, -10]} intensity={0.9} color="#b0c8e0" />
       <directionalLight position={[ 0, 12,  2]}  intensity={0.8} color="#f0f0f0" />
+      <directionalLight position={[ 0, -8,  4]}  intensity={0.55} color="#8aa8d0" />
       <pointLight position={[0, 0, 5]} intensity={2.5} color="#ffffff" distance={22} />
       <CoreLight />
       <Environment preset="studio" environmentIntensity={1.1} />
@@ -455,8 +456,10 @@ export default function WorkItemCanvas({
           autoRotateSpeed={fullscreen ? 0.4 : 0.8}
           dampingFactor={0.08}
           enableDamping
-          minDistance={fullscreen ? 0.5 : 0.8}
-          maxDistance={fullscreen ? 40  : 35}
+          minDistance={fullscreen ? 2.5 : 2.0}
+          maxDistance={fullscreen ? 20  : 18}
+          minPolarAngle={Math.PI * 0.08}
+          maxPolarAngle={Math.PI * 0.92}
         />
       </Canvas>
     </WebGPUContext.Provider>

@@ -297,20 +297,28 @@ function ExpandedOrbitControls() {
       autoRotateSpeed={0.4}
       dampingFactor={0.08}
       enableDamping
-      minDistance={0.5}
-      maxDistance={40}
+      minDistance={2.5}
+      maxDistance={20}
+      minPolarAngle={Math.PI * 0.08}
+      maxPolarAngle={Math.PI * 0.92}
       target={[0, 0, 2]}
     />
   );
 }
 
-// ─── Velocity decay ────────────────────────────────────────────────────────
+// ─── Velocity decay + scroll motion blur ───────────────────────────────────
 function VoidMotion() {
+  const { gl } = useThree();
   useFrame((_, dt) => {
     voidState.ready = true; // signal LoadingScreen that first frame is done
     const f = Math.min(dt * 60, 6);
     voidState.mouseVel  *= Math.pow(0.88, f);
     voidState.scrollVel *= Math.pow(0.90, f);
+
+    // Motion blur: CSS blur on the Three.js canvas proportional to scroll speed
+    const blur = Math.min(voidState.scrollVel * 3.2, 5.5);
+    (gl.domElement as HTMLCanvasElement).style.filter =
+      blur > 0.25 ? `blur(${blur.toFixed(2)}px)` : "";
   });
   return null;
 }
@@ -1081,11 +1089,13 @@ function VoidModel({ entry }: { entry: WorkModelEntry }) {
     }).catch(() => {});
 
     if (t.roughnessMap) loader.loadAsync(t.roughnessMap).then(tex => {
-      applyAll(m => { m.roughnessMap = tex; m.roughness = 1; });
+      // Cap at 0.88 so surfaces never go full mirror — prevents dark patches on metallic faces
+      applyAll(m => { m.roughnessMap = tex; m.roughness = 0.88; });
     }).catch(() => {});
 
     if (t.metalnessMap) loader.loadAsync(t.metalnessMap).then(tex => {
-      applyAll(m => { m.metalnessMap = tex; m.metalness = 1; });
+      // Cap at 0.85 — retains slight diffuse response so dark metals catch fill lights
+      applyAll(m => { m.metalnessMap = tex; m.metalness = 0.85; });
     }).catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [texSig]);
@@ -1148,14 +1158,14 @@ function VoidModel({ entry }: { entry: WorkModelEntry }) {
   useFrame((s, dt) => {
     // ── Opacity: driven by activeModelId, not scroll position ─────────────
     const opTarget = workModels.activeModelId === entry.id ? 1 : 0;
-    opacityRef.current += (opTarget - opacityRef.current) * Math.min(dt * 3.0, 1);
+    opacityRef.current += (opTarget - opacityRef.current) * Math.min(dt * 5.5, 1);
 
     // Reset entrance when fully faded so re-entry re-animates
     if (opacityRef.current < 0.01) entranceRef.current = 0;
 
     // ── Entrance scale ─────────────────────────────────────────────────────
     if (opacityRef.current > 0.04 && entranceRef.current < 1) {
-      entranceRef.current = Math.min(entranceRef.current + dt / 1.4, 1);
+      entranceRef.current = Math.min(entranceRef.current + dt / 0.8, 1);
     }
     if (scaleGroupRef.current) {
       const t    = entranceRef.current;
@@ -1296,8 +1306,10 @@ function VoidScene({ isMobile }: { isMobile: boolean }) {
       <color attach="background" args={["#000005"]} />
       {/* ── Neutral studio lighting for PBR models on dark void background ── */}
       <ambientLight intensity={0.40} color="#e0e0e0" />
-      {/* Hemisphere: sky-ice from above, void from below — fills dark metallic surfaces */}
-      <hemisphereLight args={["#b8d0ff", "#05070f", 0.85]} />
+      {/* Hemisphere: sky-ice above, dark blue-void below — brighter ground lifts dark metal undersides */}
+      <hemisphereLight args={["#b8d0ff", "#1a2035", 0.85]} />
+      {/* Under-fill: soft blue from below-front to prevent pure-black metal undersides */}
+      <directionalLight position={[0, -8, 4]} intensity={0.55} color="#8aa8d0" />
       {/* Key light: upper-left, primary illumination */}
       <directionalLight position={[-4, 10, 7]}  intensity={2.2} color="#ffffff" />
       {/* Fill: opposite side */}

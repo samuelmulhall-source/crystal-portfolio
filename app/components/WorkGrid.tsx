@@ -1018,25 +1018,15 @@ function WorkGridContent() {
                       style={{
                         cursor: "pointer",
                         flexShrink: 0,
-                        padding: p.thumbnail ? "0.5rem 0.7rem" : "0.6rem 0.9rem",
+                        padding: "0.6rem 0.9rem",
                         border: `1px solid rgba(184,240,255,${active ? 0.35 : 0.12})`,
                         borderRadius: "3px",
                         background: active ? "rgba(184,240,255,0.06)" : "transparent",
                         textAlign: "left",
                         opacity: active ? 1 : 0.7,
-                        display: "flex", alignItems: "center", gap: "0.55rem",
                         transition: "opacity 0.2s, border-color 0.2s, background 0.2s",
                       }}
                     >
-                      {p.thumbnail && (
-                        <div style={{
-                          width: "28px", height: "28px", flexShrink: 0, borderRadius: "2px",
-                          overflow: "hidden", background: "rgba(5,7,15,0.8)",
-                        }}>
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={p.thumbnail} alt={p.title} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} loading="lazy" />
-                        </div>
-                      )}
                       <div>
                         <div style={{
                           fontFamily: "var(--font-geist-sans), sans-serif",
@@ -1058,123 +1048,85 @@ function WorkGridContent() {
                     key={p.id}
                     onClick={() => selectModel(p.id)}
                     style={{
-                      cursor: "pointer", padding: "0.65rem 0",
+                      cursor: "pointer", padding: "0.8rem 0",
                       borderTop: `1px solid rgba(184,240,255,${active ? 0.14 : 0.05})`,
-                      display: "flex", alignItems: "center", gap: "0.7rem",
+                      display: "flex", alignItems: "center", gap: "0.85rem",
                       opacity: active ? 1 : 0.5, transition: "opacity 0.25s ease",
                     }}
                     onMouseEnter={e => { if (!active) (e.currentTarget as HTMLDivElement).style.opacity = "0.75"; }}
                     onMouseLeave={e => { if (!active) (e.currentTarget as HTMLDivElement).style.opacity = "0.5"; }}
                   >
-                    {/* Thumbnail */}
-                    {p.thumbnail && (
-                      <div style={{
-                        width: "38px", height: "38px", flexShrink: 0, borderRadius: "2px",
-                        overflow: "hidden",
-                        border: `1px solid rgba(184,240,255,${active ? 0.22 : 0.08})`,
-                        transition: "border-color 0.25s ease",
-                        background: "rgba(5,7,15,0.8)",
-                      }}>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={p.thumbnail}
-                          alt={p.title}
-                          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", opacity: active ? 1 : 0.7, transition: "opacity 0.25s ease" }}
-                          loading="lazy"
-                        />
-                      </div>
-                    )}
-                    <div style={{ flex: 1, minWidth: 0 }}>
+                    {/* Active accent bar */}
+                    <div style={{ width: "2px", height: "28px", flexShrink: 0, borderRadius: "1px", background: active ? "rgba(184,240,255,0.70)" : "transparent", boxShadow: active ? "0 0 8px rgba(184,240,255,0.45)" : "none", transition: "background 0.25s ease, box-shadow 0.25s ease" }} />
+                    <span style={{ ...MON, fontSize: "0.52rem", letterSpacing: "0.28em", color: "rgba(184,240,255,0.45)", flexShrink: 0, minWidth: "1.2rem" }}>
+                      {String(i + 1).padStart(2, "0")}
+                    </span>
+                    <div style={{ flex: 1 }}>
                       <div style={{
                         fontFamily: "var(--font-geist-sans), sans-serif",
-                        fontSize: "clamp(0.78rem, 1.1vw, 0.88rem)", fontWeight: active ? 400 : 300,
+                        fontSize: "clamp(0.8rem, 1.2vw, 0.92rem)", fontWeight: active ? 400 : 300,
                         letterSpacing: "0.03em",
                         color: active ? "rgba(220,248,255,0.95)" : "rgba(184,240,255,0.72)",
-                        transition: "color 0.25s ease", marginBottom: "0.18rem",
-                        whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                        transition: "color 0.25s ease", marginBottom: "0.2rem",
                       }}>{p.title}</div>
-                      <div style={{ ...MON, fontSize: "0.58rem", letterSpacing: "0.16em", color: active ? "rgba(184,240,255,0.55)" : "rgba(184,240,255,0.4)", transition: "color 0.25s ease" }}>
+                      <div style={{ ...MON, fontSize: "0.62rem", letterSpacing: "0.16em", color: active ? "rgba(184,240,255,0.55)" : "rgba(184,240,255,0.4)", transition: "color 0.25s ease" }}>
                         {p.year}
                       </div>
                     </div>
-                    <div style={{ width: "3px", height: "3px", borderRadius: "50%", flexShrink: 0, background: "rgba(184,240,255,0.72)", opacity: active ? 1 : 0, transition: "opacity 0.25s ease" }} />
                   </div>
                 );
               })
             )}
           </div>
 
-          {/* Drag hint — bottom-center, visible on hover */}
-          <div style={{
-            position: "absolute",
-            bottom: isNarrow
-              ? "calc(clamp(2.4rem, 6vh, 3rem) + clamp(1rem, 5vh, 2rem) + 9rem)"
-              : "2.25rem",
-            left: "50%",
-            transform: "translateX(-50%)",
-            zIndex: 2,
-            pointerEvents: "none",
-            display: "flex", alignItems: "center", gap: "0.5rem",
-            opacity: isHovered ? 0.55 : 0,
-            transition: "opacity 0.4s ease",
-          }}>
-            <div style={{ width: "18px", height: "1px", background: "rgba(184,240,255,0.35)" }} />
-            <span style={{ ...MON, fontSize: "0.4rem", letterSpacing: "0.24em", color: "rgba(184,240,255,0.7)", whiteSpace: "nowrap" }}>
-              DRAG TO ROTATE
-            </span>
-            <div style={{ width: "18px", height: "1px", background: "rgba(184,240,255,0.35)" }} />
-          </div>
-
-          {/* ── Expand hint — right margin desktop, bottom-center mobile ── */}
+          {/* ── Combined control hint — bottom-center, fades in on hover ── */}
           {activeId && !loading && (
             <div style={{
               position: "absolute",
-              ...(isNarrow
-                ? {
-                    left: "50%",
-                    bottom: "calc(clamp(2.4rem, 6vh, 3rem) + clamp(1rem, 5vh, 2rem) + 4.5rem)",
-                    transform: "translateX(-50%)",
-                  }
-                : {
-                    right: "clamp(1.5rem, 4vw, 2.5rem)",
-                    top: "50%",
-                    transform: "translateY(-50%)",
-                  }),
+              bottom: isNarrow
+                ? "calc(clamp(2.4rem, 6vh, 3rem) + clamp(1rem, 5vh, 2rem) + 4rem)"
+                : "2rem",
+              left: "50%",
+              transform: "translateX(-50%)",
               zIndex: 2,
               pointerEvents: "none",
               opacity: isHovered ? 1 : 0,
-              transition: "opacity 0.55s ease",
+              transition: "opacity 0.45s ease",
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
-              gap: "0.55rem",
+              gap: "0.6rem",
             }}>
-              {/* Expand icon box */}
-              <div style={{
-                width: "34px", height: "34px",
-                border: "1px solid rgba(184,240,255,0.30)",
-                borderRadius: "2px",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                background: "rgba(0,8,22,0.65)",
-                boxShadow: "0 0 14px rgba(184,240,255,0.12), inset 0 0 8px rgba(184,240,255,0.04)",
-              }}>
-                <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
-                  <path d="M1 4.5V1H4.5" stroke="rgba(184,240,255,0.85)" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round"/>
-                  <path d="M8.5 1H12V4.5" stroke="rgba(184,240,255,0.85)" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round"/>
-                  <path d="M12 8.5V12H8.5" stroke="rgba(184,240,255,0.85)" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round"/>
-                  <path d="M4.5 12H1V8.5" stroke="rgba(184,240,255,0.85)" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
+              {/* Icon row */}
+              <div style={{ display: "flex", alignItems: "center", gap: "1.1rem" }}>
+                {/* Drag icon */}
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.35rem" }}>
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <circle cx="8" cy="8" r="5" stroke="rgba(184,240,255,0.55)" strokeWidth="1"/>
+                    <path d="M8 3.5V2M8 14v-1.5M3.5 8H2M14 8h-1.5" stroke="rgba(184,240,255,0.55)" strokeWidth="1" strokeLinecap="round"/>
+                    <circle cx="8" cy="8" r="1.5" fill="rgba(184,240,255,0.55)"/>
+                  </svg>
+                  <span style={{ ...MON, fontSize: "0.38rem", letterSpacing: "0.22em", color: "rgba(184,240,255,0.50)", whiteSpace: "nowrap" }}>
+                    DRAG TO ROTATE
+                  </span>
+                </div>
+
+                {/* Separator */}
+                <div style={{ width: "1px", height: "28px", background: "rgba(184,240,255,0.12)" }} />
+
+                {/* Expand icon */}
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.35rem" }}>
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <path d="M2 5.5V2H5.5" stroke="rgba(184,240,255,0.55)" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M10.5 2H14V5.5" stroke="rgba(184,240,255,0.55)" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M14 10.5V14H10.5" stroke="rgba(184,240,255,0.55)" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M5.5 14H2V10.5" stroke="rgba(184,240,255,0.55)" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  <span style={{ ...MON, fontSize: "0.38rem", letterSpacing: "0.22em", color: "rgba(184,240,255,0.50)", whiteSpace: "nowrap" }}>
+                    {isNarrow ? "DBL TAP" : "DBL CLICK"}
+                  </span>
+                </div>
               </div>
-              <span style={{
-                ...MON,
-                fontSize: "0.42rem",
-                letterSpacing: "0.28em",
-                color: "rgba(184,240,255,0.55)",
-                textShadow: "0 0 12px rgba(184,240,255,0.35)",
-                whiteSpace: "nowrap",
-              }}>
-                {isNarrow ? "DBL TAP" : "DBL CLICK"}
-              </span>
             </div>
           )}
         </>
