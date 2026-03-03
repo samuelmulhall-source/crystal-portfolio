@@ -37,8 +37,10 @@ export default function LoadingScreen() {
     return () => cancelAnimationFrame(rafId);
   }, []);
 
-  if (phase === "gone") return null;
+  // Loading screen disabled — site renders immediately
+  return null;
 
+  // eslint-disable-next-line no-unreachable
   return (
     <div
       aria-hidden="true"

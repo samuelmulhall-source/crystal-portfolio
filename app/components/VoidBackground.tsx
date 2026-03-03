@@ -126,11 +126,18 @@ function makeHoloStarMat(): THREE.ShaderMaterial {
       void main() {
         vColor = color;
         vec4 mv = modelViewMatrix * vec4(position, 1.0);
-        gl_Position = projectionMatrix * mv;
-        // Natural (unforced) point size — used to fade sub-pixel stars smoothly
-        // instead of letting them flicker on/off as they cross pixel boundaries.
         float nat = uSize * (300.0 / -mv.z);
-        vFade = clamp(nat * 0.5, 0.0, 1.0);
+        // Cull sub-pixel stars entirely — they flicker as they cross pixel
+        // boundaries. Stars below 1.2px natural size are moved off-screen so
+        // the GPU never rasterizes them, eliminating the flicker entirely.
+        if (nat < 1.2) {
+          gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+          vFade = 0.0;
+          gl_PointSize = 2.0;
+          return;
+        }
+        gl_Position = projectionMatrix * mv;
+        vFade = smoothstep(1.2, 3.5, nat);
         gl_PointSize = max(2.0, nat);
       }
     `,
@@ -181,14 +188,9 @@ function StarLayer({
     pointsRef.current.rotation.y += dt * cfg.rotSpd;
     pointsRef.current.rotation.x += dt * cfg.rotSpd * 0.32;
 
-    const t    = s.clock.elapsedTime;
-    const base = 0.86 + 0.06 * Math.sin(t * 0.32 + li * 1.1);
-    const dim  = 1 - voidState.scrollProgress * 0.10;
-    // eslint-disable-next-line react-hooks/immutability
-    mat.uniforms.uOpacity.value += (base * dim - mat.uniforms.uOpacity.value) * 0.04;
-    const vel   = voidState.mouseVel + voidState.scrollVel * 5;
-    const boost = Math.min(vel * 0.04, 0.25);
-    mat.uniforms.uSize.value = cfg.size * (1 + boost);
+    const dim = 1 - voidState.scrollProgress * 0.12;
+    mat.uniforms.uOpacity.value = 0.86 * dim;
+    mat.uniforms.uSize.value    = cfg.size;
   });
 
   return (

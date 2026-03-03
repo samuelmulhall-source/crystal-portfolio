@@ -3,38 +3,86 @@
 /**
  * EffectsOverlay — 2D Canvas layer for all special visual effects.
  *
- * Why 2D canvas instead of Three.js materials:
- *   Three.js PointsMaterial / MeshBasicMaterial with AdditiveBlending works,
- *   but achieving *holographic color* requires precise control over hue,
- *   opacity, and radial gradients that Three.js materials abstract away.
- *   Canvas2D gives us createRadialGradient + globalCompositeOperation:'lighter'
- *   (= additive blending) which makes iridescent color trivial and guaranteed.
- *
  * Effects rendered here:
- *   1. Holographic hover glow  — prismatic spectral rings + diffractive spikes
- *      at each hovered star's screen position (thin-film iridescence aesthetic).
- *   2. Meteor trail            — tapered gradient line (tail=transparent, head=white)
- *      with shadowBlur glow. Drawn from voidState.meteorSlots screen coords.
- *   3. Meteor head spark       — bright radial burst at head position.
+ *   1. Holographic 3D star hover — bipyramid geometry (n=3..10 points) drawn
+ *      with manual perspective projection and painter's-algorithm face sorting.
+ *      Fresnel-based edge coloring gives a saturated holographic iridescence.
+ *   2. Constellation paths — dashed ice-white lines between active hover stars.
+ *   3. Meteor trail            — tapered gradient line with blue/ice glow.
+ *   4. Meteor head spark       — bright radial burst at head position.
  */
 
 import { useEffect, useRef } from "react";
 import { voidState } from "../lib/voidState";
 
-// Per-slot spring state for smooth hover entrance (lives outside React render cycle)
+// Per-slot spring state (lives outside React render cycle)
 const _springs: Array<{ pos: number; vel: number }> =
   Array.from({ length: 14 }, () => ({ pos: 0, vel: 0 }));
 
-// Spectral ring wavelengths for thin-film iridescence (hue, radial multiplier)
-const SPECTRAL: Array<{ hue: number; rMul: number; sat: number }> = [
-  { hue: 188, rMul: 0.70, sat: 100 }, // aqua-ice   (innermost — tight halo)
-  { hue: 200, rMul: 1.10, sat: 100 }, // ice-cyan
-  { hue: 218, rMul: 1.60, sat: 100 }, // blue
-  { hue: 242, rMul: 2.15, sat: 100 }, // indigo
-  { hue: 268, rMul: 2.75, sat: 100 }, // violet
-  { hue: 295, rMul: 3.40, sat: 100 }, // magenta
-  { hue: 320, rMul: 4.10, sat: 95  }, // pink (outermost)
-];
+// ─── 3D geometry helpers ───────────────────────────────────────────────────
+type Vec3 = [number, number, number];
+type Face = [number, number, number]; // indices into vertex array
+
+/** Build an n-pointed bipyramid centred at origin, radius 1, height 1. */
+function getStarGeom(n: number): { verts: Vec3[]; faces: Face[] } {
+  const verts: Vec3[] = [];
+  const faces: Face[] = [];
+  verts.push([0,  1, 0]); // apex top    — index 0
+  verts.push([0, -1, 0]); // apex bottom — index 1
+
+  // 2*n ring vertices alternating outer (r=1) and inner (r=0.36)
+  for (let i = 0; i < n; i++) {
+    const aOuter = (i / n) * Math.PI * 2 - Math.PI / 2;
+    const aInner = ((i + 0.5) / n) * Math.PI * 2 - Math.PI / 2;
+    verts.push([Math.cos(aOuter), 0, Math.sin(aOuter)]);           // outer — index 2 + i*2
+    verts.push([Math.cos(aInner) * 0.36, 0, Math.sin(aInner) * 0.36]); // inner — index 3 + i*2
+  }
+
+  // Build triangular faces: top cap and bottom cap
+  for (let i = 0; i < n; i++) {
+    const o  = 2 + i * 2;       // outer[i]
+    const ni = 2 + i * 2 + 2;   // inner[i]   (wraps)
+    const o2 = 2 + ((i + 1) % n) * 2; // outer[i+1]
+
+    const inner  = o + 1;
+    const inner2 = ni < verts.length ? ni + 1 : 3; // inner[i+1]
+
+    // Top faces (apex=0): outer[i] → inner[i] → apex, inner[i] → outer[i+1] → apex
+    faces.push([0, o, inner]);
+    faces.push([0, inner, o2]);
+    // Bottom faces (apex=1)
+    faces.push([1, inner, o]);
+    faces.push([1, o2, inner]);
+  }
+
+  return { verts, faces };
+}
+
+/** Rotate a point by Ry then Rx. */
+function rotV(v: Vec3, rx: number, ry: number): Vec3 {
+  // Ry
+  const x1 =  v[0] * Math.cos(ry) + v[2] * Math.sin(ry);
+  const y1 =  v[1];
+  const z1 = -v[0] * Math.sin(ry) + v[2] * Math.cos(ry);
+  // Rx
+  const x2 = x1;
+  const y2 = y1 * Math.cos(rx) - z1 * Math.sin(rx);
+  const z2 = y1 * Math.sin(rx) + z1 * Math.cos(rx);
+  return [x2, y2, z2];
+}
+
+/** Simple perspective projection to 2D screen coords. */
+function project(v: Vec3, cx: number, cy: number, scale: number, fov: number): [number, number] {
+  const depth = fov / (fov + v[2]);
+  return [cx + v[0] * scale * depth, cy - v[1] * scale * depth];
+}
+
+/** Cross product of two Vec3 edges → face normal (unnormalised). */
+function faceNormal(a: Vec3, b: Vec3, c: Vec3): Vec3 {
+  const ux = b[0]-a[0], uy = b[1]-a[1], uz = b[2]-a[2];
+  const vx = c[0]-a[0], vy = c[1]-a[1], vz = c[2]-a[2];
+  return [uy*vz - uz*vy, uz*vx - ux*vz, ux*vy - uy*vx];
+}
 
 export default function EffectsOverlay() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -67,98 +115,104 @@ export default function EffectsOverlay() {
       lastT     = now;
       const t   = (now - t0) * 0.001;
 
-      // Spring constants: high stiffness + medium damping → snappy with 1-2 bounces
-      const SPRING_K  = 420;  // stiffness (larger = snappier)
-      const SPRING_D  = 26;   // damping   (lower = bouncier)
+      const SPRING_K = 420;
+      const SPRING_D = 26;
 
-      // ── 1. Holographic hover glow ────────────────────────────────────────
+      // ── 1. 3D Holographic star hover ──────────────────────────────────────
       for (let i = 0; i < voidState.hoverSlots.length; i++) {
         const slot   = voidState.hoverSlots[i];
         const spring = _springs[i];
 
-        // Advance spring simulation
         const target = slot.ease;
         spring.vel  += (target - spring.pos) * SPRING_K * dt;
         spring.vel  -= spring.vel * SPRING_D * dt;
         spring.pos  += spring.vel * dt;
-        // Hard-clamp spring to [0, 1] — prevents physics overshoot from blowing
-        // out the "lighter" blended glow into a full-screen flare.
-        spring.pos = Math.max(0, Math.min(spring.pos, 1.0));
-        if (spring.pos < 0.005 && target < 0.01) {
-          spring.pos = 0;
-          spring.vel = 0;
-        }
+        spring.pos   = Math.max(0, Math.min(spring.pos, 1.0));
+        if (spring.pos < 0.005 && target < 0.01) { spring.pos = 0; spring.vel = 0; }
         if (spring.pos < 0.005) continue;
-        // Slots 8+ are line-only; advance spring but skip all glow/symbol rendering
-        if (i >= 8) continue;
+        if (i >= 8) continue; // line-only slots: spring advances but no geometry
 
-        const { sx, sy, variant } = slot;
         const ease = Math.min(spring.pos, 1.0);
-        const r   = 9 * ease;
-        const rot = t * 0.9 + i * 1.05;
+        const { sx, sy } = slot;
+        const scale = ease * 20;
+        const FOV   = 4;
+
+        // N continuously cycles from 3 → 10 per slot
+        const nFloat = 3 + ((t * 0.35 + i * 1.9) % 7);
+        const n      = Math.max(3, Math.round(nFloat));
+
+        const ry = t * 1.5 + i * 0.85;
+        const rx = t * 0.55 + i * 0.62 + Math.sin(t * 0.3 + i) * 0.4;
+
+        const { verts, faces } = getStarGeom(n);
+
+        // Rotate all vertices
+        const rotated: Vec3[] = verts.map(v => rotV(v, rx, ry));
+
+        // Painter's sort: back face → front face by average z (ascending)
+        const faceOrder = faces
+          .map((f, fi) => {
+            const avgZ = (rotated[f[0]][2] + rotated[f[1]][2] + rotated[f[2]][2]) / 3;
+            return { fi, avgZ };
+          })
+          .sort((a, b) => a.avgZ - b.avgZ);
 
         ctx!.save();
         ctx!.globalCompositeOperation = "lighter";
 
-        // ── Prismatic thin-film spectral rings ───────────────────────────
-        // Each ring is a narrow annular glow at increasing radii, cycling
-        // through the visible spectrum (ice-cyan → blue → indigo → violet → magenta).
-        // Opacity is individually animated so the rings shimmer independently.
-        SPECTRAL.forEach(({ hue, rMul, sat }, si) => {
-          const rInner = r * rMul * 0.70;
-          const rOuter = r * rMul * 1.30;
-          // Each ring shimmers at its own phase — thin-film interference illusion
-          const shimmer = 0.55 + 0.45 * Math.sin(t * 2.8 + si * 0.9 + i * 0.55);
-          const a = ease * 0.13 * shimmer;
-          const ring = ctx!.createRadialGradient(sx, sy, rInner, sx, sy, rOuter);
-          ring.addColorStop(0.0, `hsla(${hue}, ${sat}%, 85%, 0)`);
-          ring.addColorStop(0.4, `hsla(${hue}, ${sat}%, 85%, ${a})`);
-          ring.addColorStop(0.6, `hsla(${hue}, ${sat}%, 92%, ${a * 0.6})`);
-          ring.addColorStop(1.0, "rgba(0,0,0,0)");
-          ctx!.fillStyle = ring;
-          ctx!.beginPath();
-          ctx!.arc(sx, sy, rOuter, 0, Math.PI * 2);
-          ctx!.fill();
-        });
+        for (const { fi } of faceOrder) {
+          const f = faces[fi];
+          const a3 = rotated[f[0]], b3 = rotated[f[1]], c3 = rotated[f[2]];
 
-        // ── Diffractive spikes: sharp radial rays cycling through spectrum ─
-        const spikeCount = variant % 2 === 0 ? 6 : 8;
-        const spikeR     = r * 2.8;
-        for (let si = 0; si < spikeCount; si++) {
-          const a      = rot + (si / spikeCount) * Math.PI * 2;
-          const hue    = (195 + si * (280 / spikeCount) + t * 18) % 360;
-          const sAlpha = ease * (0.40 + 0.15 * Math.sin(t * 3.1 + si * 1.3));
-          const sGrad  = ctx!.createLinearGradient(sx, sy, sx + Math.cos(a) * spikeR, sy + Math.sin(a) * spikeR);
-          sGrad.addColorStop(0.0, `hsla(${hue}, 100%, 90%, ${sAlpha})`);
-          sGrad.addColorStop(0.5, `hsla(${(hue + 30) % 360}, 100%, 80%, ${sAlpha * 0.4})`);
-          sGrad.addColorStop(1.0, "rgba(0,0,0,0)");
-          ctx!.strokeStyle = sGrad;
-          ctx!.lineWidth   = 0.6;
+          // Fresnel: how much is this face edge-on to camera?
+          const norm = faceNormal(a3, b3, c3);
+          const nLen = Math.sqrt(norm[0]*norm[0] + norm[1]*norm[1] + norm[2]*norm[2]);
+          const facing = nLen > 0 ? Math.abs(norm[2] / nLen) : 0;
+          const fresnel = Math.pow(1 - facing, 2.5);
+
+          // Holographic hue cycles with time, face index, and Fresnel angle
+          const hue = ((fresnel * 3.5 + t * 0.45 + fi * 0.11 + i * 0.25) % 1) * 360;
+          const sat = 100;
+          const lgt = 72;
+
+          const ap = project(a3, sx, sy, scale, FOV);
+          const bp = project(b3, sx, sy, scale, FOV);
+          const cp2 = project(c3, sx, sy, scale, FOV);
+
+          // Fill: icy translucent core — brighter toward face-forward faces
+          const fillA = ease * (0.04 + facing * 0.12);
+          ctx!.fillStyle = `rgba(195,235,255,${fillA})`;
           ctx!.beginPath();
-          ctx!.moveTo(sx + Math.cos(a) * r * 0.25, sy + Math.sin(a) * r * 0.25);
-          ctx!.lineTo(sx + Math.cos(a) * spikeR,   sy + Math.sin(a) * spikeR);
+          ctx!.moveTo(ap[0], ap[1]);
+          ctx!.lineTo(bp[0], bp[1]);
+          ctx!.lineTo(cp2[0], cp2[1]);
+          ctx!.closePath();
+          ctx!.fill();
+
+          // Edge: holographic hue, brightest at Fresnel peak (edge-on faces)
+          const edgeA = ease * (0.30 + fresnel * 0.65);
+          ctx!.strokeStyle = `hsla(${hue},${sat}%,${lgt}%,${edgeA})`;
+          ctx!.lineWidth   = 0.6 + fresnel * 0.8;
           ctx!.stroke();
         }
 
-        // ── Ice-white core ───────────────────────────────────────────────
-        const core = ctx!.createRadialGradient(sx, sy, 0, sx, sy, r * 0.9);
-        core.addColorStop(0.0,  `rgba(255, 255, 255, ${ease})`);
-        core.addColorStop(0.25, `rgba(235, 250, 255, ${ease * 0.80})`);
-        core.addColorStop(0.65, `rgba(190, 230, 255, ${ease * 0.35})`);
-        core.addColorStop(1.0,  "rgba(0,0,0,0)");
-        ctx!.fillStyle = core;
+        // Bright anchor dot at star centre
+        const anchor = ctx!.createRadialGradient(sx, sy, 0, sx, sy, 4 * ease);
+        anchor.addColorStop(0,   `rgba(255,255,255,${ease})`);
+        anchor.addColorStop(0.4, `rgba(200,240,255,${ease * 0.6})`);
+        anchor.addColorStop(1,   "rgba(0,0,0,0)");
+        ctx!.fillStyle = anchor;
         ctx!.beginPath();
-        ctx!.arc(sx, sy, r * 0.9, 0, Math.PI * 2);
+        ctx!.arc(sx, sy, 4 * ease, 0, Math.PI * 2);
         ctx!.fill();
 
         ctx!.restore();
       }
 
-      // ── 1b. Constellation paths between active hover stars ──────────────
-      // Ice-white monochrome — no HSL color gradient, just pure frost lines.
+      // ── 2. Constellation paths between active hover stars ─────────────────
       const active: Array<{ sx: number; sy: number; ease: number }> = [];
       for (let i = 0; i < voidState.hoverSlots.length; i++) {
-        if (_springs[i].pos > 0.12) { // 0.12 catches line-only slots (max ease 0.28)
+        if (_springs[i].pos > 0.12) {
           const s = voidState.hoverSlots[i];
           active.push({ sx: s.sx, sy: s.sy, ease: _springs[i].pos });
         }
@@ -173,17 +227,15 @@ export default function EffectsOverlay() {
             const dist = Math.hypot(sa.sx - sb.sx, sa.sy - sb.sy);
             if (dist > 560 || dist < 6) continue;
 
-            const minE = Math.min(sa.ease, sb.ease);
+            const minE     = Math.min(sa.ease, sb.ease);
             const distFade = Math.max(0, 1 - dist / 560);
             const alpha    = minE * distFade * 0.55;
 
-            // Animated dash for travelling-light effect
             const dashLen    = 8 + dist * 0.06;
             const dashOffset = (t * 45) % (dashLen * 2);
             ctx!.setLineDash([dashLen * 0.5, dashLen * 1.5]);
             ctx!.lineDashOffset = -dashOffset;
 
-            // Ice-white monochrome — no hue cycling
             ctx!.strokeStyle = `rgba(184, 240, 255, ${alpha})`;
             ctx!.lineWidth   = 1.0;
             ctx!.shadowColor = `rgba(184, 240, 255, 0.45)`;
@@ -199,7 +251,7 @@ export default function EffectsOverlay() {
         ctx!.restore();
       }
 
-      // ── 2. Meteor trails ────────────────────────────────────────────────
+      // ── 3. Meteor trails ──────────────────────────────────────────────────
       for (let m = 0; m < voidState.meteorSlots.length; m++) {
         const met = voidState.meteorSlots[m];
         if (!met.active || met.env < 0.01) continue;
@@ -211,13 +263,13 @@ export default function EffectsOverlay() {
         ctx!.lineCap  = "round";
         ctx!.lineJoin = "round";
 
-        // ── Glow pass: blue/ice — half of previous size ─────────────────
+        // Glow pass: blue/ice
         const gGlow = ctx!.createLinearGradient(tsx, tsy, hsx, hsy);
         gGlow.addColorStop(0.00, "rgba(0,0,0,0)");
-        gGlow.addColorStop(0.25, `rgba(20,  50, 180, ${env * 0.42})`);  // deep blue
-        gGlow.addColorStop(0.60, `rgba(70, 140, 255, ${env * 0.68})`);  // sky blue
-        gGlow.addColorStop(0.85, `rgba(180,220, 255, ${env * 0.84})`);  // ice blue
-        gGlow.addColorStop(1.00, `rgba(255,255, 255, ${env * 0.92})`);  // white head
+        gGlow.addColorStop(0.25, `rgba(20,  50, 180, ${env * 0.42})`);
+        gGlow.addColorStop(0.60, `rgba(70, 140, 255, ${env * 0.68})`);
+        gGlow.addColorStop(0.85, `rgba(180,220, 255, ${env * 0.84})`);
+        gGlow.addColorStop(1.00, `rgba(255,255, 255, ${env * 0.92})`);
 
         ctx!.filter      = "blur(0.8px)";
         ctx!.strokeStyle = gGlow;
@@ -229,7 +281,7 @@ export default function EffectsOverlay() {
         ctx!.lineTo(hsx, hsy);
         ctx!.stroke();
 
-        // ── Core pass: ice-white ─────────────────────────────────────────
+        // Core pass: ice-white
         ctx!.filter = "none";
         ctx!.shadowBlur = 0;
 
@@ -246,27 +298,12 @@ export default function EffectsOverlay() {
         ctx!.lineTo(hsx, hsy);
         ctx!.stroke();
 
-        // ── Holographic shimmer: violet-cyan prismatic overlay ────────────
-        const gShimmer = ctx!.createLinearGradient(tsx, tsy, hsx, hsy);
-        gShimmer.addColorStop(0.00, "rgba(0,0,0,0)");
-        gShimmer.addColorStop(0.30, `rgba(160,  50, 240, ${env * 0.18})`);  // violet
-        gShimmer.addColorStop(0.60, `rgba( 50, 220, 210, ${env * 0.18})`);  // cyan
-        gShimmer.addColorStop(0.85, `rgba(220, 180, 255, ${env * 0.14})`);  // lilac
-        gShimmer.addColorStop(1.00, "rgba(0,0,0,0)");
-
-        ctx!.strokeStyle = gShimmer;
-        ctx!.lineWidth   = 1.0 * env;
-        ctx!.beginPath();
-        ctx!.moveTo(tsx, tsy);
-        ctx!.lineTo(hsx, hsy);
-        ctx!.stroke();
-
-        // ── Head spark: ice-white ────────────────────────────────────────
+        // Head spark
         const sparkR = 1.65 * env;
         const spark  = ctx!.createRadialGradient(hsx, hsy, 0, hsx, hsy, sparkR * 2.5);
         spark.addColorStop(0.00, `rgba(255, 255, 255, ${env})`);
-        spark.addColorStop(0.30, `rgba(200, 230, 255, ${env * 0.80})`);  // ice blue
-        spark.addColorStop(0.65, `rgba(100, 160, 255, ${env * 0.45})`);  // blue
+        spark.addColorStop(0.30, `rgba(200, 230, 255, ${env * 0.80})`);
+        spark.addColorStop(0.65, `rgba(100, 160, 255, ${env * 0.45})`);
         spark.addColorStop(1.00, "rgba(0,0,0,0)");
 
         ctx!.fillStyle   = spark;
