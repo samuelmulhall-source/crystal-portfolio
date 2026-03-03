@@ -50,7 +50,7 @@ function sr(seed: number) {
 function buildStarColors(count: number, seed: number): Float32Array {
   const col = new Float32Array(count * 3);
   for (let i = 0; i < count; i++) {
-    const br   = 0.24 + sr(seed + i * 7 + 4) * 0.62;
+    const br   = 0.45 + sr(seed + i * 7 + 4) * 0.55;
     const cool = sr(seed + i * 7 + 5) > 0.55;
     col[i * 3]     = br * (cool ? 0.68 : 1.00);
     col[i * 3 + 1] = br * (cool ? 0.88 : 1.00);
@@ -117,25 +117,26 @@ function makeHoloStarMat(): THREE.ShaderMaterial {
   return new THREE.ShaderMaterial({
     uniforms: {
       uSize:    { value: 0.22 },
-      uOpacity: { value: 0.86 },
+      uOpacity: { value: 0.90 },
+      uVH:      { value: 400.0 }, // physical half-height of canvas, updated per frame
     },
     vertexShader: /* glsl */`
       varying vec3 vColor;
       uniform float uSize;
+      uniform float uVH;
       void main() {
         vColor = color;
         vec4 mv = modelViewMatrix * vec4(position, 1.0);
-        float nat = uSize * (300.0 / -mv.z);
-        // Hard-cull sub-pixel stars by moving them off-screen.
-        // No per-star fade so brightness is constant — nothing to flicker.
-        if (nat < 1.0) {
+        // Correct pixel size: projectionMatrix[1][1] = 1/tan(fov/2)
+        // uVH = drawingBufferHeight * 0.5 (physical pixels, includes dpr)
+        float nat = uSize * projectionMatrix[1][1] * uVH / (-mv.z);
+        if (nat < 0.5) {
           gl_Position = vec4(10.0, 10.0, 10.0, 1.0);
-          gl_PointSize = 2.0;
+          gl_PointSize = 1.0;
           return;
         }
         gl_Position = projectionMatrix * mv;
-        // min 3px so center pixel always exists at gl_PointCoord(0.5,0.5)→r=0
-        gl_PointSize = max(3.0, nat);
+        gl_PointSize = max(2.0, nat);
       }
     `,
     fragmentShader: /* glsl */`
@@ -147,9 +148,10 @@ function makeHoloStarMat(): THREE.ShaderMaterial {
         float r = length(uv);
         if (r > 1.0) discard;
 
-        float core = exp(-r * r * 18.0);
+        // exp(-r²×7): soft enough to be visible at 2–3px, crisp enough to avoid halos
+        float core = exp(-r * r * 7.0);
         float a    = uOpacity * core;
-        if (a < 0.005) discard;
+        if (a < 0.004) discard;
         gl_FragColor = vec4(vColor * core, a);
       }
     `,
@@ -182,8 +184,10 @@ function StarLayer({
     pointsRef.current.rotation.x += dt * cfg.rotSpd * 0.32;
 
     const dim = 1 - voidState.scrollProgress * 0.12;
-    mat.uniforms.uOpacity.value = 0.86 * dim;
+    mat.uniforms.uOpacity.value = 0.90 * dim;
     mat.uniforms.uSize.value    = cfg.size;
+    // Feed physical half-height so nat is in real screen pixels regardless of dpr/fov
+    mat.uniforms.uVH.value = (s.gl.domElement as HTMLCanvasElement).height * 0.5;
   });
 
   return (
