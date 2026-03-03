@@ -4,6 +4,7 @@ import EffectsOverlay  from "./components/EffectsOverlay";
 import LoadingScreen   from "./components/LoadingScreen";
 import CosmicLoader    from "./components/CosmicLoader";
 import CursorFollower  from "./components/CursorFollower";
+import HUDCorners      from "./components/HUDCorners";
 import Hero            from "./components/Hero";
 import WorkGrid        from "./components/WorkGrid";
 import AboutContact    from "./components/AboutContact";
@@ -14,6 +15,7 @@ export default function Home() {
     <>
       <LoadingScreen />
       <CursorFollower />
+      <HUDCorners />
       <Suspense fallback={<CosmicLoader />}>
         <VoidBackground />
       </Suspense>

@@ -1056,8 +1056,30 @@ function WorkGridContent() {
                     onMouseEnter={e => { if (!active) (e.currentTarget as HTMLDivElement).style.opacity = "0.75"; }}
                     onMouseLeave={e => { if (!active) (e.currentTarget as HTMLDivElement).style.opacity = "0.5"; }}
                   >
-                    {/* Active accent bar */}
-                    <div style={{ width: "2px", height: "28px", flexShrink: 0, borderRadius: "1px", background: active ? "rgba(184,240,255,0.70)" : "transparent", boxShadow: active ? "0 0 8px rgba(184,240,255,0.45)" : "none", transition: "background 0.25s ease, box-shadow 0.25s ease" }} />
+                    {/* Active bracket — L-shape: vertical bar + top/bottom caps */}
+                    <div style={{ position: "relative", width: "10px", height: "28px", flexShrink: 0 }}>
+                      {/* Vertical bar */}
+                      <div style={{
+                        position: "absolute", left: 0, top: 0, bottom: 0, width: "1px",
+                        background: active ? "rgba(184,240,255,0.80)" : "rgba(184,240,255,0.12)",
+                        boxShadow: active ? "0 0 7px rgba(184,240,255,0.55)" : "none",
+                        transition: "background 0.3s ease, box-shadow 0.3s ease",
+                      }} />
+                      {/* Top cap */}
+                      <div style={{
+                        position: "absolute", left: 0, top: 0, height: "1px",
+                        width: active ? "7px" : "3px",
+                        background: active ? "rgba(184,240,255,0.80)" : "rgba(184,240,255,0.12)",
+                        transition: "width 0.3s ease, background 0.3s ease",
+                      }} />
+                      {/* Bottom cap */}
+                      <div style={{
+                        position: "absolute", left: 0, bottom: 0, height: "1px",
+                        width: active ? "7px" : "3px",
+                        background: active ? "rgba(184,240,255,0.80)" : "rgba(184,240,255,0.12)",
+                        transition: "width 0.3s ease, background 0.3s ease",
+                      }} />
+                    </div>
                     <span style={{ ...MON, fontSize: "0.52rem", letterSpacing: "0.28em", color: "rgba(184,240,255,0.45)", flexShrink: 0, minWidth: "1.2rem" }}>
                       {String(i + 1).padStart(2, "0")}
                     </span>

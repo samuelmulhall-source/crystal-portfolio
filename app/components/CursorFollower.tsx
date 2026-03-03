@@ -16,6 +16,7 @@
  */
 
 import { useEffect, useRef } from "react";
+import { voidState } from "../lib/voidState";
 
 type Particle = { x: number; y: number; vx: number; vy: number; life: number };
 
@@ -61,6 +62,7 @@ export default function CursorFollower() {
     let cRingSize    = 34;   // diameter px
     let cRingOpacity = 0;
     let cRingCyan    = 0;    // 0 = white, 1 = cyan
+    let cModelHover  = 0;    // 0 → 1 when cursor is over the active 3D model
 
     const particles: Particle[] = [];
 
@@ -114,10 +116,16 @@ export default function CursorFollower() {
       ringX += (mouseX - ringX) * Math.min(0.09 * f, 1);
       ringY += (mouseY - ringY) * Math.min(0.09 * f, 1);
 
+      // Model region hover detection
+      const mr = voidState.modelRegion;
+      const inModel = mr.rPx > 20 &&
+        (mouseX - mr.x) ** 2 + (mouseY - mr.y) ** 2 < mr.rPx ** 2;
+      cModelHover += ((inModel ? 1 : 0) - cModelHover) * Math.min(0.10 * f, 1);
+
       // Target states
       const tDotOpacity  = onPage ? 1 : 0;
-      const tRingSize    = hovering ? (onNav ? 52 : 46) : 34;
-      const tRingOpacity = onPage ? (hovering ? 0.82 : 0.65) : 0;
+      const tRingSize    = hovering ? (onNav ? 52 : 46) : (inModel ? 42 : 34);
+      const tRingOpacity = onPage ? (hovering ? 0.82 : inModel ? 0.55 : 0.65) : 0;
       const tRingCyan    = onNav ? 1 : (hovering ? 0.22 : 0);
 
       // Lerp all values
@@ -139,8 +147,10 @@ export default function CursorFollower() {
       ring.style.height      = `${cRingSize.toFixed(2)}px`;
       ring.style.borderColor = `rgba(${rC},${gC},255,${cRingOpacity.toFixed(3)})`;
 
-      // ── Particles ──────────────────────────────────────────────────────────
+      // ── Canvas: particles + model-hover rotation arc ───────────────────────
       ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+
+      // Scatter particles
       for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i];
         p.x  += p.vx; p.y  += p.vy;
@@ -151,6 +161,39 @@ export default function CursorFollower() {
         ctx.beginPath();
         ctx.arc(p.x, p.y, Math.max(0.4, 2.2 * p.life), 0, Math.PI * 2);
         ctx.fill();
+      }
+
+      // Rotation arc — fades in when cursor enters the 3D model region
+      if (cModelHover > 0.01) {
+        const arcR = 24;
+        const startA = -Math.PI * 0.15;
+        const endA   =  Math.PI * 1.55;
+        ctx.save();
+        ctx.translate(mouseX, mouseY);
+        ctx.globalAlpha = cModelHover * 0.70;
+
+        // Arc stroke
+        ctx.beginPath();
+        ctx.arc(0, 0, arcR, startA, endA);
+        ctx.strokeStyle = "rgba(255,255,255,0.90)";
+        ctx.lineWidth = 1.2;
+        ctx.lineCap = "round";
+        ctx.stroke();
+
+        // Arrowhead at the end of the arc
+        const ax = Math.cos(endA) * arcR;
+        const ay = Math.sin(endA) * arcR;
+        const tang = endA + Math.PI * 0.5;
+        ctx.beginPath();
+        ctx.moveTo(ax + Math.cos(tang - 0.5) * 5, ay + Math.sin(tang - 0.5) * 5);
+        ctx.lineTo(ax, ay);
+        ctx.lineTo(ax + Math.cos(tang + 0.5) * 5, ay + Math.sin(tang + 0.5) * 5);
+        ctx.strokeStyle = "rgba(255,255,255,0.90)";
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+
+        ctx.globalAlpha = 1;
+        ctx.restore();
       }
     }
 

@@ -54,6 +54,24 @@ body {
   overflow-x: hidden;
 }
 
+/* ─── Scanlines — fixed CRT-style overlay, hides gradient banding ────────────
+   3px pitch, 5.5% opacity: visible up close, invisible at reading distance.
+   z-index 200: above nav (50) and modal (100), below cursor (9997+).        */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent        0px,
+    transparent        2px,
+    rgba(0, 0, 8, 0.055) 2px,
+    rgba(0, 0, 8, 0.055) 3px
+  );
+}
+
 main {
   position: relative;
   z-index: 2;
@@ -111,11 +129,11 @@ main {
 
 /* ─── Floating content panel (About, Contact) ─────────────────────────────── */
 .section-panel {
-  background: rgba(5, 7, 15, 0.86);
-  backdrop-filter: blur(6px) saturate(1.4);
-  -webkit-backdrop-filter: blur(6px) saturate(1.4);
-  border-top:    1px solid rgba(184, 240, 255, 0.07);
-  border-bottom: 1px solid rgba(184, 240, 255, 0.07);
+  background: rgba(5, 7, 15, 0.70);
+  backdrop-filter: blur(10px) saturate(1.3);
+  -webkit-backdrop-filter: blur(10px) saturate(1.3);
+  border-top:    1px solid rgba(184, 240, 255, 0.08);
+  border-bottom: 1px solid rgba(184, 240, 255, 0.08);
 }
 
 /* ─── Void divider ────────────────────────────────────────────────────────── */

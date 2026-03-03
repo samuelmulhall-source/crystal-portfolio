@@ -46,7 +46,8 @@ export default function AboutContact() {
     <section
       id="about"
       ref={sectionRef}
-      style={{ position: "relative", background: "transparent", padding: "8rem 0 0" }}
+      className="section-panel"
+      style={{ position: "relative", padding: "8rem 0 0" }}
     >
       <div style={{ maxWidth: "1060px", margin: "0 auto", padding: "0 2.5rem 9rem" }}>
 
@@ -71,21 +72,23 @@ export default function AboutContact() {
               the work.
             </h2>
 
-            <p className="reveal" style={{
-              color: "var(--text-secondary)", lineHeight: 1.85,
-              fontSize: "clamp(0.9rem, 1.2vw, 0.95rem)", marginBottom: "1.35rem",
-            }}>
-              Working across the full production pipeline since 2020. I build
-              everything from detailed environments and animated intros to icons
-              and experimental projects.
-            </p>
-            <p className="reveal" style={{
-              color: "var(--text-secondary)", lineHeight: 1.85,
-              fontSize: "clamp(0.9rem, 1.2vw, 0.95rem)", marginBottom: "2.75rem",
-            }}>
-              While Blender is my primary hub, I&apos;m results-oriented and will
-              use any software or technique required to hit the right look.
-            </p>
+            <div style={{ borderLeft: "1px solid rgba(184,240,255,0.10)", paddingLeft: "1.4rem" }}>
+              <p className="reveal" style={{
+                color: "var(--text-secondary)", lineHeight: 2.0, fontWeight: 400,
+                fontSize: "clamp(0.9rem, 1.2vw, 0.95rem)", marginBottom: "1.35rem",
+              }}>
+                Working across the full production pipeline since 2020. I build
+                everything from detailed environments and animated intros to icons
+                and experimental projects.
+              </p>
+              <p className="reveal" style={{
+                color: "var(--text-secondary)", lineHeight: 2.0, fontWeight: 400,
+                fontSize: "clamp(0.9rem, 1.2vw, 0.95rem)", marginBottom: "2.75rem",
+              }}>
+                While Blender is my primary hub, I&apos;m results-oriented and will
+                use any software or technique required to hit the right look.
+              </p>
+            </div>
 
             <a
               href="https://x.com/multiscatter"
