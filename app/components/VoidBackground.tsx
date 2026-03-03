@@ -211,6 +211,32 @@ function VoidCore() {
   );
 }
 
+// ─── Mouse-following rim light ─────────────────────────────────────────────
+// Reads voidState.mouseNX/Y each frame and smoothly repositions a warm
+// point light. Creates interactive rim/key lighting that shifts as you move
+// the mouse — the model reflects the light source changing position.
+function MouseLight() {
+  const ref = useRef<THREE.PointLight>(null);
+  const lx  = useRef(0);
+  const ly  = useRef(0);
+
+  useFrame((_, dt) => {
+    if (!ref.current) return;
+    const f    = Math.min(dt * 60, 6);
+    const lerp = Math.min(0.055 * f, 1);
+    // mouseNX: −1..+1 (right positive)
+    // mouseNY: −1..+1 (+1 = bottom), so negate for 3D-Y (top positive)
+    lx.current += (voidState.mouseNX * 9  - lx.current) * lerp;
+    ly.current += (-voidState.mouseNY * 6 - ly.current) * lerp;
+    ref.current.position.set(lx.current, ly.current, 7);
+  });
+
+  // Warm-white: contrasts with the ice-blue ambient/hemisphere for clear directionality
+  return (
+    <pointLight ref={ref} color="#ffeedd" intensity={1.1} distance={20} />
+  );
+}
+
 // ─── Camera: mouse parallax + scroll descent ───────────────────────────────
 const MAX_P = 1.9;
 
@@ -1330,6 +1356,7 @@ function VoidScene({ isMobile }: { isMobile: boolean }) {
       <StarLayer li={2} pointsRef={pts2} />
 
       <VoidCore />
+      <MouseLight />
       <VoidCamera />
       <ExpandedOrbitControls />
       <VoidMotion />

@@ -12,8 +12,43 @@ const SKILLS_3D = [
 
 export default function AboutContact() {
   const sectionRef = useRef<HTMLElement>(null);
+  const gridRef    = useRef<HTMLDivElement>(null);
   const [sent, setSent]   = useState(false);
   const [form, setForm]   = useState({ name: "", email: "", message: "" });
+
+  // ── 3D perspective tilt on the grid ──────────────────────────────────────
+  useEffect(() => {
+    const grid = gridRef.current;
+    if (!grid) return;
+    // Only on desktop
+    if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
+
+    let tx = 0, ty = 0;
+    let mx = 0, my = 0;
+    let raf: number;
+
+    const onMove = (e: MouseEvent) => {
+      const rect = grid.getBoundingClientRect();
+      const cx = rect.left + rect.width  / 2;
+      const cy = rect.top  + rect.height / 2;
+      mx = ((e.clientY - cy) / window.innerHeight) * -1.5;
+      my = ((e.clientX - cx) / window.innerWidth)  *  1.5;
+    };
+
+    const tick = () => {
+      raf = requestAnimationFrame(tick);
+      tx += (mx - tx) * 0.055;
+      ty += (my - ty) * 0.055;
+      grid.style.transform = `perspective(1800px) rotateX(${tx.toFixed(3)}deg) rotateY(${ty.toFixed(3)}deg)`;
+    };
+
+    window.addEventListener("mousemove", onMove, { passive: true });
+    raf = requestAnimationFrame(tick);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("mousemove", onMove);
+    };
+  }, []);
 
   useEffect(() => {
     gsap.registerPlugin(ScrollTrigger);
@@ -55,17 +90,25 @@ export default function AboutContact() {
 
         {/* ── Two-column unified layout ─────────────────────────────────── */}
         <div
+          ref={gridRef}
           className="ac-grid"
           style={{
             display:             "grid",
             gridTemplateColumns: "1fr 1fr",
             gap:                 "5.5rem",
             alignItems:          "start",
+            transformStyle:      "preserve-3d",
+            willChange:          "transform",
           }}
         >
 
           {/* ── Left: bio ─────────────────────────────────────────────── */}
-          <div>
+          <div style={{
+            background:   "rgba(184,240,255,0.015)",
+            border:       "1px solid rgba(184,240,255,0.07)",
+            borderRadius: "4px",
+            padding:      "2rem 2rem 2.2rem",
+          }}>
             <h2 className="heading-lg reveal" style={{ marginBottom: "2.4rem" }}>
               The detail is
               <br />
@@ -102,7 +145,12 @@ export default function AboutContact() {
 
           {/* ── Right: toolset + contact ──────────────────────────────── */}
           {/* id="contact" here so the nav Contact link scrolls to this column */}
-          <div id="contact">
+          <div id="contact" style={{
+            background:   "rgba(184,240,255,0.015)",
+            border:       "1px solid rgba(184,240,255,0.07)",
+            borderRadius: "4px",
+            padding:      "2rem 2rem 2.2rem",
+          }}>
 
             {/* Toolset */}
             <div style={{ marginBottom: "3rem" }}>
