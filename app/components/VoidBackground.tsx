@@ -27,14 +27,14 @@ type LayerConfig = readonly { count: number; rMin: number; rMax: number; rotSpd:
 // ─── Star layer config ─────────────────────────────────────────────────────
 // Desktop: full density. Mobile: reduced for <5% GPU cost.
 const LAYERS_DESKTOP = [
-  { count: 1800, rMin: 14, rMax: 30, rotSpd: 0.007, size: 0.26, seed: 11111 },
-  { count: 1400, rMin: 26, rMax: 44, rotSpd: 0.011, size: 0.33, seed: 22222 },
-  { count:  900, rMin: 36, rMax: 58, rotSpd: 0.017, size: 0.42, seed: 33333 },
+  { count: 1800, rMin: 14, rMax: 30, rotSpd: 0.007, size: 0.22, seed: 11111 },
+  { count: 1400, rMin: 26, rMax: 44, rotSpd: 0.011, size: 0.28, seed: 22222 },
+  { count:  900, rMin: 36, rMax: 58, rotSpd: 0.017, size: 0.36, seed: 33333 },
 ] as const;
 const LAYERS_MOBILE = [
-  { count: 600, rMin: 14, rMax: 30, rotSpd: 0.008, size: 0.28, seed: 11111 },
-  { count: 500, rMin: 26, rMax: 44, rotSpd: 0.012, size: 0.34, seed: 22222 },
-  { count: 350, rMin: 36, rMax: 58, rotSpd: 0.018, size: 0.40, seed: 33333 },
+  { count: 600, rMin: 14, rMax: 30, rotSpd: 0.008, size: 0.24, seed: 11111 },
+  { count: 500, rMin: 26, rMax: 44, rotSpd: 0.012, size: 0.30, seed: 22222 },
+  { count: 350, rMin: 36, rMax: 58, rotSpd: 0.018, size: 0.36, seed: 33333 },
 ] as const;
 
 const VoidContext = createContext<{ isMobile: boolean; layers: LayerConfig }>({ isMobile: false, layers: LAYERS_DESKTOP });
@@ -50,7 +50,7 @@ function sr(seed: number) {
 function buildStarColors(count: number, seed: number): Float32Array {
   const col = new Float32Array(count * 3);
   for (let i = 0; i < count; i++) {
-    const br   = 0.36 + sr(seed + i * 7 + 4) * 0.58;
+    const br   = 0.24 + sr(seed + i * 7 + 4) * 0.62;
     const cool = sr(seed + i * 7 + 5) > 0.55;
     col[i * 3]     = br * (cool ? 0.68 : 1.00);
     col[i * 3 + 1] = br * (cool ? 0.88 : 1.00);
@@ -116,35 +116,39 @@ function buildStarGeo(count: number, rMin: number, rMax: number, seed: number) {
 function makeHoloStarMat(): THREE.ShaderMaterial {
   return new THREE.ShaderMaterial({
     uniforms: {
-      uSize:    { value: 0.26 },
-      uOpacity: { value: 0.92 },
+      uSize:    { value: 0.22 },
+      uOpacity: { value: 0.86 },
     },
     vertexShader: /* glsl */`
       varying vec3 vColor;
+      varying float vFade;
       uniform float uSize;
       void main() {
         vColor = color;
         vec4 mv = modelViewMatrix * vec4(position, 1.0);
         gl_Position = projectionMatrix * mv;
-        gl_PointSize = max(1.5, uSize * (300.0 / -mv.z));
+        // Natural (unforced) point size — used to fade sub-pixel stars smoothly
+        // instead of letting them flicker on/off as they cross pixel boundaries.
+        float nat = uSize * (300.0 / -mv.z);
+        vFade = clamp(nat * 0.5, 0.0, 1.0);
+        gl_PointSize = max(2.0, nat);
       }
     `,
     fragmentShader: /* glsl */`
       uniform float uOpacity;
       varying vec3 vColor;
+      varying float vFade;
 
       void main() {
         vec2 uv = gl_PointCoord * 2.0 - 1.0;
         float r = length(uv);
         if (r > 1.0) discard;
 
-        // Bright core + subtle ice glow.
-        // No wide halo: prevents additive-blending flicker from overlapping stars.
-        float core = exp(-r * r * 16.0);
-        float glow = exp(-r * r * 5.0) * 0.13;
+        // Crisp core only — no halo term so additive blending stays clean.
+        float core = exp(-r * r * 18.0);
 
-        vec3 col = vColor * (core + glow);
-        float a   = uOpacity * (core + glow);
+        vec3 col = vColor * core;
+        float a   = uOpacity * core * vFade;
         if (a < 0.005) discard;
         gl_FragColor = vec4(col, a);
       }
@@ -178,12 +182,12 @@ function StarLayer({
     pointsRef.current.rotation.x += dt * cfg.rotSpd * 0.32;
 
     const t    = s.clock.elapsedTime;
-    const base = 0.92 + 0.07 * Math.sin(t * 0.32 + li * 1.1);
+    const base = 0.86 + 0.06 * Math.sin(t * 0.32 + li * 1.1);
     const dim  = 1 - voidState.scrollProgress * 0.10;
     // eslint-disable-next-line react-hooks/immutability
     mat.uniforms.uOpacity.value += (base * dim - mat.uniforms.uOpacity.value) * 0.04;
     const vel   = voidState.mouseVel + voidState.scrollVel * 5;
-    const boost = Math.min(vel * 0.08, 0.60);
+    const boost = Math.min(vel * 0.04, 0.25);
     mat.uniforms.uSize.value = cfg.size * (1 + boost);
   });
 

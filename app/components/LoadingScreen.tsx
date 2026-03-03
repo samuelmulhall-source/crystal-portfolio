@@ -17,7 +17,7 @@ export default function LoadingScreen() {
   useEffect(() => {
     let rafId: number;
     let elapsed = 0;
-    const MIN_MS = 1100; // minimum display even if canvas is instant
+    const MIN_MS = 400;  // minimum display even if canvas is instant
     const MAX_MS = 5500; // fallback: dismiss even if firstModelReady never fires (slow mobile)
     const start  = performance.now();
 

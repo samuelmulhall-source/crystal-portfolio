@@ -94,7 +94,7 @@ export default function EffectsOverlay() {
 
         const { sx, sy, variant } = slot;
         const ease = Math.min(spring.pos, 1.0);
-        const r   = 20 * ease;
+        const r   = 9 * ease;
         const rot = t * 0.9 + i * 1.05;
 
         ctx!.save();
@@ -108,12 +108,12 @@ export default function EffectsOverlay() {
           const rInner = r * rMul * 0.70;
           const rOuter = r * rMul * 1.30;
           // Each ring shimmers at its own phase — thin-film interference illusion
-          const shimmer = 0.60 + 0.40 * Math.sin(t * 3.8 + si * 0.85 + i * 0.65);
-          const a = ease * 0.32 * shimmer;
+          const shimmer = 0.55 + 0.45 * Math.sin(t * 2.8 + si * 0.9 + i * 0.55);
+          const a = ease * 0.13 * shimmer;
           const ring = ctx!.createRadialGradient(sx, sy, rInner, sx, sy, rOuter);
-          ring.addColorStop(0.0, `hsla(${hue}, ${sat}%, 88%, 0)`);
-          ring.addColorStop(0.4, `hsla(${hue}, ${sat}%, 88%, ${a})`);
-          ring.addColorStop(0.6, `hsla(${hue}, ${sat}%, 96%, ${a * 0.65})`);
+          ring.addColorStop(0.0, `hsla(${hue}, ${sat}%, 85%, 0)`);
+          ring.addColorStop(0.4, `hsla(${hue}, ${sat}%, 85%, ${a})`);
+          ring.addColorStop(0.6, `hsla(${hue}, ${sat}%, 92%, ${a * 0.6})`);
           ring.addColorStop(1.0, "rgba(0,0,0,0)");
           ctx!.fillStyle = ring;
           ctx!.beginPath();
@@ -123,33 +123,32 @@ export default function EffectsOverlay() {
 
         // ── Diffractive spikes: sharp radial rays cycling through spectrum ─
         const spikeCount = variant % 2 === 0 ? 6 : 8;
-        const spikeR     = r * 5.2;
+        const spikeR     = r * 2.8;
         for (let si = 0; si < spikeCount; si++) {
           const a      = rot + (si / spikeCount) * Math.PI * 2;
-          // Each spike cycles through the full visible spectrum
-          const hue    = (188 + si * (310 / spikeCount) + t * 28) % 360;
-          const sAlpha = ease * (0.75 + 0.22 * Math.sin(t * 4.2 + si * 1.3));
+          const hue    = (195 + si * (280 / spikeCount) + t * 18) % 360;
+          const sAlpha = ease * (0.40 + 0.15 * Math.sin(t * 3.1 + si * 1.3));
           const sGrad  = ctx!.createLinearGradient(sx, sy, sx + Math.cos(a) * spikeR, sy + Math.sin(a) * spikeR);
-          sGrad.addColorStop(0.0, `hsla(${hue}, 100%, 95%, ${sAlpha})`);
-          sGrad.addColorStop(0.35, `hsla(${(hue + 25) % 360}, 100%, 85%, ${sAlpha * 0.55})`);
+          sGrad.addColorStop(0.0, `hsla(${hue}, 100%, 90%, ${sAlpha})`);
+          sGrad.addColorStop(0.5, `hsla(${(hue + 30) % 360}, 100%, 80%, ${sAlpha * 0.4})`);
           sGrad.addColorStop(1.0, "rgba(0,0,0,0)");
           ctx!.strokeStyle = sGrad;
-          ctx!.lineWidth   = 1.1;
+          ctx!.lineWidth   = 0.6;
           ctx!.beginPath();
-          ctx!.moveTo(sx + Math.cos(a) * r * 0.18, sy + Math.sin(a) * r * 0.18);
+          ctx!.moveTo(sx + Math.cos(a) * r * 0.25, sy + Math.sin(a) * r * 0.25);
           ctx!.lineTo(sx + Math.cos(a) * spikeR,   sy + Math.sin(a) * spikeR);
           ctx!.stroke();
         }
 
-        // ── Crystallisation core: pure white-hot point → ice bloom ───────
-        const core = ctx!.createRadialGradient(sx, sy, 0, sx, sy, r * 1.1);
+        // ── Ice-white core ───────────────────────────────────────────────
+        const core = ctx!.createRadialGradient(sx, sy, 0, sx, sy, r * 0.9);
         core.addColorStop(0.0,  `rgba(255, 255, 255, ${ease})`);
-        core.addColorStop(0.18, `rgba(240, 252, 255, ${ease * 0.90})`);
-        core.addColorStop(0.50, `rgba(190, 235, 255, ${ease * 0.55})`);
+        core.addColorStop(0.25, `rgba(235, 250, 255, ${ease * 0.80})`);
+        core.addColorStop(0.65, `rgba(190, 230, 255, ${ease * 0.35})`);
         core.addColorStop(1.0,  "rgba(0,0,0,0)");
         ctx!.fillStyle = core;
         ctx!.beginPath();
-        ctx!.arc(sx, sy, r * 1.1, 0, Math.PI * 2);
+        ctx!.arc(sx, sy, r * 0.9, 0, Math.PI * 2);
         ctx!.fill();
 
         ctx!.restore();
