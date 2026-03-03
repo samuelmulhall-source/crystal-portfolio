@@ -134,76 +134,70 @@ export default function EffectsOverlay() {
 
         const ease = Math.min(spring.pos, 1.0);
         const { sx, sy } = slot;
-        const scale = ease * 12;
-        const FOV   = 4;
 
-        // N continuously cycles from 3 → 10 per slot
-        const nFloat = 3 + ((t * 0.35 + i * 1.9) % 7);
-        const n      = Math.max(3, Math.round(nFloat));
+        // Scale kept small — this is a star accent, not a large graphic
+        const scale = ease * 7;
+        const FOV   = 6;
 
-        const ry = t * 1.5 + i * 0.85;
-        const rx = t * 0.55 + i * 0.62 + Math.sin(t * 0.3 + i) * 0.4;
+        // n morphs slowly per slot (4–7), giving a unique feel per star
+        const n = Math.max(4, Math.min(7, Math.round(4 + Math.sin(t * 0.14 + i * 1.7) * 1.5)));
+
+        // Clean spin on Y; fixed per-slot X tilt for stable perspective view
+        const ry = t * 1.1 + i * 0.85;
+        const rx = 0.4 + i * 0.22;
 
         const { verts, faces } = getStarGeom(n);
-
-        // Rotate all vertices
         const rotated: Vec3[] = verts.map(v => rotV(v, rx, ry));
 
-        // Painter's sort: back face → front face by average z (ascending)
+        // Painter's sort back → front
         const faceOrder = faces
-          .map((f, fi) => {
-            const avgZ = (rotated[f[0]][2] + rotated[f[1]][2] + rotated[f[2]][2]) / 3;
-            return { fi, avgZ };
-          })
+          .map((f, fi) => ({
+            fi,
+            avgZ: (rotated[f[0]][2] + rotated[f[1]][2] + rotated[f[2]][2]) / 3,
+          }))
           .sort((a, b) => a.avgZ - b.avgZ);
 
         ctx!.save();
         ctx!.globalCompositeOperation = "lighter";
 
         for (const { fi } of faceOrder) {
-          const f = faces[fi];
+          const f  = faces[fi];
           const a3 = rotated[f[0]], b3 = rotated[f[1]], c3 = rotated[f[2]];
 
-          // Fresnel: how much is this face edge-on to camera?
-          const norm = faceNormal(a3, b3, c3);
-          const nLen = Math.sqrt(norm[0]*norm[0] + norm[1]*norm[1] + norm[2]*norm[2]);
-          const facing = nLen > 0 ? Math.abs(norm[2] / nLen) : 0;
-          const fresnel = Math.pow(1 - facing, 2.5);
+          const norm    = faceNormal(a3, b3, c3);
+          const nLen    = Math.sqrt(norm[0]*norm[0] + norm[1]*norm[1] + norm[2]*norm[2]);
+          const facing  = nLen > 0 ? Math.abs(norm[2] / nLen) : 0;
+          const fresnel = Math.pow(1 - facing, 2.2);
 
-          // Holographic hue cycles with time, face index, and Fresnel angle
-          const hue = ((fresnel * 3.5 + t * 0.45 + fi * 0.11 + i * 0.25) % 1) * 360;
-          const sat = 100;
-          const lgt = 72;
+          // Holographic hue: violet → cyan → white, drifts with time
+          const hue  = ((fresnel * 2.2 + t * 0.28 + fi * 0.13 + i * 0.38) % 1) * 360;
+          const lgt  = 72 + fresnel * 18; // edge-on faces bloom brighter
 
-          const ap = project(a3, sx, sy, scale, FOV);
-          const bp = project(b3, sx, sy, scale, FOV);
+          const ap  = project(a3, sx, sy, scale, FOV);
+          const bp  = project(b3, sx, sy, scale, FOV);
           const cp2 = project(c3, sx, sy, scale, FOV);
 
-          // Fill: icy translucent core — brighter toward face-forward faces
-          const fillA = ease * (0.04 + facing * 0.12);
-          ctx!.fillStyle = `rgba(195,235,255,${fillA})`;
+          // Edges only — line-art look, no filled planes
+          const edgeA = ease * (0.28 + fresnel * 0.72);
+          ctx!.strokeStyle = `hsla(${hue},95%,${lgt}%,${edgeA})`;
+          ctx!.lineWidth   = 0.7 + fresnel * 1.1;
+          ctx!.lineJoin    = "round";
           ctx!.beginPath();
           ctx!.moveTo(ap[0], ap[1]);
           ctx!.lineTo(bp[0], bp[1]);
           ctx!.lineTo(cp2[0], cp2[1]);
           ctx!.closePath();
-          ctx!.fill();
-
-          // Edge: holographic hue, brightest at Fresnel peak (edge-on faces)
-          const edgeA = ease * (0.30 + fresnel * 0.65);
-          ctx!.strokeStyle = `hsla(${hue},${sat}%,${lgt}%,${edgeA})`;
-          ctx!.lineWidth   = 0.6 + fresnel * 0.8;
           ctx!.stroke();
         }
 
-        // Bright anchor dot at star centre
-        const anchor = ctx!.createRadialGradient(sx, sy, 0, sx, sy, 4 * ease);
-        anchor.addColorStop(0,   `rgba(255,255,255,${ease})`);
-        anchor.addColorStop(0.4, `rgba(200,240,255,${ease * 0.6})`);
+        // Tiny ice-white core at star centre
+        const anchor = ctx!.createRadialGradient(sx, sy, 0, sx, sy, 2.5 * ease);
+        anchor.addColorStop(0,   `rgba(240,250,255,${ease * 0.95})`);
+        anchor.addColorStop(0.5, `rgba(180,230,255,${ease * 0.45})`);
         anchor.addColorStop(1,   "rgba(0,0,0,0)");
         ctx!.fillStyle = anchor;
         ctx!.beginPath();
-        ctx!.arc(sx, sy, 4 * ease, 0, Math.PI * 2);
+        ctx!.arc(sx, sy, 2.5 * ease, 0, Math.PI * 2);
         ctx!.fill();
 
         ctx!.restore();

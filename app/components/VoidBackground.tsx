@@ -134,7 +134,8 @@ function makeHoloStarMat(): THREE.ShaderMaterial {
           return;
         }
         gl_Position = projectionMatrix * mv;
-        gl_PointSize = max(2.0, nat);
+        // min 3px so center pixel always exists at gl_PointCoord(0.5,0.5)→r=0
+        gl_PointSize = max(3.0, nat);
       }
     `,
     fragmentShader: /* glsl */`
