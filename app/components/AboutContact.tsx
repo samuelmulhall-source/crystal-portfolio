@@ -139,8 +139,11 @@ export default function AboutContact() {
                 border: "1px solid rgba(184,240,255,0.14)", borderRadius: "2px",
                 textAlign: "center", background: "rgba(184,240,255,0.025)",
               }}>
-                <span className="label" style={{ color: "var(--ice)", letterSpacing: "0.28em" }}>
-                  Message received — I&apos;ll reach out shortly.
+                <span className="label" style={{ color: "var(--ice)", letterSpacing: "0.28em", display: "block", marginBottom: "0.6rem" }}>
+                  Your email client should have opened.
+                </span>
+                <span style={{ fontFamily: "var(--font-geist-mono), monospace", fontSize: "0.6rem", letterSpacing: "0.18em", color: "rgba(184,240,255,0.45)" }}>
+                  Alternatively, DM @multiscatter on X.
                 </span>
               </div>
             ) : (

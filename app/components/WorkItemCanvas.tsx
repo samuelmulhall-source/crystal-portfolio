@@ -329,16 +329,17 @@ function ShowcaseScene({
 
   return (
     <>
-      {/* Neutral studio lighting — no blue tint, matches VoidBackground setup */}
+      {/* Lighting — synced with VoidBackground VoidScene rig */}
       <ambientLight intensity={0.40} color="#e0e0e0" />
+      <hemisphereLight args={["#b8d0ff", "#05070f", 0.85]} />
       <directionalLight position={[-4, 10,  7]}  intensity={2.2} color="#ffffff" />
       <directionalLight position={[ 5,  3,  5]}  intensity={1.8} color="#f8f8f8" />
-      <directionalLight position={[ 0,  2, 12]}  intensity={1.4} color="#f4f4f4" />
+      <directionalLight position={[ 0,  2, 12]}  intensity={2.2} color="#f4f4f4" />
       <directionalLight position={[ 0, -4, -10]} intensity={0.9} color="#b0c8e0" />
       <directionalLight position={[ 0, 12,  2]}  intensity={0.8} color="#f0f0f0" />
-      <pointLight position={[0, 0, 5]} intensity={1.5} color="#ffffff" distance={22} />
+      <pointLight position={[0, 0, 5]} intensity={2.5} color="#ffffff" distance={22} />
       <CoreLight />
-      <Environment preset="studio" environmentIntensity={0.7} />
+      <Environment preset="studio" environmentIntensity={1.1} />
       <AtmosphericParticles />
       <Suspense fallback={<ShowcaseLoading />}>
         <Bounds fit clip margin={fullscreen ? 1.15 : 1.25}>

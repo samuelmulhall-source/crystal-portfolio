@@ -19,14 +19,15 @@ import { workModels, TextureSet, subscribePendingTab } from "../lib/workModels";
 type WorkTab = 'models' | 'videos' | 'images';
 
 interface Project {
-  id:        string;
-  title:     string;
-  category:  string;
-  modelPath: string;
-  year:      string;
-  textures:  TextureSet;
+  id:          string;
+  title:       string;
+  category:    string;
+  modelPath:   string;
+  year:        string;
+  textures:    TextureSet;
+  description?: string;
   /** Optional WebP placeholder from generate-static-data (when sharp is installed) */
-  thumbnail?: string;
+  thumbnail?:  string;
 }
 interface VideoEntry { id: string; path: string; title: string; }
 interface ImageEntry { id: string; path: string; title: string; }
@@ -184,7 +185,7 @@ function FullscreenViewer({
         onMouseEnter={(e) => { (e.currentTarget as HTMLParagraphElement).style.color = "rgba(210,240,255,0.80)"; }}
         onMouseLeave={(e) => { (e.currentTarget as HTMLParagraphElement).style.color = "rgba(200,232,255,0.62)"; }}
       >
-        Real-time PBR asset crafted in Blender with a full physically-based rendering pipeline — hand-authored textures, precision edge loops, and production-ready UV unwrap optimised for WebGL and WebGPU.
+        {project.description ?? "Real-time PBR asset crafted in Blender with a full physically-based rendering pipeline — hand-authored textures, precision edge loops, and production-ready UV unwrap optimised for WebGL and WebGPU."}
       </p>
 
       {/* ── Technical specifications ── */}
@@ -764,21 +765,22 @@ function WorkGridContent() {
   // ── Load models (static data.json first for static export, else API) ───────
   useEffect(() => {
     gsap.registerPlugin(ScrollTrigger);
-    const applyModels = (models: Array<{ path: string; title: string; category: string; year: string; textures?: TextureSet; thumbnail?: string }>) => {
+    const applyModels = (models: Array<{ path: string; title: string; category: string; year: string; description?: string; textures?: TextureSet; thumbnail?: string }>) => {
       setProjects(models.map((m, i) => ({
         id:        `proj-${i}`,
         title:     m.title,
         category:  m.category,
         modelPath: m.path,
-        year:      m.year,
-        textures:  m.textures ?? {},
-        thumbnail: m.thumbnail,
+        year:        m.year,
+        description: m.description,
+        textures:    m.textures ?? {},
+        thumbnail:   m.thumbnail,
       })));
       setLoading(false);
     };
     fetch("/data.json")
       .then(r => (r.ok ? r.json() : Promise.reject()))
-      .then((data: { models?: Array<{ path: string; title: string; category: string; year: string; textures?: TextureSet; thumbnail?: string }> }) => {
+      .then((data: { models?: Array<{ path: string; title: string; category: string; year: string; description?: string; textures?: TextureSet; thumbnail?: string }> }) => {
         if (Array.isArray(data.models) && data.models.length > 0) {
           applyModels(data.models);
         } else {
@@ -1016,15 +1018,25 @@ function WorkGridContent() {
                       style={{
                         cursor: "pointer",
                         flexShrink: 0,
-                        padding: "0.6rem 0.9rem",
+                        padding: p.thumbnail ? "0.5rem 0.7rem" : "0.6rem 0.9rem",
                         border: `1px solid rgba(184,240,255,${active ? 0.35 : 0.12})`,
                         borderRadius: "3px",
                         background: active ? "rgba(184,240,255,0.06)" : "transparent",
                         textAlign: "left",
                         opacity: active ? 1 : 0.7,
+                        display: "flex", alignItems: "center", gap: "0.55rem",
                         transition: "opacity 0.2s, border-color 0.2s, background 0.2s",
                       }}
                     >
+                      {p.thumbnail && (
+                        <div style={{
+                          width: "28px", height: "28px", flexShrink: 0, borderRadius: "2px",
+                          overflow: "hidden", background: "rgba(5,7,15,0.8)",
+                        }}>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={p.thumbnail} alt={p.title} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} loading="lazy" />
+                        </div>
+                      )}
                       <div>
                         <div style={{
                           fontFamily: "var(--font-geist-sans), sans-serif",
@@ -1046,26 +1058,42 @@ function WorkGridContent() {
                     key={p.id}
                     onClick={() => selectModel(p.id)}
                     style={{
-                      cursor: "pointer", padding: "0.8rem 0",
+                      cursor: "pointer", padding: "0.65rem 0",
                       borderTop: `1px solid rgba(184,240,255,${active ? 0.14 : 0.05})`,
-                      display: "flex", alignItems: "center", gap: "0.85rem",
+                      display: "flex", alignItems: "center", gap: "0.7rem",
                       opacity: active ? 1 : 0.5, transition: "opacity 0.25s ease",
                     }}
                     onMouseEnter={e => { if (!active) (e.currentTarget as HTMLDivElement).style.opacity = "0.75"; }}
                     onMouseLeave={e => { if (!active) (e.currentTarget as HTMLDivElement).style.opacity = "0.5"; }}
                   >
-                    <span style={{ ...MON, fontSize: "0.52rem", letterSpacing: "0.28em", color: "rgba(184,240,255,0.45)", flexShrink: 0, minWidth: "1.2rem" }}>
-                      {String(i + 1).padStart(2, "0")}
-                    </span>
-                    <div style={{ flex: 1 }}>
+                    {/* Thumbnail */}
+                    {p.thumbnail && (
+                      <div style={{
+                        width: "38px", height: "38px", flexShrink: 0, borderRadius: "2px",
+                        overflow: "hidden",
+                        border: `1px solid rgba(184,240,255,${active ? 0.22 : 0.08})`,
+                        transition: "border-color 0.25s ease",
+                        background: "rgba(5,7,15,0.8)",
+                      }}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={p.thumbnail}
+                          alt={p.title}
+                          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", opacity: active ? 1 : 0.7, transition: "opacity 0.25s ease" }}
+                          loading="lazy"
+                        />
+                      </div>
+                    )}
+                    <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{
                         fontFamily: "var(--font-geist-sans), sans-serif",
-                        fontSize: "clamp(0.8rem, 1.2vw, 0.92rem)", fontWeight: active ? 400 : 300,
+                        fontSize: "clamp(0.78rem, 1.1vw, 0.88rem)", fontWeight: active ? 400 : 300,
                         letterSpacing: "0.03em",
                         color: active ? "rgba(220,248,255,0.95)" : "rgba(184,240,255,0.72)",
-                        transition: "color 0.25s ease", marginBottom: "0.2rem",
+                        transition: "color 0.25s ease", marginBottom: "0.18rem",
+                        whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
                       }}>{p.title}</div>
-                      <div style={{ ...MON, fontSize: "0.62rem", letterSpacing: "0.16em", color: active ? "rgba(184,240,255,0.55)" : "rgba(184,240,255,0.4)", transition: "color 0.25s ease" }}>
+                      <div style={{ ...MON, fontSize: "0.58rem", letterSpacing: "0.16em", color: active ? "rgba(184,240,255,0.55)" : "rgba(184,240,255,0.4)", transition: "color 0.25s ease" }}>
                         {p.year}
                       </div>
                     </div>

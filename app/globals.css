@@ -156,9 +156,41 @@ main {
 .frost-link:hover { color: var(--ice); }
 .frost-link:hover::after { width: 100%; }
 
-/* ─── Nav wordmark: single clean title (no glitch duplication) ────────────── */
+/* ─── Nav wordmark glitch — rare horizontal slice shift, fires every ~8s ──── */
 .glitch {
   position: relative;
+}
+.glitch::before,
+.glitch::after {
+  content: attr(data-text);
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  font: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+  text-shadow: none;
+}
+.glitch::before {
+  clip-path: polygon(0 18%, 100% 18%, 100% 48%, 0 48%);
+  animation: glitch-hi 9s step-end infinite;
+}
+.glitch::after {
+  clip-path: polygon(0 56%, 100% 56%, 100% 82%, 0 82%);
+  animation: glitch-lo 9s step-end infinite 0.12s;
+}
+@keyframes glitch-hi {
+  0%, 91%, 100% { transform: none; opacity: 0; }
+  92%            { transform: translateX(3px);  opacity: 0.85; }
+  93%            { transform: translateX(-2px); opacity: 0.60; }
+  94%            { transform: none; opacity: 0; }
+}
+@keyframes glitch-lo {
+  0%, 91%, 100% { transform: none; opacity: 0; }
+  92%            { transform: translateX(-3px); opacity: 0.70; }
+  93.5%          { transform: translateX(1px);  opacity: 0.45; }
+  94%            { transform: none; opacity: 0; }
 }
 
 /* ─── Work tabs: sharp minimal active state, cosmic hover glow ────────────── */
@@ -296,12 +328,6 @@ main {
   color: var(--ice);
   box-shadow: 0 0 14px rgba(184,240,255,0.14);
 }
-
-/* ─── Loading orbit ring ──────────────────────────────────────────────────── */
-@keyframes orbit-ring { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-
-/* ─── Loading screen progress bar ─────────────────────────────────────────── */
-@keyframes ls-bar { from { width: 0%; } to { width: 100%; } }
 
 /* ─── Holographic sheen sweep on tab buttons ──────────────────────────────── */
 @keyframes holo-sweep {

@@ -19,6 +19,13 @@ import { voidState } from "../lib/voidState";
 const _springs: Array<{ pos: number; vel: number }> =
   Array.from({ length: 14 }, () => ({ pos: 0, vel: 0 }));
 
+// Geometry cache keyed by n (4–7) — avoids rebuilding vertices every frame
+const _geomCache = new Map<number, ReturnType<typeof getStarGeom>>();
+function getCachedStarGeom(n: number) {
+  if (!_geomCache.has(n)) _geomCache.set(n, getStarGeom(n));
+  return _geomCache.get(n)!;
+}
+
 // ─── 3D geometry helpers ───────────────────────────────────────────────────
 type Vec3 = [number, number, number];
 type Face = [number, number, number]; // indices into vertex array
@@ -146,7 +153,7 @@ export default function EffectsOverlay() {
         const ry = t * 1.1 + i * 0.85;
         const rx = 0.4 + i * 0.22;
 
-        const { verts, faces } = getStarGeom(n);
+        const { verts, faces } = getCachedStarGeom(n);
         const rotated: Vec3[] = verts.map(v => rotV(v, rx, ry));
 
         // Painter's sort back → front
@@ -249,6 +256,13 @@ export default function EffectsOverlay() {
       for (let m = 0; m < voidState.meteorSlots.length; m++) {
         const met = voidState.meteorSlots[m];
         if (!met.active || met.env < 0.01) continue;
+
+        // Suppress trail when the head is inside the active model's screen region
+        const mr = voidState.modelRegion;
+        if (mr.rPx > 20) {
+          const dx = met.hsx - mr.x, dy = met.hsy - mr.y;
+          if (dx * dx + dy * dy < mr.rPx * mr.rPx) continue;
+        }
 
         const { hsx, hsy, tsx, tsy, env } = met;
 

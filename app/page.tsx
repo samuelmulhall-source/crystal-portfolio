@@ -1,17 +1,19 @@
 import { Suspense } from "react";
-import VoidBackground from "./components/VoidBackground";
-import EffectsOverlay from "./components/EffectsOverlay";
-import LoadingScreen  from "./components/LoadingScreen";
-import CosmicLoader   from "./components/CosmicLoader";
-import Hero           from "./components/Hero";
-import WorkGrid       from "./components/WorkGrid";
-import AboutContact   from "./components/AboutContact";
-import Nav            from "./components/Nav";
+import VoidBackground  from "./components/VoidBackground";
+import EffectsOverlay  from "./components/EffectsOverlay";
+import LoadingScreen   from "./components/LoadingScreen";
+import CosmicLoader    from "./components/CosmicLoader";
+import CursorFollower  from "./components/CursorFollower";
+import Hero            from "./components/Hero";
+import WorkGrid        from "./components/WorkGrid";
+import AboutContact    from "./components/AboutContact";
+import Nav             from "./components/Nav";
 
 export default function Home() {
   return (
     <>
       <LoadingScreen />
+      <CursorFollower />
       <Suspense fallback={<CosmicLoader />}>
         <VoidBackground />
       </Suspense>
