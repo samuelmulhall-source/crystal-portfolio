@@ -1046,6 +1046,9 @@ function VoidModel({ entry }: { entry: WorkModelEntry }) {
   const hoveredRef    = useRef(false);
   const opacityRef    = useRef(0);
   const entranceRef   = useRef(0); // 0→1 entrance progress
+  // Camera-reactive spring tilt — model lags behind mouse, then settles back
+  const tiltX         = useRef(0); // pitch offset (spring toward -mouseNY * 0.10)
+  const tiltY         = useRef(0); // yaw offset   (spring toward  mouseNX * 0.08)
   // Locked Y: captured when work section is in view so model stays anchored
   // to the work section's viewport position rather than drifting with global scroll.
   const lockedWorkY   = useRef<number | null>(null);
@@ -1252,8 +1255,18 @@ function VoidModel({ entry }: { entry: WorkModelEntry }) {
       }
       // Entrance/exit spin: extra rotation that unwinds as the model fully appears
       const entranceSpin = (1 - op) * Math.PI * 1.5;
-      rotGroupRef.current.rotation.x = e.rotX;
-      rotGroupRef.current.rotation.y = e.rotY + entranceSpin;
+
+      // Camera-reactive spring tilt: model leans into mouse motion then settles.
+      // Spring K≈2.5 gives a ~280ms lag — feels like the model has weight.
+      // Suppress during user drag so it doesn't fight the drag interaction.
+      if (!e.isDragging) {
+        const lerpF = Math.min(dt * 2.5, 1);
+        tiltX.current += (-voidState.mouseNY * 0.10 - tiltX.current) * lerpF;
+        tiltY.current += ( voidState.mouseNX * 0.08 - tiltY.current) * lerpF;
+      }
+
+      rotGroupRef.current.rotation.x = e.rotX + tiltX.current;
+      rotGroupRef.current.rotation.y = e.rotY + entranceSpin + tiltY.current;
     }
 
     // ── Wireframe: keep hidden ────────────────────────────────────────────
@@ -1309,9 +1322,11 @@ function makeDustMat(): THREE.ShaderMaterial {
     vertexShader: /* glsl */`
       attribute float aBright;
       varying  float vBright;
+      varying  float vDepth;
       void main() {
         vBright = aBright;
         vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        vDepth  = -mv.z;                           // positive depth from camera
         gl_Position = projectionMatrix * mv;
         // Size: depth-attenuated, clamped to 0.8–3.2 CSS px
         float pxSz = 88.0 / (-mv.z);
@@ -1320,12 +1335,15 @@ function makeDustMat(): THREE.ShaderMaterial {
     `,
     fragmentShader: /* glsl */`
       varying float vBright;
+      varying float vDepth;
       void main() {
         vec2  uv = gl_PointCoord * 2.0 - 1.0;
         float r  = length(uv);
         if (r > 1.0) discard;                     // cut square corners
+        // Near-depth fade: particles < 6 units away fade out → fakes foreground DoF
+        float nearFade = smoothstep(2.0, 7.0, vDepth);
         // Gaussian soft core — bokeh disc, no hard edge
-        float a = vBright * 0.22 * exp(-r * r * 3.2);
+        float a = vBright * 0.22 * exp(-r * r * 3.2) * nearFade;
         if (a < 0.004) discard;
         gl_FragColor = vec4(0.80, 0.94, 1.0, a);
       }
