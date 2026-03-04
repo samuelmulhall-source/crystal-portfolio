@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import VoidBackground  from "./components/VoidBackground";
 import EffectsOverlay  from "./components/EffectsOverlay";
+import LensOverlay     from "./components/LensOverlay";
 import LoadingScreen   from "./components/LoadingScreen";
 import CosmicLoader    from "./components/CosmicLoader";
 import CursorFollower  from "./components/CursorFollower";
@@ -16,6 +17,7 @@ export default function Home() {
       <LoadingScreen />
       <CursorFollower />
       <HUDCorners />
+      <LensOverlay />
       <Suspense fallback={<CosmicLoader />}>
         <VoidBackground />
       </Suspense>

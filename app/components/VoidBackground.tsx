@@ -180,8 +180,10 @@ function StarLayer({
 
   useFrame((s, dt) => {
     if (!pointsRef.current || !mat.uniforms) return;
-    pointsRef.current.rotation.y += dt * cfg.rotSpd;
-    pointsRef.current.rotation.x += dt * cfg.rotSpd * 0.32;
+    // Scroll-speed spin boost: fast scroll accelerates star rotation up to 4×
+    const scrollBoost = 1 + Math.min(Math.abs(voidState.scrollVel) * 4, 3);
+    pointsRef.current.rotation.y += dt * cfg.rotSpd * scrollBoost;
+    pointsRef.current.rotation.x += dt * cfg.rotSpd * 0.32 * scrollBoost;
 
     const dim = 1 - voidState.scrollProgress * 0.12;
     mat.uniforms.uOpacity.value = 0.90 * dim;
@@ -237,12 +239,18 @@ function MouseLight() {
   );
 }
 
-// ─── Camera: mouse parallax + scroll descent ───────────────────────────────
-const MAX_P = 1.9;
+// ─── Camera: mouse parallax + scroll descent + spring physics ──────────────
+// Spring-damp replaces simple lerp — camera overshoots slightly and settles
+// naturally, giving cinematic inertia. Multi-frequency float avoids repetition.
+const MAX_P      = 1.9;
+const SPRING_K   = 5.0;  // stiffness (higher = snappier)
+const SPRING_DAMP = 4.2;  // damping  (< 2*sqrt(K) = ~4.47 → slight overshoot)
 
 function VoidCamera() {
   const { camera } = useThree();
   const cp  = useRef(new THREE.Vector3(0, 0, 12));
+  const cvx = useRef(0);   // camera X velocity
+  const cvy = useRef(0);   // camera Y velocity
   const lt  = useRef(new THREE.Vector3(0, 0, 0));
   const lt2 = useMemo(() => new THREE.Vector3(), []);
   const wasExpandedRef = useRef(false);
@@ -253,23 +261,31 @@ function VoidCamera() {
       wasExpandedRef.current = true;
       return; // OrbitControls takes over
     }
-    // Handoff: sync refs from OrbitControls when viewer closes so we don't snap
+    // Handoff: sync refs from OrbitControls when viewer closes — zero velocity
     if (wasExpandedRef.current) {
       cp.current.copy(camera.position);
+      cvx.current = 0;
+      cvy.current = 0;
       lt.current.copy(camera.position).add(camera.getWorldDirection(lt2).multiplyScalar(10));
       wasExpandedRef.current = false;
     }
     const t  = s.clock.elapsedTime;
-    const dx = Math.sin(t * 0.038) * 0.55;
-    const dy = Math.cos(t * 0.028) * 0.32;
+
+    // Multi-frequency float: three prime-ratio harmonics — never exactly repeats
+    const dx = Math.sin(t * 0.038) * 0.42 + Math.cos(t * 0.071) * 0.18 + Math.sin(t * 0.017) * 0.28;
+    const dy = Math.cos(t * 0.028) * 0.28 + Math.sin(t * 0.059) * 0.14 + Math.cos(t * 0.023) * 0.22;
 
     const scrollOffY = -voidState.scrollProgress * 10;
 
     const tx = voidState.mouseNX * MAX_P + dx;
     const ty = (-voidState.mouseNY) * MAX_P * 0.55 + dy + scrollOffY;
 
-    cp.current.x += (tx - cp.current.x) * 0.032;
-    cp.current.y += (ty - cp.current.y) * 0.032;
+    // Spring physics: F = k*(target - pos) - d*vel
+    const cdt = Math.min(dt, 0.05); // clamp for stability at low framerates
+    cvx.current += ((tx - cp.current.x) * SPRING_K - cvx.current * SPRING_DAMP) * cdt;
+    cvy.current += ((ty - cp.current.y) * SPRING_K - cvy.current * SPRING_DAMP) * cdt;
+    cp.current.x += cvx.current * cdt;
+    cp.current.y += cvy.current * cdt;
     camera.position.set(cp.current.x, cp.current.y, 12);
 
     lt2.set(
@@ -1282,6 +1298,57 @@ function VoidModel({ entry }: { entry: WorkModelEntry }) {
   );
 }
 
+// ─── Volumetric dust motes ────────────────────────────────────────────────
+// 220 slow-drifting ice-blue particles — no per-particle updates, just group
+// rotation. Creates a sense of depth and ambient atmosphere without GPU cost.
+function DustParticles() {
+  const groupRef = useRef<THREE.Group>(null);
+
+  const geo = useMemo(() => {
+    const count = 220;
+    const pos   = new Float32Array(count * 3);
+    const seed  = 77777;
+    for (let i = 0; i < count; i++) {
+      const theta = sr(seed + i * 5 + 0) * Math.PI * 2;
+      const phi   = Math.acos(2 * sr(seed + i * 5 + 1) - 1);
+      const r     = 8 + sr(seed + i * 5 + 2) * 30;  // 8–38 units from center
+      pos[i * 3]     = r * Math.sin(phi) * Math.cos(theta);
+      pos[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+      pos[i * 3 + 2] = r * Math.cos(phi);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+    return g;
+  }, []);
+
+  const mat = useMemo(() => new THREE.PointsMaterial({
+    color:           new THREE.Color(0.78, 0.92, 1.0),
+    size:            0.055,
+    sizeAttenuation: true,
+    transparent:     true,
+    opacity:         0.20,
+    blending:        THREE.AdditiveBlending,
+    depthWrite:      false,
+  }), []);
+
+  useEffect(() => () => { geo.dispose(); mat.dispose(); }, [geo, mat]);
+
+  useFrame((_, dt) => {
+    if (!groupRef.current) return;
+    groupRef.current.rotation.y += dt * 0.0038;
+    groupRef.current.rotation.x += dt * 0.0016;
+  });
+
+  return (
+    <group ref={groupRef}>
+      <points renderOrder={-2}>
+        <primitive object={geo} attach="geometry" />
+        <primitive object={mat} attach="material" />
+      </points>
+    </group>
+  );
+}
+
 // ─── All work models in the void — first model eager, others lazy on select ─
 function WorkModelsInScene() {
   const [entries, setEntries] = useState<WorkModelEntry[]>([]);
@@ -1354,6 +1421,7 @@ function VoidScene({ isMobile }: { isMobile: boolean }) {
       <StarLayer li={0} pointsRef={pts0} />
       <StarLayer li={1} pointsRef={pts1} />
       <StarLayer li={2} pointsRef={pts2} />
+      <DustParticles />
 
       <VoidCore />
       <MouseLight />

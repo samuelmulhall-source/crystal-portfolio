@@ -24,8 +24,10 @@
   --glass-hi:       rgba(255, 255, 255, 0.055); /* inner top highlight */
   --glass-shadow:   0 8px 40px rgba(0, 0, 16, 0.55), 0 1px 0 var(--glass-hi) inset;
 
+  --accent:         #4dffee;  /* neon cyan — interactive state accent */
+
   --text-primary:   #eef8ff;
-  --text-secondary: #a8c8e0;
+  --text-secondary: #b8d4e8;  /* slightly brighter for hierarchy legibility */
   --text-muted:     #6088a0;
   --text-faint:     rgba(184, 240, 255, 0.5);
 
