@@ -193,7 +193,7 @@ function StarLayer({
   });
 
   return (
-    <points ref={pointsRef} renderOrder={-1}>
+    <points ref={pointsRef} renderOrder={-1} frustumCulled={false}>
       <primitive object={geo} attach="geometry" />
       <primitive object={mat} attach="material" />
     </points>
@@ -1299,15 +1299,51 @@ function VoidModel({ entry }: { entry: WorkModelEntry }) {
 }
 
 // ─── Volumetric dust motes ────────────────────────────────────────────────
-// 220 slow-drifting ice-blue particles — no per-particle updates, just group
-// rotation. Creates a sense of depth and ambient atmosphere without GPU cost.
+// 220 slow-drifting ice-blue particles.  Uses a custom ShaderMaterial with
+// circle masking (discard corners) + Gaussian soft-glow so motes render as
+// round soft bokeh discs — not the default WebGL square quads.
+// Per-mote brightness variation (aBright attribute) adds organic randomness.
+function makeDustMat(): THREE.ShaderMaterial {
+  return new THREE.ShaderMaterial({
+    uniforms: {},
+    vertexShader: /* glsl */`
+      attribute float aBright;
+      varying  float vBright;
+      void main() {
+        vBright = aBright;
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        gl_Position = projectionMatrix * mv;
+        // Size: depth-attenuated, clamped to 0.8–3.2 CSS px
+        float pxSz = 88.0 / (-mv.z);
+        gl_PointSize = clamp(pxSz, 0.8, 3.2);
+      }
+    `,
+    fragmentShader: /* glsl */`
+      varying float vBright;
+      void main() {
+        vec2  uv = gl_PointCoord * 2.0 - 1.0;
+        float r  = length(uv);
+        if (r > 1.0) discard;                     // cut square corners
+        // Gaussian soft core — bokeh disc, no hard edge
+        float a = vBright * 0.22 * exp(-r * r * 3.2);
+        if (a < 0.004) discard;
+        gl_FragColor = vec4(0.80, 0.94, 1.0, a);
+      }
+    `,
+    transparent: true,
+    depthWrite:  false,
+    blending:    THREE.AdditiveBlending,
+  });
+}
+
 function DustParticles() {
   const groupRef = useRef<THREE.Group>(null);
 
   const geo = useMemo(() => {
-    const count = 220;
-    const pos   = new Float32Array(count * 3);
-    const seed  = 77777;
+    const count  = 220;
+    const seed   = 77777;
+    const pos    = new Float32Array(count * 3);
+    const bright = new Float32Array(count);
     for (let i = 0; i < count; i++) {
       const theta = sr(seed + i * 5 + 0) * Math.PI * 2;
       const phi   = Math.acos(2 * sr(seed + i * 5 + 1) - 1);
@@ -1315,21 +1351,15 @@ function DustParticles() {
       pos[i * 3]     = r * Math.sin(phi) * Math.cos(theta);
       pos[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
       pos[i * 3 + 2] = r * Math.cos(phi);
+      bright[i]      = 0.35 + sr(seed + i * 5 + 3) * 0.65; // 0.35–1.0
     }
     const g = new THREE.BufferGeometry();
-    g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+    g.setAttribute("position", new THREE.BufferAttribute(pos,    3));
+    g.setAttribute("aBright",  new THREE.BufferAttribute(bright, 1));
     return g;
   }, []);
 
-  const mat = useMemo(() => new THREE.PointsMaterial({
-    color:           new THREE.Color(0.78, 0.92, 1.0),
-    size:            0.055,
-    sizeAttenuation: true,
-    transparent:     true,
-    opacity:         0.20,
-    blending:        THREE.AdditiveBlending,
-    depthWrite:      false,
-  }), []);
+  const mat = useMemo(() => makeDustMat(), []);
 
   useEffect(() => () => { geo.dispose(); mat.dispose(); }, [geo, mat]);
 
@@ -1341,7 +1371,7 @@ function DustParticles() {
 
   return (
     <group ref={groupRef}>
-      <points renderOrder={-2}>
+      <points renderOrder={-2} frustumCulled={false}>
         <primitive object={geo} attach="geometry" />
         <primitive object={mat} attach="material" />
       </points>
