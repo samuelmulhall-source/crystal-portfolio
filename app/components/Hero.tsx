@@ -5,10 +5,10 @@
  * canvas with background: transparent so the void is completely seamless.
  *
  * Entrance animation: GSAP on wrapper divs (y + opacity + filter).
- * No parallax — clean, static composition.
+ * Directional scroll blur: SVG feGaussianBlur stdDeviation="0 N" reacts
+ * to voidState.scrollVel — vertical-only, so it reads as true motion blur.
  *
- * HUD element: live cursor coordinate readout in bottom-left (igloo-style
- * technical annotation). Reads voidState without adding any jitter.
+ * Coordinate HUD is in HUDCorners.tsx (fixed, persistent) — not here.
  */
 
 import { useRef, useEffect } from "react";
@@ -22,21 +22,24 @@ export default function Hero() {
   const hanWrapRef = useRef<HTMLDivElement>(null);
   const ctaWrapRef = useRef<HTMLDivElement>(null);
 
-  // Coordinate HUD
-  const coordRef = useRef<HTMLSpanElement>(null);
+  // Directional scroll blur
+  const contentRef  = useRef<HTMLDivElement>(null);
+  const feBlurRef   = useRef<SVGFEGaussianBlurElement>(null);
 
-  // Live coordinate readout — reads voidState, no DOM event overhead
+  // Directional motion blur driven by scroll velocity
   useEffect(() => {
     let raf: number;
+    let curBlur = 0;
     function tick() {
       raf = requestAnimationFrame(tick);
-      const el = coordRef.current;
-      if (!el) return;
-      const x  = voidState.mouseNX;
-      const y  = voidState.mouseNY;
-      const sx = (x >= 0 ? "+" : "") + x.toFixed(3);
-      const sy = (y >= 0 ? "+" : "") + y.toFixed(3);
-      el.textContent = `${sx}  ${sy}`;
+      const vel    = Math.abs(voidState.scrollVel);
+      const target = Math.min(vel * 6, 5);
+      curBlur += (target - curBlur) * 0.14;
+      const b = curBlur.toFixed(2);
+      if (feBlurRef.current) feBlurRef.current.setAttribute("stdDeviation", `0 ${b}`);
+      if (contentRef.current) {
+        contentRef.current.style.filter = curBlur > 0.08 ? "url(#hero-scroll-blur)" : "";
+      }
     }
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
@@ -82,75 +85,61 @@ export default function Hero() {
         pointerEvents:  "none",
       }}
     >
-      {/* Subtitle */}
-      <div ref={subWrapRef} style={{ opacity: 0, marginBottom: "2.2rem" }}>
-        <p className="label" style={{ letterSpacing: "0.44em", margin: 0 }}>
-          3D Computer Graphics &amp; Art Design
-        </p>
-      </div>
+      {/* SVG directional blur filter — vertical only = motion blur feel */}
+      <svg
+        style={{ position: "absolute", width: 0, height: 0, overflow: "hidden" }}
+        aria-hidden="true"
+      >
+        <defs>
+          <filter id="hero-scroll-blur" x="-50%" y="-100%" width="200%" height="300%">
+            <feGaussianBlur ref={feBlurRef} in="SourceGraphic" stdDeviation="0 0" />
+          </filter>
+        </defs>
+      </svg>
 
-      {/* Wordmark */}
-      <div ref={titWrapRef} style={{ opacity: 0 }}>
-        <h1 className="hero-title">MULTISCATTER</h1>
-      </div>
+      {/* Content — all text receives directional blur during scroll */}
+      <div ref={contentRef} style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+        {/* Subtitle */}
+        <div ref={subWrapRef} style={{ opacity: 0, marginBottom: "2.2rem" }}>
+          <p className="label" style={{ letterSpacing: "0.44em", margin: 0 }}>
+            3D Computer Graphics &amp; Art Design
+          </p>
+        </div>
 
-      {/* Handle */}
-      <div ref={hanWrapRef} style={{ opacity: 0, marginTop: "2rem" }}>
-        <span className="label" style={{ letterSpacing: "0.44em" }}>
-          @multiscatter
-        </span>
-      </div>
+        {/* Wordmark */}
+        <div ref={titWrapRef} style={{ opacity: 0 }}>
+          <h1 className="hero-title">MULTISCATTER</h1>
+        </div>
 
-      {/* Scroll CTA */}
-      <div ref={ctaWrapRef} style={{ opacity: 0, marginTop: "3.6rem" }}>
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem" }}>
-          <div style={{
-            width:      "1px",
-            height:     "48px",
-            background: "linear-gradient(to bottom, rgba(184,240,255,0.50), transparent)",
-            boxShadow:  "0 0 6px rgba(184,240,255,0.20)",
-          }} />
-          <span
-            className="label scroll-indicator"
-            style={{
-              color:         "rgba(184,240,255,0.58)",
-              letterSpacing: "0.42em",
-              fontSize:      "0.62rem",
-              textShadow:    "0 0 14px rgba(184,240,255,0.35)",
-            }}
-          >
-            scroll ↓
+        {/* Handle */}
+        <div ref={hanWrapRef} style={{ opacity: 0, marginTop: "2rem" }}>
+          <span className="label" style={{ letterSpacing: "0.44em" }}>
+            @multiscatter
           </span>
         </div>
-      </div>
 
-      {/* ── HUD: live cursor coordinates — bottom-left, igloo-style ── */}
-      <div style={{
-        position:  "absolute",
-        bottom:    "clamp(1.5rem, 3vh, 2.5rem)",
-        left:      "clamp(1rem, 4vw, 2.5rem)",
-        display:   "flex",
-        flexDirection: "column",
-        gap:       "0.25rem",
-      }}>
-        <span style={{
-          fontFamily:    "var(--font-geist-mono), monospace",
-          fontSize:      "0.50rem",
-          letterSpacing: "0.20em",
-          color:         "rgba(184,240,255,0.18)",
-          textTransform: "uppercase",
-        }}>// cursor</span>
-        <span
-          ref={coordRef}
-          style={{
-            fontFamily:    "var(--font-geist-mono), monospace",
-            fontSize:      "0.52rem",
-            letterSpacing: "0.16em",
-            color:         "rgba(184,240,255,0.28)",
-          }}
-        >
-          +0.000  +0.000
-        </span>
+        {/* Scroll CTA */}
+        <div ref={ctaWrapRef} style={{ opacity: 0, marginTop: "3.6rem" }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem" }}>
+            <div style={{
+              width:      "1px",
+              height:     "48px",
+              background: "linear-gradient(to bottom, rgba(184,240,255,0.50), transparent)",
+              boxShadow:  "0 0 6px rgba(184,240,255,0.20)",
+            }} />
+            <span
+              className="label scroll-indicator"
+              style={{
+                color:         "rgba(184,240,255,0.58)",
+                letterSpacing: "0.42em",
+                fontSize:      "0.62rem",
+                textShadow:    "0 0 14px rgba(184,240,255,0.35)",
+              }}
+            >
+              scroll ↓
+            </span>
+          </div>
+        </div>
       </div>
     </section>
   );

@@ -846,9 +846,9 @@ function WorkGridContent() {
       workModels.sectionRatio = entry.intersectionRatio;
       // Anchor: fix UI to screen when section fills the viewport
       // Fade in UI when section reaches ~30% visible; never switch position — always fixed
-      setInWorkView(entry.intersectionRatio >= 0.40);
-      const ACTIVE_THRESH = 0.25;
-      const DEACTIVE_THRESH = 0.15;
+      setInWorkView(entry.intersectionRatio >= 0.50);
+      const ACTIVE_THRESH = 0.55;
+      const DEACTIVE_THRESH = 0.35;
       if (entry.isIntersecting && entry.intersectionRatio >= ACTIVE_THRESH && activeTabRef.current === 'models') {
         const firstId = workModels.entries[0]?.id ?? null;
         if (firstId && !workModels.activeModelId) {
@@ -1165,55 +1165,49 @@ function WorkGridContent() {
             )}
           </div>
 
-          {/* ── Combined control hint — bottom-center, fades in on hover ── */}
+          {/* ── Control hints — igloo-style minimal text ── */}
           {activeId && !loading && (
-            <div style={{
-              position: "absolute",
-              bottom: isNarrow
-                ? "calc(clamp(2.4rem, 6vh, 3rem) + clamp(1rem, 5vh, 2rem) + 4rem)"
-                : "2rem",
-              left: "50%",
-              transform: "translateX(-50%)",
-              zIndex: 2,
-              pointerEvents: "none",
-              opacity: isHovered ? 1 : 0,
-              transition: "opacity 0.45s ease",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: "0.6rem",
-            }}>
-              {/* Icon row */}
-              <div style={{ display: "flex", alignItems: "center", gap: "1.1rem" }}>
-                {/* Drag icon */}
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.35rem" }}>
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                    <circle cx="8" cy="8" r="5" stroke="rgba(184,240,255,0.55)" strokeWidth="1"/>
-                    <path d="M8 3.5V2M8 14v-1.5M3.5 8H2M14 8h-1.5" stroke="rgba(184,240,255,0.55)" strokeWidth="1" strokeLinecap="round"/>
-                    <circle cx="8" cy="8" r="1.5" fill="rgba(184,240,255,0.55)"/>
-                  </svg>
-                  <span style={{ ...MON, fontSize: "0.38rem", letterSpacing: "0.22em", color: "rgba(184,240,255,0.50)", whiteSpace: "nowrap" }}>
-                    DRAG TO ROTATE
-                  </span>
-                </div>
-
-                {/* Separator */}
-                <div style={{ width: "1px", height: "28px", background: "rgba(184,240,255,0.12)" }} />
-
-                {/* Expand icon */}
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.35rem" }}>
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                    <path d="M2 5.5V2H5.5" stroke="rgba(184,240,255,0.55)" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/>
-                    <path d="M10.5 2H14V5.5" stroke="rgba(184,240,255,0.55)" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/>
-                    <path d="M14 10.5V14H10.5" stroke="rgba(184,240,255,0.55)" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/>
-                    <path d="M5.5 14H2V10.5" stroke="rgba(184,240,255,0.55)" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                  <span style={{ ...MON, fontSize: "0.38rem", letterSpacing: "0.22em", color: "rgba(184,240,255,0.50)", whiteSpace: "nowrap" }}>
-                    {isNarrow ? "DBL TAP" : "DBL CLICK"}
-                  </span>
-                </div>
+            <>
+              {/* Drag hint: single line, bottom-center */}
+              <div style={{
+                position:   "absolute",
+                bottom:     isNarrow ? "calc(clamp(2.4rem, 6vh, 3rem) + clamp(1rem, 5vh, 2rem) + 4rem)" : "2.2rem",
+                left:       "50%",
+                transform:  "translateX(-50%)",
+                zIndex:     3,
+                pointerEvents: "none",
+                opacity:    isHovered && !isDragging ? 1 : 0,
+                transition: "opacity 0.5s cubic-bezier(0.22,1,0.36,1)",
+              }}>
+                <span style={{ ...MON, fontSize: "0.44rem", letterSpacing: "0.28em", color: "rgba(184,240,255,0.38)", whiteSpace: "nowrap" }}>
+                  — drag to orbit —
+                </span>
               </div>
-            </div>
+
+              {/* View CTA: bottom-right corner, single click */}
+              <button
+                onClick={(e) => { e.stopPropagation(); if (!loading) handleExpand(); }}
+                onPointerDown={(e) => e.stopPropagation()}
+                style={{
+                  position:    "absolute",
+                  bottom:      isNarrow ? "calc(clamp(2.4rem, 6vh, 3rem) + clamp(1rem, 5vh, 2rem) + 3.8rem)" : "1.9rem",
+                  right:       "clamp(1.2rem, 3.5vw, 2.5rem)",
+                  zIndex:      3,
+                  background:  "transparent",
+                  border:      "none",
+                  cursor:      "pointer",
+                  padding:     "0.6rem",
+                  margin:      "-0.6rem",
+                  opacity:     isHovered ? 1 : 0,
+                  transition:  "opacity 0.5s cubic-bezier(0.22,1,0.36,1)",
+                  pointerEvents: isHovered ? "auto" : "none",
+                }}
+              >
+                <span style={{ ...MON, fontSize: "0.44rem", letterSpacing: "0.22em", color: "rgba(184,240,255,0.52)" }}>
+                  view ↗
+                </span>
+              </button>
+            </>
           )}
         </>
       )}
