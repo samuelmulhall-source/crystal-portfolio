@@ -158,19 +158,7 @@ main {
 
 /* ─── Section panel (About backdrop) ──────────────────────────────────────── */
 .section-panel {
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.05) 0%,
-    rgba(4,   6,  18, 0.76) 8%,
-    rgba(4,   6,  18, 0.76) 100%
-  );
-  backdrop-filter:    blur(32px) saturate(1.80) brightness(1.05);
-  -webkit-backdrop-filter: blur(32px) saturate(1.80) brightness(1.05);
-  border-top:    1px solid rgba(255, 255, 255, 0.12);
-  border-bottom: 1px solid rgba(184, 240, 255, 0.08);
-  box-shadow:
-    inset 0  1px 0 rgba(255, 255, 255, 0.10),
-    inset 0 -1px 0 rgba(184, 240, 255, 0.03);
+  border-top: 1px solid rgba(184, 240, 255, 0.07);
 }
 
 /* ─── Void divider ────────────────────────────────────────────────────────── */
@@ -278,7 +266,7 @@ main {
   display: inline-block;
   padding: 0.28rem 0.75rem;
   border: 1px solid rgba(184,240,255,0.10);
-  border-radius: 3px;
+  border-radius: 0;
   font-size: 0.595rem;
   letter-spacing: 0.20em;
   text-transform: uppercase;
@@ -286,7 +274,7 @@ main {
   font-family: var(--font-geist-mono), monospace;
   transition: all 0.28s cubic-bezier(0.22, 1, 0.36, 1);
   cursor: default;
-  background: rgba(184, 240, 255, 0.018);
+  background: transparent;
 }
 .skill-tag:hover {
   border-color: rgba(184,240,255,0.40);
@@ -364,36 +352,22 @@ main {
   gap: 0.5rem;
   padding: 0.75rem 1.75rem;
   border: 1px solid rgba(184,240,255,0.18);
-  border-radius: 3px;
-  background: rgba(184,240,255,0.032);
+  border-radius: 0;
+  background: transparent;
   color: var(--ice);
   font-family: var(--font-geist-mono), monospace;
   font-size: 0.6875rem;
   letter-spacing: 0.26em;
   text-transform: uppercase;
   cursor: pointer;
-  transition: all 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: border-color 0.28s ease, color 0.28s ease, box-shadow 0.28s ease;
   text-decoration: none;
-  position: relative;
-  overflow: hidden;
-}
-.void-btn::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, transparent 60%);
-  pointer-events: none;
 }
 .void-btn:hover {
-  background: rgba(184,240,255,0.075);
-  border-color: rgba(184,240,255,0.50);
-  box-shadow:
-    0 0 28px rgba(184,240,255,0.18),
-    0 0 60px rgba(184,240,255,0.08),
-    inset 0 1px 0 rgba(255,255,255,0.08);
+  border-color: rgba(184,240,255,0.55);
   color: var(--ice-bright);
-  transform: translateY(-1px);
-  text-shadow: 0 0 14px rgba(184,240,255,0.50);
+  box-shadow: 0 0 22px rgba(184,240,255,0.14), 0 0 50px rgba(184,240,255,0.06);
+  text-shadow: 0 0 12px rgba(184,240,255,0.45);
 }
 
 /* ─── Viewer close button ─────────────────────────────────────────────────── */

@@ -103,12 +103,7 @@ export default function AboutContact() {
         >
 
           {/* ── Left: bio ─────────────────────────────────────────────── */}
-          <div style={{
-            background:   "rgba(184,240,255,0.015)",
-            border:       "1px solid rgba(184,240,255,0.07)",
-            borderRadius: "4px",
-            padding:      "2rem 2rem 2.2rem",
-          }}>
+          <div>
             <h2 className="heading-lg reveal" style={{ marginBottom: "2.4rem" }}>
               The detail is
               <br />
@@ -145,12 +140,7 @@ export default function AboutContact() {
 
           {/* ── Right: toolset + contact ──────────────────────────────── */}
           {/* id="contact" here so the nav Contact link scrolls to this column */}
-          <div id="contact" style={{
-            background:   "rgba(184,240,255,0.015)",
-            border:       "1px solid rgba(184,240,255,0.07)",
-            borderRadius: "4px",
-            padding:      "2rem 2rem 2.2rem",
-          }}>
+          <div id="contact">
 
             {/* Toolset */}
             <div style={{ marginBottom: "3rem" }}>

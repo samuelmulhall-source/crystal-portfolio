@@ -132,9 +132,6 @@ function FullscreenViewer({
       height: "100%",
       overflowY: "auto",
       overflowX: "hidden",
-      background: "rgba(0,4,16,0.97)",
-      borderLeft: mobile ? "none" : "1px solid rgba(184,240,255,0.055)",
-      borderTop: mobile ? "1px solid rgba(184,240,255,0.055)" : "none",
     }}>
 
       {/* ── Category + year ── */}
