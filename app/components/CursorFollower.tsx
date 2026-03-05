@@ -141,13 +141,13 @@ export default function CursorFollower() {
 
       // ── Holographic stroke ────────────────────────────────────────────────
       // Saturation lerps: 0 (white at rest) → 100 (full spectrum on hover)
-      holoSat += ((hovering ? 100 : 0) - holoSat) * Math.min(0.10 * f, 1);
+      holoSat += ((hovering ? 100 : 0) - holoSat) * Math.min(0.14 * f, 1);
 
       if (holoStops.length >= 5) {
-        // Phase shifts 80°/s + slight shimmer wobble for thin-film texture
-        const phase = t * 80 + Math.sin(t * 2.3) * 12;
-        const sat   = holoSat * 0.95;              // 0% → 95%
-        const lgt   = 100 - (holoSat / 100) * 30; // 100% (white) → 70% (vivid)
+        // Faster sweep (100°/s) + stronger shimmer wobble = clearly visible iridescence
+        const phase = t * 100 + Math.sin(t * 2.3) * 22;
+        const sat   = holoSat;                     // 0% → 100% full saturation
+        const lgt   = 100 - (holoSat / 100) * 38; // 100% (white) → 62% (vivid spectral)
         for (let i = 0; i < 5; i++) {
           const h = ((phase + i * 72) % 360).toFixed(0);
           holoStops[i].setAttribute("stop-color",
@@ -166,8 +166,8 @@ export default function CursorFollower() {
         if (overModel && !isDragging) {
           const nx = dx / mr.rPx; // −1..+1
           const ny = dy / mr.rPx;
-          tRotX =  ny * 9;
-          tRotY = -nx * 9;
+          tRotX =  ny * 22;
+          tRotY = -nx * 22;
         }
       }
 
@@ -181,16 +181,16 @@ export default function CursorFollower() {
         dragVY *= Math.pow(0.88, f);
       }
 
-      // Spring integration (K=180, D=14)
-      rotVelX += (tRotX - curRotX) * 180 * dt; rotVelX -= rotVelX * 14 * dt;
-      rotVelY += (tRotY - curRotY) * 180 * dt; rotVelY -= rotVelY * 14 * dt;
+      // Spring integration (K=220, D=16) — snappier response to model position
+      rotVelX += (tRotX - curRotX) * 220 * dt; rotVelX -= rotVelX * 16 * dt;
+      rotVelY += (tRotY - curRotY) * 220 * dt; rotVelY -= rotVelY * 16 * dt;
       curRotX += rotVelX * dt;
       curRotY += rotVelY * dt;
 
       // ── Apply transform ───────────────────────────────────────────────────
       const hasTilt = Math.abs(curRotX) > 0.05 || Math.abs(curRotY) > 0.05;
       svg.style.transform = hasTilt
-        ? `translate(${mouseX}px,${mouseY}px) scale(${cScale.toFixed(4)}) perspective(100px) rotateX(${curRotX.toFixed(2)}deg) rotateY(${curRotY.toFixed(2)}deg)`
+        ? `translate(${mouseX}px,${mouseY}px) scale(${cScale.toFixed(4)}) perspective(55px) rotateX(${curRotX.toFixed(2)}deg) rotateY(${curRotY.toFixed(2)}deg)`
         : `translate(${mouseX}px,${mouseY}px) scale(${cScale.toFixed(4)})`;
       svg.style.opacity = cOpacity.toFixed(3);
 
@@ -257,16 +257,16 @@ export default function CursorFollower() {
         }}
       >
         <defs>
-          {/* Glass body fill */}
+          {/* Glass body fill — increased opacity so tint is visible on dark bg */}
           <linearGradient id="gc-body" x1="0" y1="0" x2="12" y2="19.5" gradientUnits="userSpaceOnUse">
-            <stop offset="0%"   stopColor="#a8d8f8" stopOpacity="0.50" />
-            <stop offset="42%"  stopColor="#7ab8e8" stopOpacity="0.20" />
-            <stop offset="100%" stopColor="#5090c0" stopOpacity="0.04" />
+            <stop offset="0%"   stopColor="#b8e4ff" stopOpacity="0.78" />
+            <stop offset="42%"  stopColor="#88c4f0" stopOpacity="0.44" />
+            <stop offset="100%" stopColor="#5090c0" stopOpacity="0.14" />
           </linearGradient>
           {/* Caustic light pool near tip */}
           <radialGradient id="gc-caustic" cx="2" cy="2.5" r="7" gradientUnits="userSpaceOnUse">
-            <stop offset="0%"   stopColor="white" stopOpacity="0.35" />
-            <stop offset="60%"  stopColor="white" stopOpacity="0.05" />
+            <stop offset="0%"   stopColor="white" stopOpacity="0.58" />
+            <stop offset="60%"  stopColor="white" stopOpacity="0.16" />
             <stop offset="100%" stopColor="white" stopOpacity="0"    />
           </radialGradient>
           {/* Holographic edge gradient — 5 stops updated per frame in JS.     */}

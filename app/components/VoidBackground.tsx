@@ -1216,10 +1216,10 @@ function VoidModel({ entry }: { entry: WorkModelEntry }) {
       voidState.modelEntranceProgress = entranceRef.current;
     }
     if (scaleGroupRef.current) {
-      const t    = entranceRef.current;
-      const ease = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
-      // normScale is applied via a static inner group — this group is 0→1 entrance only
-      scaleGroupRef.current.scale.setScalar(Math.max(0.001, ease));
+      // Subtle settle: 0.94 → 1.0 as entrance progresses (not full spawn-from-zero)
+      const ep   = entranceRef.current;
+      const ease = ep < 0.5 ? 2 * ep * ep : -1 + (4 - 2 * ep) * ep;
+      scaleGroupRef.current.scale.setScalar(0.94 + ease * 0.06);
     }
 
     // ── Opacity applied to materials ──────────────────────────────────────
@@ -1233,14 +1233,14 @@ function VoidModel({ entry }: { entry: WorkModelEntry }) {
 
     // ── Depth: model arrives from / recedes into background ───────────────
     if (posGroupRef.current) {
-      const depthBack  = (1 - op) * 9;
+      const depthBack  = (1 - op) * 5;   // 5 units back (was 9) — less dramatic depth
       const isExpanded = workModels.expandedModelId === entry.id;
       const targetY    = isExpanded ? 0 : getWorldY();
       const curY       = posGroupRef.current.position.y;
       const newY       = curY + (targetY - curY) * Math.min(dt * 4, 1);
       const ep         = entranceRef.current;
       const entryEase  = ep < 0.5 ? 2 * ep * ep : -1 + (4 - 2 * ep) * ep;
-      const entryDrop  = (1 - entryEase) * 1.8;
+      const entryDrop  = (1 - entryEase) * 0.5;  // 0.5 units drop (was 1.8)
       posGroupRef.current.position.set(worldX, newY - entryDrop, worldZ - depthBack);
     }
 
@@ -1260,7 +1260,7 @@ function VoidModel({ entry }: { entry: WorkModelEntry }) {
         e.rotY += dt * 0.45;
       }
       // Entrance/exit spin: extra rotation that unwinds as the model fully appears
-      const entranceSpin = (1 - op) * Math.PI * 0.35;
+      const entranceSpin = (1 - op) * Math.PI * 0.15;
 
       // Camera-reactive spring tilt: model leans into mouse motion then settles.
       // Spring K≈2.5 gives a ~280ms lag — feels like the model has weight.

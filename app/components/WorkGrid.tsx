@@ -849,7 +849,7 @@ function WorkGridContent() {
       workModels.sectionRatio = entry.intersectionRatio;
       // Anchor: fix UI to screen when section fills the viewport
       // Fade in UI when section reaches ~30% visible; never switch position — always fixed
-      setInWorkView(entry.intersectionRatio >= 0.30);
+      setInWorkView(entry.intersectionRatio >= 0.40);
       const ACTIVE_THRESH = 0.25;
       const DEACTIVE_THRESH = 0.15;
       if (entry.isIntersecting && entry.intersectionRatio >= ACTIVE_THRESH && activeTabRef.current === 'models') {
@@ -997,14 +997,7 @@ function WorkGridContent() {
           opacity:       inWorkView ? 1 : 0,
           transform:     inWorkView ? "translateY(0)" : "translateY(-14px)",
           transition:    "opacity 0.45s cubic-bezier(0.22,1,0.36,1), transform 0.45s cubic-bezier(0.22,1,0.36,1)",
-          // Premium liquid glass
-          background:    "linear-gradient(145deg, rgba(255,255,255,0.11) 0%, rgba(255,255,255,0.04) 45%, rgba(184,240,255,0.05) 100%)",
-          backdropFilter: "blur(40px) saturate(2.0) brightness(1.08)",
-          WebkitBackdropFilter: "blur(40px) saturate(2.0) brightness(1.08)",
-          border:        "1px solid rgba(255,255,255,0.16)",
-          borderRadius:  "8px",
-          padding:       isNarrow ? "0.6rem 0.8rem" : "0.8rem 1rem",
-          boxShadow:     "inset 0 1px 0 rgba(255,255,255,0.20), inset 0 -1px 0 rgba(0,0,14,0.18), inset 1px 0 0 rgba(255,255,255,0.07), 0 8px 40px rgba(0,0,18,0.55), 0 0 0 1px rgba(255,255,255,0.06), 0 0 22px rgba(184,240,255,0.07)",
+          padding:       isNarrow ? "0.6rem 0" : "0.8rem 0",
         }}
       >
         <p className="label" style={{ marginBottom: isNarrow ? "0.5rem" : "1.0rem", opacity: 0.85 }}>01 — Work</p>
@@ -1027,12 +1020,6 @@ function WorkGridContent() {
           opacity:       inWorkView ? 1 : 0,
           transform:     inWorkView ? "translateY(0)" : "translateY(18px)",
           transition:    "opacity 0.45s cubic-bezier(0.22,1,0.36,1), transform 0.45s cubic-bezier(0.22,1,0.36,1)",
-          background:    "linear-gradient(145deg, rgba(255,255,255,0.11) 0%, rgba(255,255,255,0.04) 45%, rgba(184,240,255,0.05) 100%)",
-          backdropFilter: "blur(40px) saturate(2.0) brightness(1.08)",
-          WebkitBackdropFilter: "blur(40px) saturate(2.0) brightness(1.08)",
-          borderRadius: "8px",
-          border: "1px solid rgba(255,255,255,0.16)",
-          boxShadow: "inset 0 1px 0 rgba(255,255,255,0.20), inset 0 -1px 0 rgba(0,0,14,0.18), 0 8px 40px rgba(0,0,18,0.55), 0 0 0 1px rgba(255,255,255,0.06)",
         }}>
           <WorkTabButtons activeTab={activeTab} onTabChange={setActiveTab} />
         </div>
@@ -1065,13 +1052,7 @@ function WorkGridContent() {
                     top: "50%",
                     transform: (inWorkView && activeTab === 'models') ? "translateY(-50%)" : "translateY(-50%) translateX(-18px)",
                     width: "clamp(160px, 18vw, 240px)",
-                    background:    "linear-gradient(160deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.03) 50%, rgba(184,240,255,0.05) 100%)",
-                    backdropFilter: "blur(40px) saturate(2.0) brightness(1.08)",
-                    WebkitBackdropFilter: "blur(40px) saturate(2.0) brightness(1.08)",
-                    border:        "1px solid rgba(255,255,255,0.16)",
-                    borderRadius:  "10px",
-                    padding:       "0.5rem 0.6rem",
-                    boxShadow:     "inset 0 1px 0 rgba(255,255,255,0.20), inset 0 -1px 0 rgba(0,0,14,0.18), inset 1px 0 0 rgba(255,255,255,0.07), 0 8px 40px rgba(0,0,18,0.55), 0 0 0 1px rgba(255,255,255,0.06), 0 0 22px rgba(184,240,255,0.07)",
+                    padding:       "0.5rem 0",
                   }
               ),
             }}

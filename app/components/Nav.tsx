@@ -96,9 +96,7 @@ export default function Nav() {
         backdropFilter:  scrolled ? "blur(44px) saturate(2.0) brightness(1.06)" : "none",
         WebkitBackdropFilter: scrolled ? "blur(44px) saturate(2.0) brightness(1.06)" : "none",
         borderBottom:    scrolled ? "1px solid rgba(255,255,255,0.14)" : "none",
-        boxShadow:       scrolled
-          ? "inset 0 1px 0 rgba(255,255,255,0.14), 0 8px 32px rgba(0,0,14,0.40), 0 0 0 1px rgba(255,255,255,0.05)"
-          : "none",
+        boxShadow:       scrolled ? "0 1px 0 rgba(184,240,255,0.10), 0 8px 32px rgba(0,0,14,0.40)" : "none",
         transition:     "height 0.4s ease, background 0.4s ease, box-shadow 0.4s ease",
       }}
     >
@@ -164,19 +162,17 @@ export default function Nav() {
             transform:  workOpen
               ? "translateX(-50%) translateY(0) scale(1)"
               : "translateX(-50%) translateY(-5px) scale(0.96)",
-            background: "linear-gradient(145deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.03) 50%, rgba(184,240,255,0.04) 100%)",
-            backdropFilter: "blur(44px) saturate(2.0) brightness(1.07)",
-            WebkitBackdropFilter: "blur(44px) saturate(2.0) brightness(1.07)",
-            border:     "1px solid rgba(255,255,255,0.16)",
-            borderRadius: "8px",
-            padding:    "6px 0",
-            listStyle:  "none",
-            margin:     0,
-            minWidth:   "148px",
-            opacity:    workOpen ? 1 : 0,
+            background:   "rgba(5,7,15,0.96)",
+            borderTop:    "1px solid rgba(184,240,255,0.22)",
+            borderRadius: "2px",
+            padding:      "4px 0",
+            listStyle:    "none",
+            margin:       0,
+            minWidth:     "148px",
+            opacity:      workOpen ? 1 : 0,
             pointerEvents: workOpen ? "auto" : "none",
-            transition: "opacity 0.15s ease, transform 0.15s cubic-bezier(0.22,1,0.36,1)",
-            boxShadow:  "inset 0 1px 0 rgba(255,255,255,0.20), inset 0 -1px 0 rgba(0,0,14,0.18), 0 16px 48px rgba(0,0,18,0.60), 0 0 0 1px rgba(255,255,255,0.06), 0 0 20px rgba(184,240,255,0.06)",
+            transition:   "opacity 0.15s ease, transform 0.15s cubic-bezier(0.22,1,0.36,1)",
+            boxShadow:    "0 16px 40px rgba(0,0,12,0.70)",
           }}>
             {WORK_SUBS.map(({ label, tab }) => (
               <li key={tab}>
