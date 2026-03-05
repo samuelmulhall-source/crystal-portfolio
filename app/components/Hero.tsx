@@ -84,7 +84,7 @@ export default function Hero() {
     >
       {/* Subtitle */}
       <div ref={subWrapRef} style={{ opacity: 0, marginBottom: "2.2rem" }}>
-        <p className="label" style={{ letterSpacing: "0.44em", color: "rgba(184,240,255,0.40)", margin: 0 }}>
+        <p className="label" style={{ letterSpacing: "0.44em", margin: 0 }}>
           3D Computer Graphics &amp; Art Design
         </p>
       </div>
@@ -96,7 +96,7 @@ export default function Hero() {
 
       {/* Handle */}
       <div ref={hanWrapRef} style={{ opacity: 0, marginTop: "2rem" }}>
-        <span className="label" style={{ letterSpacing: "0.44em", color: "rgba(184,240,255,0.32)" }}>
+        <span className="label" style={{ letterSpacing: "0.44em" }}>
           @multiscatter
         </span>
       </div>

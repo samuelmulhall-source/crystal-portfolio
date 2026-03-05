@@ -83,6 +83,11 @@ main {
 ::-webkit-scrollbar-thumb:hover { background: rgba(184,240,255,0.35); }
 
 /* ─── Typography ──────────────────────────────────────────────────────────── */
+@keyframes label-glow-breathe {
+  0%, 100% { color: rgba(184,240,255,0.52); text-shadow: 0 0 10px rgba(184,240,255,0.18); }
+  50%       { color: rgba(184,240,255,0.82); text-shadow: 0 0 20px rgba(184,240,255,0.44), 0 0 40px rgba(184,240,255,0.16); }
+}
+
 .label {
   font-family: var(--font-geist-mono), monospace;
   font-size: clamp(0.7rem, 1.2vw, 0.8rem);
@@ -91,9 +96,15 @@ main {
   color: rgba(184, 240, 255, 0.58);
   display: block;
   text-shadow: 0 0 12px rgba(184, 240, 255, 0.22);
+  animation: label-glow-breathe 5.5s ease-in-out infinite;
 }
 
-/* Hero title */
+@keyframes hero-shimmer {
+  0%, 100% { background-position: 200% center; }
+  50%       { background-position: -100% center; }
+}
+
+/* Hero title — ice shimmer scan */
 .hero-title {
   font-size: clamp(2rem, 5.4vw, 5.2rem);
   font-weight: 300;
@@ -102,11 +113,30 @@ main {
   text-align: center;
   white-space: nowrap;
   line-height: 1;
-  color: var(--text-primary);
-  text-shadow:
-    0 0 30px  rgba(184, 240, 255, 0.30),
-    0 0 80px  rgba(184, 240, 255, 0.15),
-    0 0 180px rgba(184, 240, 255, 0.07);
+  /* Moving specular highlight over near-white ice gradient */
+  background: linear-gradient(
+    105deg,
+    rgba(200,240,255,0.88)  0%,
+    rgba(225,250,255,0.97) 18%,
+    rgba(255,255,255,1.00)  38%,
+    rgba(215,248,255,0.97) 52%,
+    rgba(184,235,255,0.90) 72%,
+    rgba(205,243,255,0.88) 100%
+  );
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  /* drop-shadow replaces text-shadow (text-shadow is invisible with color:transparent) */
+  filter:
+    drop-shadow(0 0 28px rgba(184,240,255,0.30))
+    drop-shadow(0 0 80px rgba(184,240,255,0.14));
+  animation: hero-shimmer 8s ease-in-out infinite;
+}
+
+@keyframes heading-shimmer {
+  0%, 100% { background-position: 100% center; }
+  50%       { background-position: -50% center; }
 }
 
 .heading-xl {
@@ -115,10 +145,15 @@ main {
   letter-spacing: 0.14em;
   text-transform: uppercase;
   line-height: 0.95;
-  color: var(--text-primary);
-  text-shadow:
-    0 0 28px rgba(184, 240, 255, 0.20),
-    0 0 70px rgba(184, 240, 255, 0.09);
+  background: linear-gradient(162deg, #eef8ff 0%, #d4f0ff 35%, #b8f0ff 70%, #9dd2ee 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter:
+    drop-shadow(0 0 24px rgba(184,240,255,0.22))
+    drop-shadow(0 0 65px rgba(184,240,255,0.10));
+  animation: heading-shimmer 14s ease-in-out infinite;
 }
 
 .heading-lg {
@@ -127,10 +162,15 @@ main {
   letter-spacing: 0.09em;
   text-transform: uppercase;
   line-height: 1.1;
-  color: var(--text-primary);
-  text-shadow:
-    0 0 22px rgba(184, 240, 255, 0.18),
-    0 0 55px rgba(184, 240, 255, 0.08);
+  background: linear-gradient(162deg, #eef8ff 0%, #d4f0ff 35%, #b8f0ff 70%, #9dd2ee 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter:
+    drop-shadow(0 0 18px rgba(184,240,255,0.20))
+    drop-shadow(0 0 52px rgba(184,240,255,0.09));
+  animation: heading-shimmer 14s ease-in-out infinite;
 }
 
 /* ─── Liquid glass panel — premium frosted glass material ─────────────────── */
@@ -195,7 +235,7 @@ main {
   text-transform: uppercase;
   color: rgba(184, 240, 255, 0.48);
   text-decoration: none;
-  transition: color 0.3s ease, text-shadow 0.3s ease;
+  transition: color 0.3s ease, text-shadow 0.3s ease, letter-spacing 0.40s cubic-bezier(0.23,1,0.32,1);
   position: relative;
 }
 .frost-link::after {
@@ -210,6 +250,7 @@ main {
 .frost-link:hover {
   color: var(--ice);
   text-shadow: 0 0 14px rgba(184,240,255,0.45);
+  letter-spacing: 0.40em;
 }
 .frost-link:hover::after { width: 100%; }
 
