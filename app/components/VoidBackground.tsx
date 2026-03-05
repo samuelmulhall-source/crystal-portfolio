@@ -1241,7 +1241,11 @@ function VoidModel({ entry }: { entry: WorkModelEntry }) {
       const ep         = entranceRef.current;
       const entryEase  = ep < 0.5 ? 2 * ep * ep : -1 + (4 - 2 * ep) * ep;
       const entryDrop  = (1 - entryEase) * 0.5;  // 0.5 units drop (was 1.8)
-      posGroupRef.current.position.set(worldX, newY - entryDrop, worldZ - depthBack);
+      // Push model up as work section exits — prevents overlap with about section.
+      // sectionRatio 0.85→0 maps to exitLift 0→6 world units.
+      const exitFactor = isExpanded ? 0 : Math.max(0, Math.min(1, (0.85 - workModels.sectionRatio) / 0.55));
+      const exitLift   = exitFactor * 6;
+      posGroupRef.current.position.set(worldX, newY - entryDrop + exitLift, worldZ - depthBack);
     }
 
     // ── Sync from workModels entry ─────────────────────────────────────────

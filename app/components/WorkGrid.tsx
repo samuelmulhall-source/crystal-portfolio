@@ -67,7 +67,7 @@ const MON: React.CSSProperties = {
   textTransform: "uppercase",
 };
 
-// ─── Full-screen in-place viewer ───────────────────────────────────────────
+// ─── Full-screen in-place viewer — igloo-style, model shows through ────────
 function FullscreenViewer({
   project,
   onClose,
@@ -75,7 +75,8 @@ function FullscreenViewer({
   project:  Project;
   onClose:  () => void;
 }) {
-  const overlayRef      = useRef<HTMLDivElement>(null);
+  const overlayRef  = useRef<HTMLDivElement>(null);
+  const contentRef  = useRef<HTMLDivElement>(null);
   const [mobile, setMobile] = useState(false);
 
   useEffect(() => {
@@ -87,18 +88,19 @@ function FullscreenViewer({
   useEffect(() => {
     const el = overlayRef.current;
     if (!el) return;
-    gsap.fromTo(el, { opacity: 0 }, { opacity: 1, duration: 0.32, ease: "power2.out" });
-    const panel = el.querySelector<HTMLElement>("[data-infopanel]");
-    if (panel) gsap.fromTo(panel,
-      { x: 28, opacity: 0 },
-      { x: 0, opacity: 1, duration: 0.40, ease: "power2.out", delay: 0.08 }
-    );
+    gsap.fromTo(el, { opacity: 0 }, { opacity: 1, duration: 0.38, ease: "power2.out" });
+    if (contentRef.current) {
+      gsap.fromTo(contentRef.current,
+        { opacity: 0, y: 14 },
+        { opacity: 1, y: 0, duration: 0.52, ease: "power2.out", delay: 0.12 }
+      );
+    }
   }, []);
 
   const close = useCallback(() => {
     const el = overlayRef.current;
     if (!el) { onClose(); return; }
-    gsap.to(el, { opacity: 0, duration: 0.3, onComplete: onClose });
+    gsap.to(el, { opacity: 0, duration: 0.28, onComplete: onClose });
   }, [onClose]);
 
   useEffect(() => {
@@ -118,227 +120,144 @@ function FullscreenViewer({
   const SPECS = [
     ["Format",    "FBX / GLB"],
     ["Engine",    "WebGL · WebGPU"],
-    ["Materials", "MeshPhysicalMaterial"],
-    ["Textures",  "PBR · 4K Maps"],
+    ["Materials", "PBR Physical"],
+    ["Textures",  "4K Hand-Authored"],
     ["Pipeline",  "Blender → Three.js"],
   ];
-  const TAGS = ["Blender", "PBR", "Real-time", "WebGL", project.category];
-
-  const infoPanel = (
-    <div style={{
-      padding: mobile ? "1.75rem 1.25rem 2rem" : "clamp(36px, 4vw, 56px)",
-      display: "flex",
-      flexDirection: "column",
-      height: "100%",
-      overflowY: "auto",
-      overflowX: "hidden",
-    }}>
-
-      {/* ── Category + year ── */}
-      <p style={{
-        ...MON, fontSize: "0.44rem", letterSpacing: "0.38em",
-        color: "rgba(184,240,255,0.62)", marginBottom: "0.8rem", marginTop: 0,
-      }}>
-        {project.category} — {project.year}
-      </p>
-
-      {/* ── Title with soft glow + hover shift ── */}
-      <h2
-        style={{
-          fontFamily: "var(--font-geist-sans), sans-serif",
-          fontSize: mobile ? "2rem" : "clamp(1.9rem, 3.2vw, 2.6rem)",
-          fontWeight: 600,
-          letterSpacing: "-0.025em",
-          color: "#dff0ff",
-          margin: "0 0 clamp(1.5rem, 2.5vw, 2rem)",
-          lineHeight: 1.1,
-          textShadow: "0 0 50px rgba(184,240,255,0.16), 0 0 100px rgba(120,200,255,0.07)",
-          transition: "transform 0.45s cubic-bezier(0.22,1,0.36,1), text-shadow 0.45s ease",
-          cursor: "default",
-        }}
-        onMouseEnter={(e) => {
-          const el = e.currentTarget as HTMLHeadingElement;
-          el.style.transform    = "translateY(-3px)";
-          el.style.textShadow   = "0 0 50px rgba(184,240,255,0.32), 0 0 120px rgba(120,200,255,0.14)";
-        }}
-        onMouseLeave={(e) => {
-          const el = e.currentTarget as HTMLHeadingElement;
-          el.style.transform    = "";
-          el.style.textShadow   = "0 0 50px rgba(184,240,255,0.16), 0 0 100px rgba(120,200,255,0.07)";
-        }}
-      >
-        {project.title}
-      </h2>
-
-      {/* ── Divider ── */}
-      <div style={{ height: "1px", background: "rgba(184,240,255,0.06)", marginBottom: "clamp(1.25rem,2vw,1.75rem)" }} />
-
-      {/* ── Description ── */}
-      <p style={{ ...MON, fontSize: "0.42rem", letterSpacing: "0.22em", color: "rgba(184,240,255,0.60)", marginBottom: "0.7rem", marginTop: 0 }}>
-        ABOUT
-      </p>
-      <p
-        style={{
-          fontFamily: "var(--font-geist-sans), sans-serif",
-          fontSize: "0.92rem", lineHeight: 1.85,
-          color: "rgba(200,232,255,0.82)", margin: "0 0 clamp(1.5rem,2.5vw,2rem)",
-          transition: "color 0.4s ease",
-          cursor: "default",
-        }}
-        onMouseEnter={(e) => { (e.currentTarget as HTMLParagraphElement).style.color = "rgba(210,240,255,0.80)"; }}
-        onMouseLeave={(e) => { (e.currentTarget as HTMLParagraphElement).style.color = "rgba(200,232,255,0.62)"; }}
-      >
-        {project.description ?? "Real-time PBR asset crafted in Blender with a full physically-based rendering pipeline — hand-authored textures, precision edge loops, and production-ready UV unwrap optimised for WebGL and WebGPU."}
-      </p>
-
-      {/* ── Technical specifications ── */}
-      <p style={{ ...MON, fontSize: "0.42rem", letterSpacing: "0.22em", color: "rgba(184,240,255,0.60)", marginBottom: "0.9rem", marginTop: 0 }}>
-        SPECIFICATIONS
-      </p>
-      <div style={{ display: "flex", flexDirection: "column", gap: "0.55rem", marginBottom: "clamp(1.5rem,2.5vw,2rem)" }}>
-        {SPECS.map(([label, value]) => (
-          <div
-            key={label}
-            style={{
-              display: "flex", justifyContent: "space-between", alignItems: "baseline",
-              padding: "0.4rem 0",
-              borderBottom: "1px solid rgba(184,240,255,0.04)",
-              transition: "border-color 0.3s ease",
-              cursor: "default",
-            }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(184,240,255,0.12)"; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(184,240,255,0.04)"; }}
-          >
-            <span style={{ ...MON, fontSize: "0.44rem", letterSpacing: "0.16em", color: "rgba(184,240,255,0.58)" }}>{label}</span>
-            <span
-              style={{ ...MON, fontSize: "0.46rem", letterSpacing: "0.12em", color: "rgba(184,240,255,0.82)", transition: "color 0.3s ease" }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLSpanElement).style.color = "rgba(184,240,255,1.0)"; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLSpanElement).style.color = "rgba(184,240,255,0.82)"; }}
-            >
-              {value}
-            </span>
-          </div>
-        ))}
-      </div>
-
-      {/* ── Tags ── */}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "0.38rem", marginBottom: "auto", paddingBottom: "1.5rem" }}>
-        {TAGS.map((tag) => (
-          <span
-            key={tag}
-            style={{
-              ...MON, fontSize: "0.42rem", letterSpacing: "0.14em",
-              padding: "0.3rem 0.62rem",
-              border: "1px solid rgba(184,240,255,0.12)",
-              color: "rgba(184,240,255,0.65)",
-              cursor: "default",
-              transition: "border-color 0.25s ease, color 0.25s ease, transform 0.25s ease",
-            }}
-            onMouseEnter={(e) => {
-              const el = e.currentTarget as HTMLSpanElement;
-              el.style.borderColor = "rgba(184,240,255,0.35)";
-              el.style.color       = "rgba(184,240,255,0.95)";
-              el.style.transform   = "translateY(-1px)";
-            }}
-            onMouseLeave={(e) => {
-              const el = e.currentTarget as HTMLSpanElement;
-              el.style.borderColor = "rgba(184,240,255,0.12)";
-              el.style.color       = "rgba(184,240,255,0.65)";
-              el.style.transform   = "";
-            }}
-          >
-            {tag}
-          </span>
-        ))}
-      </div>
-
-      {/* ── Footer link ── */}
-      <div style={{ borderTop: "1px solid rgba(184,240,255,0.06)", paddingTop: "1.25rem" }}>
-        <a
-          href="https://x.com/multiscatter"
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{
-            ...MON, fontSize: "0.48rem", letterSpacing: "0.26em",
-            color: "rgba(184,240,255,0.50)",
-            textDecoration: "none",
-            display: "inline-flex", alignItems: "center", gap: "0.4rem",
-            transition: "color 0.25s ease, letter-spacing 0.25s ease",
-          }}
-          onMouseEnter={(e) => {
-            const el = e.currentTarget as HTMLAnchorElement;
-            el.style.color = "rgba(220,248,255,0.88)";
-            el.style.letterSpacing = "0.30em";
-          }}
-          onMouseLeave={(e) => {
-            const el = e.currentTarget as HTMLAnchorElement;
-            el.style.color = "rgba(184,240,255,0.50)";
-            el.style.letterSpacing = "0.26em";
-          }}
-        >
-          @MULTISCATTER ↗
-        </a>
-      </div>
-    </div>
-  );
 
   return (
-    <div ref={overlayRef} style={{ position: "fixed", inset: 0, zIndex: 100, opacity: 0, pointerEvents: "none" }}>
-      <div style={{ display: "flex", flexDirection: mobile ? "column" : "row", width: "100%", height: "100%", overflow: "hidden", pointerEvents: "none" }}>
-        {/* Canvas area — transparent so VoidBackground shows through; pointer-events none */}
+    <div
+      ref={overlayRef}
+      style={{
+        position: "fixed", inset: 0, zIndex: 100, opacity: 0,
+        // Semi-transparent tint so model shows through from behind
+        background: "rgba(2,4,14,0.58)",
+        pointerEvents: "none",
+      }}
+    >
+      {/* Left-side reading gradient — improves text contrast without boxing it in */}
+      {!mobile && (
         <div style={{
-          flex: mobile ? "none" : 1,
-          height: mobile ? "47vh" : "100%",
-          flexShrink: 0,
-          position: "relative",
-          background: "transparent",
+          position: "absolute", inset: 0, pointerEvents: "none",
+          background: "linear-gradient(to right, rgba(2,4,14,0.52) 0%, rgba(2,4,14,0.22) 44%, transparent 68%)",
         }} />
-        {/* Info panel — fixed height on mobile to prevent model overlap */}
-        <div data-infopanel="true" style={{
-          flex: mobile ? "none" : "0 0 380px",
-          height: mobile ? "53vh" : "100%",
-          overflowY: "auto",
-          overflowX: "hidden",
-          position: mobile ? "relative" : "sticky",
-          top: 0,
-          background: "rgba(0,5,18,0.97)",
-          borderLeft: mobile ? "none" : "1px solid rgba(184,240,255,0.06)",
-          borderTop: mobile ? "1px solid rgba(184,240,255,0.08)" : "none",
-          pointerEvents: "auto",
-        }}>
-          {infoPanel}
-        </div>
-      </div>
+      )}
 
+      {/* Close — bracket notation, top-right */}
       <button
         onClick={close}
         style={{
           position: "fixed",
-          top: "1.25rem",
-          right: "clamp(1rem, 4vw, 1.75rem)",
-          zIndex: 102,
-          pointerEvents: "auto",
-          background: "transparent",
-          border: "none",
-          color: "rgba(184,240,255,0.55)",
-          ...MON,
-          fontSize: "0.54rem",
-          letterSpacing: "0.34em",
-          padding: "0.6rem 0.5rem",
-          minHeight: "44px",
-          minWidth: "44px",
-          cursor: "pointer",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
+          top: "1.4rem", right: "clamp(1.2rem, 3.5vw, 2rem)",
+          zIndex: 102, pointerEvents: "auto",
+          background: "transparent", border: "none", cursor: "pointer",
+          padding: "0.6rem", margin: "-0.6rem",
+          minHeight: "44px", display: "flex", alignItems: "center", gap: "0.18rem",
+          ...MON, fontSize: "0.50rem", letterSpacing: "0.26em",
+          color: "rgba(184,240,255,0.48)",
           transition: "color 0.2s ease",
         }}
-        onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "rgba(220,248,255,0.95)"; }}
-        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "rgba(184,240,255,0.55)"; }}
+        onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "rgba(220,248,255,0.90)"; }}
+        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "rgba(184,240,255,0.48)"; }}
         aria-label="Close viewer"
       >
-        × CLOSE
+        <span style={{ opacity: 0.50 }}>[</span>
+        <span style={{ margin: "0 0.2em" }}>esc</span>
+        <span style={{ opacity: 0.50 }}>]</span>
       </button>
+
+      {/* Content column — floats over the scene on the left */}
+      <div
+        ref={contentRef}
+        style={{
+          position: "absolute",
+          top: 0, left: 0, bottom: 0,
+          width: mobile ? "100%" : "min(520px, 50vw)",
+          overflowY: "auto", overflowX: "hidden",
+          padding: mobile
+            ? "4.5rem 1.75rem 3.5rem"
+            : "clamp(3.5rem, 8vh, 5.5rem) clamp(2rem, 5vw, 4rem) 3rem",
+          display: "flex", flexDirection: "column",
+          pointerEvents: "auto",
+          opacity: 0,
+        }}
+      >
+        {/* ////// Category header */}
+        <div style={{ marginBottom: "2.2rem" }}>
+          <p style={{ ...MON, fontSize: "0.44rem", letterSpacing: "0.30em", color: "rgba(184,240,255,0.35)", margin: "0 0 0.9rem" }}>
+            ////// {project.category}
+          </p>
+          <h2 style={{
+            fontFamily: "var(--font-geist-sans), sans-serif",
+            fontSize: mobile ? "clamp(1.6rem, 7vw, 2.2rem)" : "clamp(1.8rem, 3.2vw, 2.6rem)",
+            fontWeight: 300, letterSpacing: "0.04em",
+            color: "#eef8ff", margin: "0 0 0.7rem", lineHeight: 1.05,
+            textShadow: "0 0 35px rgba(184,240,255,0.18)",
+          }}>
+            {project.title}
+          </h2>
+          <p style={{ ...MON, fontSize: "0.44rem", letterSpacing: "0.22em", color: "rgba(184,240,255,0.38)", margin: 0 }}>
+            {project.year}
+          </p>
+        </div>
+
+        {/* Divider */}
+        <div style={{ height: "1px", background: "rgba(184,240,255,0.08)", marginBottom: "2rem" }} />
+
+        {/* /// About */}
+        <div style={{ marginBottom: "2.2rem" }}>
+          <p style={{ ...MON, fontSize: "0.44rem", letterSpacing: "0.30em", color: "rgba(184,240,255,0.35)", marginBottom: "0.85rem" }}>
+            /// About
+          </p>
+          <p style={{
+            fontFamily: "var(--font-geist-sans), sans-serif",
+            fontSize: "clamp(0.85rem, 1.2vw, 0.92rem)", lineHeight: 1.9,
+            color: "rgba(200,232,255,0.68)", margin: 0,
+          }}>
+            {project.description ?? "Real-time PBR asset built in Blender — hand-authored textures, production-ready UV unwrap, and a full physically-based material pipeline optimised for WebGL and WebGPU."}
+          </p>
+        </div>
+
+        {/* /// Specifications */}
+        <div style={{ marginBottom: "2.4rem" }}>
+          <p style={{ ...MON, fontSize: "0.44rem", letterSpacing: "0.30em", color: "rgba(184,240,255,0.35)", marginBottom: "0.85rem" }}>
+            /// Specifications
+          </p>
+          {SPECS.map(([label, value]) => (
+            <div key={label} style={{
+              display: "flex", justifyContent: "space-between", alignItems: "baseline",
+              padding: "0.42rem 0",
+              borderBottom: "1px solid rgba(184,240,255,0.05)",
+            }}>
+              <span style={{ ...MON, fontSize: "0.42rem", letterSpacing: "0.16em", color: "rgba(184,240,255,0.44)" }}>
+                {label}
+              </span>
+              <span style={{ ...MON, fontSize: "0.44rem", letterSpacing: "0.11em", color: "rgba(184,240,255,0.78)" }}>
+                {value}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        {/* Footer link */}
+        <div style={{ marginTop: "auto", paddingTop: "1.8rem", borderTop: "1px solid rgba(184,240,255,0.06)" }}>
+          <a
+            href="https://x.com/multiscatter"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              ...MON, fontSize: "0.48rem", letterSpacing: "0.26em",
+              color: "rgba(184,240,255,0.46)", textDecoration: "none",
+              display: "inline-block",
+              transition: "color 0.22s ease",
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.color = "rgba(220,248,255,0.88)"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.color = "rgba(184,240,255,0.46)"; }}
+          >
+            ↗ @multiscatter
+          </a>
+        </div>
+      </div>
     </div>
   );
 }
@@ -846,7 +765,7 @@ function WorkGridContent() {
       workModels.sectionRatio = entry.intersectionRatio;
       // Anchor: fix UI to screen when section fills the viewport
       // Fade in UI when section reaches ~30% visible; never switch position — always fixed
-      setInWorkView(entry.intersectionRatio >= 0.50);
+      setInWorkView(entry.intersectionRatio >= 0.62);
       const ACTIVE_THRESH = 0.55;
       const DEACTIVE_THRESH = 0.35;
       if (entry.isIntersecting && entry.intersectionRatio >= ACTIVE_THRESH && activeTabRef.current === 'models') {

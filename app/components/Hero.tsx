@@ -26,19 +26,27 @@ export default function Hero() {
   const contentRef  = useRef<HTMLDivElement>(null);
   const feBlurRef   = useRef<SVGFEGaussianBlurElement>(null);
 
-  // Directional motion blur driven by scroll velocity
+  // Directional motion blur: SVG vertical-only blur + scaleY stretch for convincing streak
   useEffect(() => {
     let raf: number;
-    let curBlur = 0;
+    let curBlur  = 0;
+    let curScale = 1;
+    let curOpacity = 1;
     function tick() {
       raf = requestAnimationFrame(tick);
       const vel    = Math.abs(voidState.scrollVel);
-      const target = Math.min(vel * 6, 5);
-      curBlur += (target - curBlur) * 0.14;
-      const b = curBlur.toFixed(2);
-      if (feBlurRef.current) feBlurRef.current.setAttribute("stdDeviation", `0 ${b}`);
+      const tBlur  = Math.min(vel * 14, 10);   // max 10px vertical blur
+      const tScale = 1 + Math.min(vel * 0.10, 0.12);  // max 12% vertical stretch
+      const tOpac  = Math.max(1 - vel * 0.18, 0.55);  // dims slightly at speed
+      curBlur    += (tBlur    - curBlur)    * 0.16;
+      curScale   += (tScale   - curScale)   * 0.16;
+      curOpacity += (tOpac    - curOpacity) * 0.16;
+      if (feBlurRef.current) feBlurRef.current.setAttribute("stdDeviation", `0 ${curBlur.toFixed(2)}`);
       if (contentRef.current) {
-        contentRef.current.style.filter = curBlur > 0.08 ? "url(#hero-scroll-blur)" : "";
+        const useFilter = curBlur > 0.12;
+        contentRef.current.style.filter  = useFilter ? "url(#hero-scroll-blur)" : "";
+        contentRef.current.style.transform  = `scaleY(${curScale.toFixed(4)})`;
+        contentRef.current.style.opacity    = curOpacity.toFixed(3);
       }
     }
     raf = requestAnimationFrame(tick);

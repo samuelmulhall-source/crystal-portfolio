@@ -102,20 +102,20 @@ main {
   animation: label-glow-breathe 5.5s ease-in-out infinite;
 }
 
-/* Hero title: tight letterform glow — hugs the text, no cloud blob */
+/* Hero title: internal luminosity — light emanates FROM the letterforms */
 @keyframes hero-glow-pulse {
   0%, 100% {
     text-shadow:
-      0 0 3px  rgba(230,252,255,0.55),
-      0 0 16px rgba(184,240,255,0.22),
-      0 0 44px rgba(184,240,255,0.08);
+      0 0 1px  rgba(255,255,255,0.88),
+      0 0 7px  rgba(210,246,255,0.52),
+      0 0 22px rgba(184,240,255,0.14);
   }
   50% {
     text-shadow:
-      0 0 4px  rgba(240,255,255,0.88),
-      0 0 20px rgba(184,240,255,0.48),
-      0 0 58px rgba(184,240,255,0.18),
-      0 0 110px rgba(184,240,255,0.06);
+      0 0 1px  rgba(255,255,255,0.98),
+      0 0 9px  rgba(220,250,255,0.78),
+      0 0 28px rgba(184,240,255,0.32),
+      0 0 70px rgba(184,240,255,0.06);
   }
 }
 
@@ -127,8 +127,8 @@ main {
   text-align: center;
   white-space: nowrap;
   line-height: 1;
-  color: #f2faff;
-  animation: hero-glow-pulse 6s ease-in-out infinite;
+  color: #f4fbff;
+  animation: hero-glow-pulse 8s ease-in-out infinite;
 }
 
 /* Headings: ice gradient (studio-light-from-above) + slow glow bloom */

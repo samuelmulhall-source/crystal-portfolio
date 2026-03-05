@@ -53,21 +53,7 @@ export default function AboutContact() {
   useEffect(() => {
     gsap.registerPlugin(ScrollTrigger);
 
-    // Fade entire section in as it scrolls into view — prevents overlap with work section
-    gsap.fromTo(sectionRef.current,
-      { opacity: 0 },
-      {
-        opacity: 1,
-        ease: "none",
-        scrollTrigger: {
-          trigger: sectionRef.current,
-          start: "top 88%",
-          end:   "top 48%",
-          scrub: 0.5,
-        },
-      }
-    );
-
+    // Animate individual content elements — section itself always has opaque background
     sectionRef.current?.querySelectorAll(".reveal").forEach((el, i) => {
       gsap.fromTo(el,
         { opacity: 0, y: 28 },
@@ -98,7 +84,7 @@ export default function AboutContact() {
       id="about"
       ref={sectionRef}
       className="section-panel"
-      style={{ position: "relative", padding: "8rem 0 0" }}
+      style={{ position: "relative", zIndex: 2, background: "#05070f", padding: "8rem 0 0" }}
     >
       <div style={{ maxWidth: "1060px", margin: "0 auto", padding: "0 2.5rem 9rem" }}>
 
