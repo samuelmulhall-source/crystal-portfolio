@@ -1,19 +1,16 @@
 "use client";
 
 /**
- * CursorFollower — refractive glass arrow cursor + click particles.
+ * CursorFollower — glass arrow cursor + trailing ring.
  *
- * Arrow   — SVG classic pointer with gradient glass body, bright edge
- *           highlights (simulating a beveled glass prism), tip sparkle,
- *           and a layered CSS filter glow in ice-blue.
+ * Arrow  — SVG pointer with visible glass body, bright lit edges, tip sparkle.
+ * Ring   — thin ice-blue circle that springs behind the arrow tip.
+ *          Contracts on hover (20px → 13px), flashes on click.
  *
  * States:
- *   Default — 1× scale, base glow
- *   Hover   — 1.28× scale (from tip), glow brightens
- *   Click   — particles burst from tip; glow pulses to 3× then decays
- *
- * Canvas  — particles only (screen blend-mode for additive brightness).
- * Desktop-only (no-op on pointer:coarse / touch).
+ *   Default — ring 20px, 0.28 opacity; arrow 1.0×
+ *   Hover   — ring 13px, 0.62 opacity; arrow 1.16×; glow brightens
+ *   Click   — ring flash-expand; particles burst; arrow glow pulse
  */
 
 import { useEffect, useRef } from "react";
@@ -23,8 +20,9 @@ type Particle = { x: number; y: number; vx: number; vy: number; life: number };
 const INTERACT = "a, button, [role=button], input, textarea, label, select, [data-cursor=expand]";
 
 export default function CursorFollower() {
-  const svgRef = useRef<SVGSVGElement>(null);
-  const cvRef  = useRef<HTMLCanvasElement>(null);
+  const svgRef  = useRef<SVGSVGElement>(null);
+  const ringRef = useRef<HTMLDivElement>(null);
+  const cvRef   = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
@@ -33,7 +31,7 @@ export default function CursorFollower() {
     styleTag.textContent = "*, *::before, *::after { cursor: none !important; }";
     document.head.appendChild(styleTag);
 
-    // ── Canvas setup ────────────────────────────────────────────────────────
+    // ── Canvas setup ─────────────────────────────────────────────────────────
     const cv  = cvRef.current!;
     const ctx = cv.getContext("2d")!;
     let dpr   = window.devicePixelRatio || 1;
@@ -54,11 +52,17 @@ export default function CursorFollower() {
     let mouseY = window.innerHeight / 2;
     let onPage = false, hovering = false;
 
-    // Lerped animation values
-    let cScale    = 1.0;   // 1.0 → 1.28 on hover
+    // Arrow state
+    let cScale    = 1.0;
     let cOpacity  = 0;
-    let cBaseGlow = 1.0;   // 1.0 default, 1.6 on hover
-    let cFlash    = 0;     // extra glow from click — decays exponentially
+    let cBaseGlow = 1.0;
+    let cFlash    = 0;
+
+    // Ring state — lags behind mouse for spring feel
+    let rX = mouseX, rY = mouseY;
+    let rRadius  = 20.0;  // px
+    let rOpacity = 0.0;
+    let rFlash   = 0;
 
     const particles: Particle[] = [];
 
@@ -68,9 +72,8 @@ export default function CursorFollower() {
     const onEnter   = () => { onPage = true; };
     const onPtrOver = (e: PointerEvent) => { hovering = !!(e.target as Element).closest(INTERACT); };
     const onDown    = (e: MouseEvent) => {
-      // Glow pulse
       cFlash = 2.4;
-      // Scatter burst from exact click point
+      rFlash = 1.8;
       for (let i = 0; i < 10; i++) {
         const a = (Math.PI * 2 * i / 10) + (Math.random() - 0.5) * 0.6;
         const s = 2.4 + Math.random() * 3.4;
@@ -94,31 +97,49 @@ export default function CursorFollower() {
       lastT = now;
       const f  = Math.min(dt * 60, 6);
 
-      const svg = svgRef.current;
-      if (!svg) return;
+      const svg  = svgRef.current;
+      const ring = ringRef.current;
+      if (!svg || !ring) return;
 
-      // Lerp cursor state
-      const tScale = hovering ? 1.28 : 1.0;
-      const tGlow  = hovering ? 1.6  : 1.0;
-      cScale    += (tScale            - cScale)    * Math.min(0.12 * f, 1);
-      cOpacity  += ((onPage ? 1 : 0)  - cOpacity)  * Math.min(0.15 * f, 1);
-      cBaseGlow += (tGlow             - cBaseGlow)  * Math.min(0.11 * f, 1);
-      // Flash decays exponentially — ~200ms half-life
+      // Arrow lerps
+      const tScale = hovering ? 1.16 : 1.0;
+      const tGlow  = hovering ? 1.55 : 1.0;
+      cScale    += (tScale           - cScale)    * Math.min(0.14 * f, 1);
+      cOpacity  += ((onPage ? 1 : 0) - cOpacity)  * Math.min(0.15 * f, 1);
+      cBaseGlow += (tGlow            - cBaseGlow)  * Math.min(0.11 * f, 1);
       cFlash    *= Math.pow(0.82, f);
 
-      // Apply SVG transform (scale from tip = origin 0,0)
+      // Ring lerps — slower for spring feel
+      rX += (mouseX - rX) * Math.min(0.080 * f, 1);
+      rY += (mouseY - rY) * Math.min(0.080 * f, 1);
+      const tRadius   = hovering ? 13.0 : 20.0;
+      const tROpacity = onPage ? (hovering ? 0.62 : 0.28) : 0;
+      rRadius  += (tRadius   - rRadius)   * Math.min(0.13 * f, 1);
+      rOpacity += (tROpacity - rOpacity)  * Math.min(0.13 * f, 1);
+      rFlash   *= Math.pow(0.76, f);
+
+      // Apply arrow
       svg.style.transform = `translate(${mouseX}px,${mouseY}px) scale(${cScale.toFixed(4)})`;
       svg.style.opacity   = cOpacity.toFixed(3);
 
-      // Layered ice-blue drop-shadow glow — three radii for soft falloff
       const g = Math.max(cBaseGlow + cFlash, 0);
       svg.style.filter = [
-        `drop-shadow(0 0 ${(4  * g).toFixed(1)}px rgba(215,240,255,${Math.min(0.70 * g, 1.00).toFixed(2)}))`,
-        `drop-shadow(0 0 ${(14 * g).toFixed(1)}px rgba(184,240,255,${Math.min(0.38 * g, 0.90).toFixed(2)}))`,
-        `drop-shadow(0 0 ${(38 * g).toFixed(1)}px rgba(184,240,255,${Math.min(0.14 * g, 0.45).toFixed(2)}))`,
+        `drop-shadow(0 0 ${(3  * g).toFixed(1)}px rgba(215,240,255,${Math.min(0.65 * g, 1.00).toFixed(2)}))`,
+        `drop-shadow(0 0 ${(12 * g).toFixed(1)}px rgba(184,240,255,${Math.min(0.35 * g, 0.90).toFixed(2)}))`,
+        `drop-shadow(0 0 ${(32 * g).toFixed(1)}px rgba(184,240,255,${Math.min(0.12 * g, 0.45).toFixed(2)}))`,
       ].join(" ");
 
-      // ── Canvas: scatter particles ─────────────────────────────────────────
+      // Apply ring — offset by radius so ring is centered on cursor
+      const rop = Math.min(rOpacity + rFlash * 0.7, 1.0);
+      const rr  = rFlash > 0.1 ? rRadius + rFlash * 7 : rRadius;
+      const rd  = rr * 2;
+      ring.style.transform    = `translate(${(rX - rr).toFixed(1)}px,${(rY - rr).toFixed(1)}px)`;
+      ring.style.width        = `${rd.toFixed(1)}px`;
+      ring.style.height       = `${rd.toFixed(1)}px`;
+      ring.style.opacity      = (cOpacity * rop).toFixed(3);
+      ring.style.borderColor  = `rgba(184,240,255,${Math.min(rop + 0.1, 1).toFixed(2)})`;
+
+      // Canvas — particles
       ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
       for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i];
@@ -146,20 +167,33 @@ export default function CursorFollower() {
     };
   }, []);
 
-  // Classic cursor shape — tip at (0,0), pointing upper-left.
-  // viewBox "0 0 12 19.5" rendered at 24×39 CSS px (2× for sharpness).
-  // Three overlaid paths:
-  //   1. Gradient fill  — glassy translucent body
-  //   2. Spec fill      — radial highlight near tip (refracted light pool)
-  //   3. Edge highlight — bright leading edges (lit side of the glass prism)
-  //   4. Tip sparkle    — white dot at the hotspot
   return (
     <>
+      {/* ── Trailing ring — springs behind arrow, contracts on hover ─────── */}
+      <div
+        ref={ringRef}
+        aria-hidden="true"
+        style={{
+          position:      "fixed",
+          top:           0,
+          left:          0,
+          borderRadius:  "50%",
+          border:        "1px solid rgba(184,240,255,0)",
+          pointerEvents: "none",
+          zIndex:        9998,
+          willChange:    "transform, width, height, border-color, opacity",
+          opacity:       0,
+        }}
+      />
+
+      {/* ── Glass arrow — tip at (0,0), pointing upper-left ─────────────── */}
+      {/*    viewBox 0 0 12 19.5 → rendered at 16×26 CSS px                  */}
+      {/*    Three layers: gradient body, radial spec, lit edges, tip dot      */}
       <svg
         ref={svgRef}
         aria-hidden="true"
-        width="15"
-        height="24"
+        width="16"
+        height="26"
         viewBox="0 0 12 19.5"
         style={{
           position:        "fixed",
@@ -174,16 +208,16 @@ export default function CursorFollower() {
         }}
       >
         <defs>
-          {/* Gradient fill: bright ice at tip, dims toward tail */}
+          {/* Gradient fill — visible glass body, bright at tip */}
           <linearGradient id="gc-body" x1="0" y1="0" x2="12" y2="19.5" gradientUnits="userSpaceOnUse">
-            <stop offset="0%"   stopColor="#cce8ff" stopOpacity="0.24" />
-            <stop offset="50%"  stopColor="#9ec8f0" stopOpacity="0.10" />
-            <stop offset="100%" stopColor="#78aae0" stopOpacity="0.03" />
+            <stop offset="0%"   stopColor="#cce8ff" stopOpacity="0.70" />
+            <stop offset="45%"  stopColor="#9ec8f0" stopOpacity="0.32" />
+            <stop offset="100%" stopColor="#78aae0" stopOpacity="0.09" />
           </linearGradient>
-          {/* Radial spec: refracted-light pool near the tip */}
+          {/* Radial spec — refracted-light pool near tip */}
           <radialGradient id="gc-spec" cx="1.8" cy="1.8" r="6.5" gradientUnits="userSpaceOnUse">
-            <stop offset="0%"   stopColor="white" stopOpacity="0.20" />
-            <stop offset="70%"  stopColor="white" stopOpacity="0.04" />
+            <stop offset="0%"   stopColor="white" stopOpacity="0.35" />
+            <stop offset="70%"  stopColor="white" stopOpacity="0.07" />
             <stop offset="100%" stopColor="white" stopOpacity="0"    />
           </radialGradient>
         </defs>
@@ -192,7 +226,7 @@ export default function CursorFollower() {
         <path
           d="M 0,0 L 0,17 L 4.5,13 L 7,18.5 L 9,17.5 L 6.5,12 L 12,12 Z"
           fill="url(#gc-body)"
-          stroke="rgba(255,255,255,0.55)"
+          stroke="rgba(255,255,255,0.75)"
           strokeWidth="0.65"
           strokeLinejoin="round"
         />
@@ -202,20 +236,20 @@ export default function CursorFollower() {
           fill="url(#gc-spec)"
           stroke="none"
         />
-        {/* Lit leading edges — top + left face the implied light source */}
+        {/* Lit leading edges — top + left face the light source */}
         <path
           d="M 12,12 L 0,0 L 0,17 L 4.5,13"
           fill="none"
-          stroke="rgba(255,255,255,0.86)"
-          strokeWidth="0.80"
+          stroke="rgba(255,255,255,0.92)"
+          strokeWidth="0.82"
           strokeLinecap="round"
           strokeLinejoin="round"
         />
-        {/* Tip sparkle at the hotspot */}
-        <circle cx="0" cy="0" r="0.90" fill="white" opacity="0.90" />
+        {/* Tip sparkle */}
+        <circle cx="0" cy="0" r="1.0" fill="white" opacity="0.95" />
       </svg>
 
-      {/* Canvas — particles only, screen-blended for additive brightness */}
+      {/* Canvas — particles only, additive blend */}
       <canvas
         ref={cvRef}
         aria-hidden="true"

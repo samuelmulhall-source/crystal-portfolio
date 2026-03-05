@@ -135,7 +135,7 @@ function FullscreenViewer({
       {/* ── Category + year ── */}
       <p style={{
         ...MON, fontSize: "0.44rem", letterSpacing: "0.38em",
-        color: "rgba(184,240,255,0.35)", marginBottom: "0.8rem", marginTop: 0,
+        color: "rgba(184,240,255,0.62)", marginBottom: "0.8rem", marginTop: 0,
       }}>
         {project.category} — {project.year}
       </p>
@@ -172,14 +172,14 @@ function FullscreenViewer({
       <div style={{ height: "1px", background: "rgba(184,240,255,0.06)", marginBottom: "clamp(1.25rem,2vw,1.75rem)" }} />
 
       {/* ── Description ── */}
-      <p style={{ ...MON, fontSize: "0.42rem", letterSpacing: "0.22em", color: "rgba(184,240,255,0.32)", marginBottom: "0.7rem", marginTop: 0 }}>
+      <p style={{ ...MON, fontSize: "0.42rem", letterSpacing: "0.22em", color: "rgba(184,240,255,0.60)", marginBottom: "0.7rem", marginTop: 0 }}>
         ABOUT
       </p>
       <p
         style={{
           fontFamily: "var(--font-geist-sans), sans-serif",
           fontSize: "0.92rem", lineHeight: 1.85,
-          color: "rgba(200,232,255,0.62)", margin: "0 0 clamp(1.5rem,2.5vw,2rem)",
+          color: "rgba(200,232,255,0.82)", margin: "0 0 clamp(1.5rem,2.5vw,2rem)",
           transition: "color 0.4s ease",
           cursor: "default",
         }}
@@ -190,7 +190,7 @@ function FullscreenViewer({
       </p>
 
       {/* ── Technical specifications ── */}
-      <p style={{ ...MON, fontSize: "0.42rem", letterSpacing: "0.22em", color: "rgba(184,240,255,0.32)", marginBottom: "0.9rem", marginTop: 0 }}>
+      <p style={{ ...MON, fontSize: "0.42rem", letterSpacing: "0.22em", color: "rgba(184,240,255,0.60)", marginBottom: "0.9rem", marginTop: 0 }}>
         SPECIFICATIONS
       </p>
       <div style={{ display: "flex", flexDirection: "column", gap: "0.55rem", marginBottom: "clamp(1.5rem,2.5vw,2rem)" }}>
@@ -207,11 +207,11 @@ function FullscreenViewer({
             onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(184,240,255,0.12)"; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(184,240,255,0.04)"; }}
           >
-            <span style={{ ...MON, fontSize: "0.44rem", letterSpacing: "0.16em", color: "rgba(184,240,255,0.32)" }}>{label}</span>
+            <span style={{ ...MON, fontSize: "0.44rem", letterSpacing: "0.16em", color: "rgba(184,240,255,0.58)" }}>{label}</span>
             <span
-              style={{ ...MON, fontSize: "0.46rem", letterSpacing: "0.12em", color: "rgba(184,240,255,0.60)", transition: "color 0.3s ease" }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLSpanElement).style.color = "rgba(184,240,255,0.88)"; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLSpanElement).style.color = "rgba(184,240,255,0.60)"; }}
+              style={{ ...MON, fontSize: "0.46rem", letterSpacing: "0.12em", color: "rgba(184,240,255,0.82)", transition: "color 0.3s ease" }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLSpanElement).style.color = "rgba(184,240,255,1.0)"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLSpanElement).style.color = "rgba(184,240,255,0.82)"; }}
             >
               {value}
             </span>
@@ -227,21 +227,21 @@ function FullscreenViewer({
             style={{
               ...MON, fontSize: "0.42rem", letterSpacing: "0.14em",
               padding: "0.3rem 0.62rem",
-              border: "1px solid rgba(184,240,255,0.09)",
-              color: "rgba(184,240,255,0.40)",
+              border: "1px solid rgba(184,240,255,0.12)",
+              color: "rgba(184,240,255,0.65)",
               cursor: "default",
               transition: "border-color 0.25s ease, color 0.25s ease, transform 0.25s ease",
             }}
             onMouseEnter={(e) => {
               const el = e.currentTarget as HTMLSpanElement;
-              el.style.borderColor = "rgba(184,240,255,0.28)";
-              el.style.color       = "rgba(184,240,255,0.75)";
+              el.style.borderColor = "rgba(184,240,255,0.35)";
+              el.style.color       = "rgba(184,240,255,0.95)";
               el.style.transform   = "translateY(-1px)";
             }}
             onMouseLeave={(e) => {
               const el = e.currentTarget as HTMLSpanElement;
-              el.style.borderColor = "rgba(184,240,255,0.09)";
-              el.style.color       = "rgba(184,240,255,0.40)";
+              el.style.borderColor = "rgba(184,240,255,0.12)";
+              el.style.color       = "rgba(184,240,255,0.65)";
               el.style.transform   = "";
             }}
           >
@@ -644,18 +644,18 @@ function WorkTabButtons({
             ...MON,
             fontSize:     "clamp(0.58rem, 1.5vw, 0.68rem)",
             letterSpacing: "0.18em",
-            color: activeTab === tab ? "rgba(220,248,255,0.95)" : "rgba(184,240,255,0.52)",
+            color: activeTab === tab ? "rgba(220,248,255,0.95)" : "rgba(184,240,255,0.72)",
             transition:   "color 0.25s, border-color 0.25s, box-shadow 0.25s",
             whiteSpace:   "nowrap",
           }}
           onMouseEnter={(e) => {
             const el = e.currentTarget as HTMLButtonElement;
-            if (activeTab !== tab) el.style.color = "rgba(184,240,255,0.85)";
+            if (activeTab !== tab) el.style.color = "rgba(220,248,255,0.95)";
             el.style.boxShadow = "0 0 20px rgba(184,240,255,0.08)";
           }}
           onMouseLeave={(e) => {
             const el = e.currentTarget as HTMLButtonElement;
-            if (activeTab !== tab) el.style.color = "rgba(184,240,255,0.52)";
+            if (activeTab !== tab) el.style.color = "rgba(184,240,255,0.72)";
             el.style.boxShadow = "none";
           }}
         >
@@ -1039,9 +1039,9 @@ function WorkGridContent() {
             ref={modelListRef}
             style={{
               position:      "fixed",
-              pointerEvents: inWorkView ? "auto" : "none",
-              opacity:       inWorkView ? 1 : 0,
-              transition:    "opacity 0.35s ease",
+              pointerEvents: (inWorkView && activeTab === 'models') ? "auto" : "none",
+              opacity:       (inWorkView && activeTab === 'models') ? 1 : 0,
+              transition:    "opacity 0.22s cubic-bezier(0.22,1,0.36,1)",
               zIndex:        4,
               ...(isNarrow
                 ? {
@@ -1115,20 +1115,20 @@ function WorkGridContent() {
                       cursor: "pointer", padding: "0.8rem 0.4rem",
                       borderTop: `1px solid rgba(184,240,255,${active ? 0.14 : 0.05})`,
                       display: "flex", alignItems: "center", gap: "0.85rem",
-                      opacity: active ? 1 : 0.5,
-                      transition: "opacity 0.25s ease, transform 0.25s cubic-bezier(0.22,1,0.36,1)",
+                      opacity: active ? 1 : 0.72,
+                      transition: "opacity 0.22s cubic-bezier(0.22,1,0.36,1), transform 0.22s cubic-bezier(0.22,1,0.36,1)",
                     }}
                     onMouseEnter={e => {
                       const el = e.currentTarget as HTMLDivElement;
                       if (!active) {
-                        el.style.opacity   = "0.80";
+                        el.style.opacity   = "0.90";
                         el.style.transform = "translateX(3px)";
                       }
                     }}
                     onMouseLeave={e => {
                       const el = e.currentTarget as HTMLDivElement;
                       if (!active) {
-                        el.style.opacity   = "0.5";
+                        el.style.opacity   = "0.72";
                         el.style.transform = "";
                       }
                     }}
@@ -1157,7 +1157,7 @@ function WorkGridContent() {
                         transition: "width 0.3s ease, background 0.3s ease",
                       }} />
                     </div>
-                    <span style={{ ...MON, fontSize: "0.52rem", letterSpacing: "0.28em", color: "rgba(184,240,255,0.45)", flexShrink: 0, minWidth: "1.2rem" }}>
+                    <span style={{ ...MON, fontSize: "0.52rem", letterSpacing: "0.28em", color: "rgba(184,240,255,0.60)", flexShrink: 0, minWidth: "1.2rem" }}>
                       {String(i + 1).padStart(2, "0")}
                     </span>
                     <div style={{ flex: 1 }}>
@@ -1165,11 +1165,11 @@ function WorkGridContent() {
                         fontFamily: "var(--font-geist-sans), sans-serif",
                         fontSize: "clamp(0.8rem, 1.2vw, 0.92rem)", fontWeight: active ? 400 : 300,
                         letterSpacing: "0.03em",
-                        color: active ? "rgba(220,248,255,0.95)" : "rgba(184,240,255,0.72)",
+                        color: active ? "rgba(220,248,255,0.95)" : "rgba(184,240,255,0.88)",
                         textShadow: active ? "0 0 16px rgba(184,240,255,0.30)" : "none",
                         transition: "color 0.25s ease, text-shadow 0.25s ease", marginBottom: "0.2rem",
                       }}>{p.title}</div>
-                      <div style={{ ...MON, fontSize: "0.62rem", letterSpacing: "0.16em", color: active ? "rgba(184,240,255,0.55)" : "rgba(184,240,255,0.4)", transition: "color 0.25s ease" }}>
+                      <div style={{ ...MON, fontSize: "0.62rem", letterSpacing: "0.16em", color: active ? "rgba(184,240,255,0.62)" : "rgba(184,240,255,0.58)", transition: "color 0.22s ease" }}>
                         {p.year}
                       </div>
                     </div>
@@ -1232,33 +1232,36 @@ function WorkGridContent() {
         </>
       )}
 
-      {/* ── Videos tab content ── */}
-      {activeTab === 'videos' && (
-        <div style={{
-          position: "absolute",
-          top: "clamp(155px, 22vh, 195px)",
-          left: 0, right: 0, bottom: 0,
-          display: "flex",
-          alignItems: "center",
-          zIndex: 2,
-        }}>
-          <VideosContent visible={activeTab === 'videos'} isNarrow={isNarrow} />
-        </div>
-      )}
+      {/* ── Videos tab content — always mounted, opacity-toggled for smooth transition ── */}
+      <div style={{
+        position: "absolute",
+        top: "clamp(155px, 22vh, 195px)",
+        left: 0, right: 0, bottom: 0,
+        display: "flex",
+        alignItems: "center",
+        zIndex: 2,
+        opacity:       activeTab === 'videos' ? 1 : 0,
+        transform:     `translateY(${activeTab === 'videos' ? 0 : 8}px)`,
+        pointerEvents: activeTab === 'videos' ? "auto" : "none",
+        transition:    "opacity 0.20s cubic-bezier(0.22,1,0.36,1), transform 0.20s cubic-bezier(0.22,1,0.36,1)",
+      }}>
+        <VideosContent visible={activeTab === 'videos'} isNarrow={isNarrow} />
+      </div>
 
-      {/* ── Images tab content ── */}
-      {activeTab === 'images' && (
-        <div style={{
-          position: "absolute",
-          // Respect header + tab height before showing images
-          top: "clamp(155px, 22vh, 195px)",
-          left: 0, right: 0, bottom: 0,
-          zIndex: 2,
-          overflowY: "auto",
-        }}>
-          <ImagesContent />
-        </div>
-      )}
+      {/* ── Images tab content — always mounted, opacity-toggled ── */}
+      <div style={{
+        position: "absolute",
+        top: "clamp(155px, 22vh, 195px)",
+        left: 0, right: 0, bottom: 0,
+        zIndex: 2,
+        overflowY: activeTab === 'images' ? "auto" : "hidden",
+        opacity:       activeTab === 'images' ? 1 : 0,
+        transform:     `translateY(${activeTab === 'images' ? 0 : 8}px)`,
+        pointerEvents: activeTab === 'images' ? "auto" : "none",
+        transition:    "opacity 0.20s cubic-bezier(0.22,1,0.36,1), transform 0.20s cubic-bezier(0.22,1,0.36,1)",
+      }}>
+        <ImagesContent />
+      </div>
 
       {/* ── Fullscreen viewer — via portal so it escapes section stacking/overflow ── */}
       {viewer && typeof document !== "undefined" && createPortal(
