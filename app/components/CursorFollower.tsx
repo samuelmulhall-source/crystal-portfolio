@@ -1,16 +1,21 @@
 "use client";
 
 /**
- * CursorFollower — glass arrow cursor + trailing ring.
+ * CursorFollower — tinted glass arrow cursor.
  *
- * Arrow  — SVG pointer with visible glass body, bright lit edges, tip sparkle.
- * Ring   — thin ice-blue circle that springs behind the arrow tip.
- *          Contracts on hover (20px → 13px), flashes on click.
+ * Arrow  — SVG pointer with layered glass body:
+ *            1. Linear gradient body (ice-blue tint, clearly opaque)
+ *            2. Radial caustic near tip (refracted-light pool)
+ *            3. Refraction fringe (slightly scaled path, chromatic stroke)
+ *            4. Lit leading edges (bright white)
+ *            5. Tip sparkle
  *
- * States:
- *   Default — ring 20px, 0.28 opacity; arrow 1.0×
- *   Hover   — ring 13px, 0.62 opacity; arrow 1.16×; glow brightens
- *   Click   — ring flash-expand; particles burst; arrow glow pulse
+ * Holo-ring — appears on hover over interactive elements, cycles through
+ *             spectral colours via CSS animation defined in globals.css.
+ *
+ * Drag tilt — CSS 3D perspective tilt driven by drag velocity via spring.
+ *
+ * Canvas    — click particles only (no trailing ring).
  */
 
 import { useEffect, useRef } from "react";
@@ -20,9 +25,9 @@ type Particle = { x: number; y: number; vx: number; vy: number; life: number };
 const INTERACT = "a, button, [role=button], input, textarea, label, select, [data-cursor=expand]";
 
 export default function CursorFollower() {
-  const svgRef  = useRef<SVGSVGElement>(null);
-  const ringRef = useRef<HTMLDivElement>(null);
-  const cvRef   = useRef<HTMLCanvasElement>(null);
+  const svgRef      = useRef<SVGSVGElement>(null);
+  const holoRingRef = useRef<HTMLDivElement>(null);
+  const cvRef       = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
@@ -50,6 +55,7 @@ export default function CursorFollower() {
     // ── State ────────────────────────────────────────────────────────────────
     let mouseX = window.innerWidth  / 2;
     let mouseY = window.innerHeight / 2;
+    let lastMX = mouseX, lastMY = mouseY;
     let onPage = false, hovering = false;
 
     // Arrow state
@@ -58,34 +64,51 @@ export default function CursorFollower() {
     let cBaseGlow = 1.0;
     let cFlash    = 0;
 
-    // Ring state — lags behind mouse for spring feel
-    let rX = mouseX, rY = mouseY;
-    let rRadius  = 20.0;  // px
-    let rOpacity = 0.0;
-    let rFlash   = 0;
+    // Holo-ring state
+    let hOpacity = 0;
+
+    // Drag tilt state
+    let isDragging = false;
+    let dragVX = 0, dragVY = 0;
+    let curRotX = 0, curRotY = 0;
+    let rotVelX = 0, rotVelY = 0;
 
     const particles: Particle[] = [];
 
     // ── Events ───────────────────────────────────────────────────────────────
-    const onMove    = (e: MouseEvent) => { mouseX = e.clientX; mouseY = e.clientY; onPage = true; };
+    const onMove = (e: MouseEvent) => {
+      if (isDragging) {
+        const dx = e.clientX - lastMX;
+        const dy = e.clientY - lastMY;
+        dragVX = dragVX * 0.55 + dx * 0.45;
+        dragVY = dragVY * 0.55 + dy * 0.45;
+      }
+      lastMX = e.clientX; lastMY = e.clientY;
+      mouseX = e.clientX; mouseY = e.clientY;
+      onPage = true;
+    };
     const onLeave   = () => { onPage = false; };
     const onEnter   = () => { onPage = true; };
     const onPtrOver = (e: PointerEvent) => { hovering = !!(e.target as Element).closest(INTERACT); };
     const onDown    = (e: MouseEvent) => {
+      isDragging = true;
+      lastMX = e.clientX; lastMY = e.clientY;
+      dragVX = 0; dragVY = 0;
       cFlash = 2.4;
-      rFlash = 1.8;
       for (let i = 0; i < 10; i++) {
         const a = (Math.PI * 2 * i / 10) + (Math.random() - 0.5) * 0.6;
         const s = 2.4 + Math.random() * 3.4;
         particles.push({ x: e.clientX, y: e.clientY, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 1 });
       }
     };
+    const onUp = () => { isDragging = false; };
 
     document.addEventListener("mousemove",   onMove,    { passive: true });
     document.addEventListener("mouseleave",  onLeave);
     document.addEventListener("mouseenter",  onEnter);
     document.addEventListener("pointerover", onPtrOver, { passive: true });
     document.addEventListener("mousedown",   onDown,    { passive: true });
+    document.addEventListener("mouseup",     onUp,      { passive: true });
 
     // ── Render loop ──────────────────────────────────────────────────────────
     let raf: number;
@@ -97,9 +120,9 @@ export default function CursorFollower() {
       lastT = now;
       const f  = Math.min(dt * 60, 6);
 
-      const svg  = svgRef.current;
-      const ring = ringRef.current;
-      if (!svg || !ring) return;
+      const svg      = svgRef.current;
+      const holoRing = holoRingRef.current;
+      if (!svg) return;
 
       // Arrow lerps
       const tScale = hovering ? 1.16 : 1.0;
@@ -109,35 +132,47 @@ export default function CursorFollower() {
       cBaseGlow += (tGlow            - cBaseGlow)  * Math.min(0.11 * f, 1);
       cFlash    *= Math.pow(0.82, f);
 
-      // Ring lerps — slower for spring feel
-      rX += (mouseX - rX) * Math.min(0.080 * f, 1);
-      rY += (mouseY - rY) * Math.min(0.080 * f, 1);
-      const tRadius   = hovering ? 13.0 : 20.0;
-      const tROpacity = onPage ? (hovering ? 0.62 : 0.28) : 0;
-      rRadius  += (tRadius   - rRadius)   * Math.min(0.13 * f, 1);
-      rOpacity += (tROpacity - rOpacity)  * Math.min(0.13 * f, 1);
-      rFlash   *= Math.pow(0.76, f);
+      // Drag velocity decay when not dragging
+      if (!isDragging) {
+        dragVX *= Math.pow(0.85, f);
+        dragVY *= Math.pow(0.85, f);
+      }
 
-      // Apply arrow
-      svg.style.transform = `translate(${mouseX}px,${mouseY}px) scale(${cScale.toFixed(4)})`;
-      svg.style.opacity   = cOpacity.toFixed(3);
+      // Drag tilt spring (K=180, D=14)
+      const tRotX = isDragging ? Math.max(-22, Math.min(22, -dragVY * 0.06)) : 0;
+      const tRotY = isDragging ? Math.max(-22, Math.min(22,  dragVX * 0.06)) : 0;
+      rotVelX += (tRotX - curRotX) * 180 * dt;
+      rotVelX -= rotVelX * 14 * dt;
+      curRotX += rotVelX * dt;
+      rotVelY += (tRotY - curRotY) * 180 * dt;
+      rotVelY -= rotVelY * 14 * dt;
+      curRotY += rotVelY * dt;
+
+      // Holo-ring opacity lerp
+      hOpacity += ((hovering ? 1 : 0) - hOpacity) * Math.min(0.12 * f, 1);
+
+      // Apply arrow with optional 3D perspective tilt
+      const hasTilt = Math.abs(curRotX) > 0.1 || Math.abs(curRotY) > 0.1;
+      if (hasTilt) {
+        svg.style.transform = `translate(${mouseX}px,${mouseY}px) scale(${cScale.toFixed(4)}) perspective(120px) rotateX(${curRotX.toFixed(2)}deg) rotateY(${curRotY.toFixed(2)}deg)`;
+      } else {
+        svg.style.transform = `translate(${mouseX}px,${mouseY}px) scale(${cScale.toFixed(4)})`;
+      }
+      svg.style.opacity = cOpacity.toFixed(3);
 
       const g = Math.max(cBaseGlow + cFlash, 0);
       svg.style.filter = [
         `drop-shadow(0 0 ${(3  * g).toFixed(1)}px rgba(215,240,255,${Math.min(0.65 * g, 1.00).toFixed(2)}))`,
         `drop-shadow(0 0 ${(12 * g).toFixed(1)}px rgba(184,240,255,${Math.min(0.35 * g, 0.90).toFixed(2)}))`,
-        `drop-shadow(0 0 ${(32 * g).toFixed(1)}px rgba(184,240,255,${Math.min(0.12 * g, 0.45).toFixed(2)}))`,
+        `drop-shadow(0 0 ${(28 * g).toFixed(1)}px rgba(184,240,255,${Math.min(0.12 * g, 0.45).toFixed(2)}))`,
       ].join(" ");
 
-      // Apply ring — offset by radius so ring is centered on cursor
-      const rop = Math.min(rOpacity + rFlash * 0.7, 1.0);
-      const rr  = rFlash > 0.1 ? rRadius + rFlash * 7 : rRadius;
-      const rd  = rr * 2;
-      ring.style.transform    = `translate(${(rX - rr).toFixed(1)}px,${(rY - rr).toFixed(1)}px)`;
-      ring.style.width        = `${rd.toFixed(1)}px`;
-      ring.style.height       = `${rd.toFixed(1)}px`;
-      ring.style.opacity      = (cOpacity * rop).toFixed(3);
-      ring.style.borderColor  = `rgba(184,240,255,${Math.min(rop + 0.1, 1).toFixed(2)})`;
+      // Holo-ring — centres on cursor tip
+      if (holoRing) {
+        const hr = 13; // half of 26px diameter
+        holoRing.style.transform = `translate(${(mouseX - hr).toFixed(1)}px,${(mouseY - hr).toFixed(1)}px)`;
+        holoRing.style.opacity   = (cOpacity * hOpacity).toFixed(3);
+      }
 
       // Canvas — particles
       ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
@@ -164,31 +199,37 @@ export default function CursorFollower() {
       document.removeEventListener("mouseenter",  onEnter);
       document.removeEventListener("pointerover", onPtrOver);
       document.removeEventListener("mousedown",   onDown);
+      document.removeEventListener("mouseup",     onUp);
     };
   }, []);
 
   return (
     <>
-      {/* ── Trailing ring — springs behind arrow, contracts on hover ─────── */}
+      {/* ── Holo-ring — spectral colour cycle on interactive hover ───────── */}
       <div
-        ref={ringRef}
+        ref={holoRingRef}
         aria-hidden="true"
         style={{
           position:      "fixed",
           top:           0,
           left:          0,
+          width:         "26px",
+          height:        "26px",
           borderRadius:  "50%",
-          border:        "1px solid rgba(184,240,255,0)",
+          border:        "1px solid transparent",
+          background:    "transparent",
           pointerEvents: "none",
           zIndex:        9998,
-          willChange:    "transform, width, height, border-color, opacity",
+          willChange:    "transform, opacity",
           opacity:       0,
+          animation:     "holo-ring-cycle 1.8s linear infinite",
         }}
       />
 
       {/* ── Glass arrow — tip at (0,0), pointing upper-left ─────────────── */}
       {/*    viewBox 0 0 12 19.5 → rendered at 16×26 CSS px                  */}
-      {/*    Three layers: gradient body, radial spec, lit edges, tip dot      */}
+      {/*    Five layers: gradient body, caustic, refraction fringe,           */}
+      {/*                 lit edges, tip sparkle                               */}
       <svg
         ref={svgRef}
         aria-hidden="true"
@@ -208,21 +249,21 @@ export default function CursorFollower() {
         }}
       >
         <defs>
-          {/* Gradient fill — visible glass body, bright at tip */}
+          {/* Layer 1 — tinted glass body: ice-blue, clearly visible */}
           <linearGradient id="gc-body" x1="0" y1="0" x2="12" y2="19.5" gradientUnits="userSpaceOnUse">
-            <stop offset="0%"   stopColor="#cce8ff" stopOpacity="0.70" />
-            <stop offset="45%"  stopColor="#9ec8f0" stopOpacity="0.32" />
-            <stop offset="100%" stopColor="#78aae0" stopOpacity="0.09" />
+            <stop offset="0%"   stopColor="#a8d8f8" stopOpacity="0.58" />
+            <stop offset="42%"  stopColor="#7ab8e8" stopOpacity="0.26" />
+            <stop offset="100%" stopColor="#5090c0" stopOpacity="0.06" />
           </linearGradient>
-          {/* Radial spec — refracted-light pool near tip */}
-          <radialGradient id="gc-spec" cx="1.8" cy="1.8" r="6.5" gradientUnits="userSpaceOnUse">
-            <stop offset="0%"   stopColor="white" stopOpacity="0.35" />
-            <stop offset="70%"  stopColor="white" stopOpacity="0.07" />
+          {/* Layer 2 — inner light caustic: refracted-light pool near tip */}
+          <radialGradient id="gc-caustic" cx="2" cy="2.5" r="7" gradientUnits="userSpaceOnUse">
+            <stop offset="0%"   stopColor="white" stopOpacity="0.45" />
+            <stop offset="60%"  stopColor="white" stopOpacity="0.08" />
             <stop offset="100%" stopColor="white" stopOpacity="0"    />
           </radialGradient>
         </defs>
 
-        {/* Glass body */}
+        {/* Layer 1 — glass body */}
         <path
           d="M 0,0 L 0,17 L 4.5,13 L 7,18.5 L 9,17.5 L 6.5,12 L 12,12 Z"
           fill="url(#gc-body)"
@@ -230,13 +271,22 @@ export default function CursorFollower() {
           strokeWidth="0.65"
           strokeLinejoin="round"
         />
-        {/* Refracted-light spec overlay */}
+        {/* Layer 2 — caustic light pool */}
         <path
           d="M 0,0 L 0,17 L 4.5,13 L 7,18.5 L 9,17.5 L 6.5,12 L 12,12 Z"
-          fill="url(#gc-spec)"
+          fill="url(#gc-caustic)"
           stroke="none"
         />
-        {/* Lit leading edges — top + left face the light source */}
+        {/* Layer 3 — refraction fringe: slightly scaled path, chromatic edge */}
+        <path
+          d="M 0,0 L 0,17 L 4.5,13 L 7,18.5 L 9,17.5 L 6.5,12 L 12,12 Z"
+          transform="scale(1.06) translate(-0.2,-0.1)"
+          fill="none"
+          stroke="rgba(150,230,255,0.18)"
+          strokeWidth="0.6"
+          strokeLinejoin="round"
+        />
+        {/* Layer 4 — lit leading edges: top + left face the light source */}
         <path
           d="M 12,12 L 0,0 L 0,17 L 4.5,13"
           fill="none"
@@ -245,8 +295,8 @@ export default function CursorFollower() {
           strokeLinecap="round"
           strokeLinejoin="round"
         />
-        {/* Tip sparkle */}
-        <circle cx="0" cy="0" r="1.0" fill="white" opacity="0.95" />
+        {/* Layer 5 — tip sparkle */}
+        <circle cx="0" cy="0" r="1.1" fill="white" opacity="0.95" />
       </svg>
 
       {/* Canvas — particles only, additive blend */}

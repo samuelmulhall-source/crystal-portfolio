@@ -43,4 +43,9 @@ export const voidState = {
   // Written by the active VoidModel each frame. EffectsOverlay and
   // StarHoverSystem suppress hover effects inside this circle.
   modelRegion: { x: 0, y: 0, rPx: 0 },
+
+  // ── Model entrance progress ───────────────────────────────────────────────
+  // Written by VoidModel's useFrame as the model materialises (0=start, 1=done).
+  // Read by EffectsOverlay to draw the scan-line sweep.
+  modelEntranceProgress: 0,
 };

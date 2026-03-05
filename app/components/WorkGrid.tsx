@@ -87,7 +87,12 @@ function FullscreenViewer({
   useEffect(() => {
     const el = overlayRef.current;
     if (!el) return;
-    gsap.fromTo(el, { opacity: 0 }, { opacity: 1, duration: 0.4 });
+    gsap.fromTo(el, { opacity: 0 }, { opacity: 1, duration: 0.32, ease: "power2.out" });
+    const panel = el.querySelector<HTMLElement>("[data-infopanel]");
+    if (panel) gsap.fromTo(panel,
+      { x: 28, opacity: 0 },
+      { x: 0, opacity: 1, duration: 0.40, ease: "power2.out", delay: 0.08 }
+    );
   }, []);
 
   const close = useCallback(() => {
@@ -292,7 +297,7 @@ function FullscreenViewer({
           background: "transparent",
         }} />
         {/* Info panel — fixed height on mobile to prevent model overlap */}
-        <div style={{
+        <div data-infopanel="true" style={{
           flex: mobile ? "none" : "0 0 380px",
           height: mobile ? "53vh" : "100%",
           overflowY: "auto",
@@ -939,7 +944,7 @@ function WorkGridContent() {
         overflow: "hidden",
         background: "transparent",
         // Subtle inset frame reinforces the "anchored HUD viewport" feel
-        boxShadow: "inset 0 0 0 1px rgba(184,240,255,0.04), inset 0 40px 80px rgba(0,0,20,0.18)",
+        boxShadow: "inset 0 0 0 1px rgba(184,240,255,0.04)",
       }}
     >
       {/* ── Drag zone (only active on models tab) ── */}
@@ -990,7 +995,8 @@ function WorkGridContent() {
           zIndex:        4,
           pointerEvents: inWorkView ? "auto" : "none",
           opacity:       inWorkView ? 1 : 0,
-          transition:    "opacity 0.35s ease",
+          transform:     inWorkView ? "translateY(0)" : "translateY(-14px)",
+          transition:    "opacity 0.45s cubic-bezier(0.22,1,0.36,1), transform 0.45s cubic-bezier(0.22,1,0.36,1)",
           // Premium liquid glass
           background:    "linear-gradient(145deg, rgba(255,255,255,0.11) 0%, rgba(255,255,255,0.04) 45%, rgba(184,240,255,0.05) 100%)",
           backdropFilter: "blur(40px) saturate(2.0) brightness(1.08)",
@@ -1019,7 +1025,8 @@ function WorkGridContent() {
           zIndex:        4,
           pointerEvents: inWorkView ? "auto" : "none",
           opacity:       inWorkView ? 1 : 0,
-          transition:    "opacity 0.35s ease",
+          transform:     inWorkView ? "translateY(0)" : "translateY(18px)",
+          transition:    "opacity 0.45s cubic-bezier(0.22,1,0.36,1), transform 0.45s cubic-bezier(0.22,1,0.36,1)",
           background:    "linear-gradient(145deg, rgba(255,255,255,0.11) 0%, rgba(255,255,255,0.04) 45%, rgba(184,240,255,0.05) 100%)",
           backdropFilter: "blur(40px) saturate(2.0) brightness(1.08)",
           WebkitBackdropFilter: "blur(40px) saturate(2.0) brightness(1.08)",
@@ -1041,7 +1048,7 @@ function WorkGridContent() {
               position:      "fixed",
               pointerEvents: (inWorkView && activeTab === 'models') ? "auto" : "none",
               opacity:       (inWorkView && activeTab === 'models') ? 1 : 0,
-              transition:    "opacity 0.22s cubic-bezier(0.22,1,0.36,1)",
+              transition:    "opacity 0.42s cubic-bezier(0.22,1,0.36,1) 0.12s, transform 0.42s cubic-bezier(0.22,1,0.36,1) 0.12s",
               zIndex:        4,
               ...(isNarrow
                 ? {
@@ -1051,11 +1058,12 @@ function WorkGridContent() {
                     overflowX: "auto", overflowY: "hidden",
                     display: "flex", flexDirection: "row", gap: 0, alignItems: "stretch", flexWrap: "nowrap",
                     padding: "0 clamp(1rem, 4vw, 2.5rem)",
+                    transform: (inWorkView && activeTab === 'models') ? "translateX(0)" : "translateX(-18px)",
                   }
                 : {
                     left: "2.5rem",
                     top: "50%",
-                    transform: "translateY(-50%)",
+                    transform: (inWorkView && activeTab === 'models') ? "translateY(-50%)" : "translateY(-50%) translateX(-18px)",
                     width: "clamp(160px, 18vw, 240px)",
                     background:    "linear-gradient(160deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.03) 50%, rgba(184,240,255,0.05) 100%)",
                     backdropFilter: "blur(40px) saturate(2.0) brightness(1.08)",

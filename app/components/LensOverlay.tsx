@@ -3,11 +3,8 @@
 /**
  * LensOverlay — fixed full-screen cinematic lens effects (pure CSS/SVG).
  *
- * Two layers:
- *   1. Vignette  — radial-gradient from transparent center to dark edges.
- *                  Deepens the void aesthetic, frames the scene.
- *   2. Film grain — SVG feTurbulence fractalNoise animated at ~12fps.
- *                  Very low opacity (~0.038) reads as analog noise texture.
+ * Film grain — SVG feTurbulence fractalNoise animated at ~12fps.
+ *              Very low opacity (~0.038) reads as analog noise texture.
  *
  * No canvas, no render loop cost on JS side (seed update is setInterval at 12fps).
  */
@@ -27,18 +24,6 @@ export default function LensOverlay() {
 
   return (
     <>
-      {/* ── Vignette ── dark edges deepen the void, center stays clear */}
-      <div
-        aria-hidden="true"
-        style={{
-          position:      "fixed",
-          inset:         0,
-          zIndex:        48,
-          pointerEvents: "none",
-          background:    "radial-gradient(ellipse 82% 72% at 50% 44%, transparent 36%, rgba(0,0,8,0.44) 68%, rgba(0,0,5,0.78) 100%)",
-        }}
-      />
-
       {/* ── Film grain — SVG fractalNoise, screen blend, ~4% opacity ── */}
       <svg
         aria-hidden="true"

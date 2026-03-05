@@ -280,7 +280,39 @@ export default function EffectsOverlay() {
         ctx!.restore();
       }
 
-      // ── 3. Meteor trails ──────────────────────────────────────────────────
+      // ── 3. Model entrance scan-line sweep ────────────────────────────────
+      {
+        const ep = voidState.modelEntranceProgress;
+        const mr = voidState.modelRegion;
+        if (ep < 0.98 && mr.rPx > 30) {
+          const scanY = mr.y + mr.rPx * (1 - ep * 2);
+          const alpha = Math.sin(ep * Math.PI) * 0.55;
+
+          const grad = ctx!.createLinearGradient(mr.x - mr.rPx, scanY, mr.x + mr.rPx, scanY);
+          grad.addColorStop(0,    "rgba(0,0,0,0)");
+          grad.addColorStop(0.25, `rgba(184,240,255,${(alpha * 0.6).toFixed(3)})`);
+          grad.addColorStop(0.5,  `rgba(220,255,255,${alpha.toFixed(3)})`);
+          grad.addColorStop(0.75, `rgba(184,240,255,${(alpha * 0.6).toFixed(3)})`);
+          grad.addColorStop(1,    "rgba(0,0,0,0)");
+
+          ctx!.beginPath();
+          ctx!.moveTo(mr.x - mr.rPx, scanY);
+          ctx!.lineTo(mr.x + mr.rPx, scanY);
+          ctx!.strokeStyle = grad;
+          ctx!.lineWidth = 1.5;
+          ctx!.stroke();
+
+          // Tiny vertical sparkle at midpoint
+          ctx!.beginPath();
+          ctx!.moveTo(mr.x, scanY - 3);
+          ctx!.lineTo(mr.x, scanY + 3);
+          ctx!.strokeStyle = `rgba(255,255,255,${(alpha * 0.8).toFixed(3)})`;
+          ctx!.lineWidth = 0.75;
+          ctx!.stroke();
+        }
+      }
+
+      // ── 4. Meteor trails ──────────────────────────────────────────────────
       for (let m = 0; m < voidState.meteorSlots.length; m++) {
         const met = voidState.meteorSlots[m];
         if (!met.active || met.env < 0.01) continue;

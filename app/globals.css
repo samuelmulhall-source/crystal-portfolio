@@ -50,8 +50,8 @@
    z-index 2   : page <main> + sections
    z-index 50  : Nav fixed bar
    z-index 100 : ProjectViewer modal
-   z-index 200 : scanlines overlay
    z-index 9997: cursor canvas
+   z-index 9998: cursor holo-ring
    z-index 9999: cursor SVG
  ─────────────────────────────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; }
@@ -69,22 +69,6 @@ body {
   font-family: var(--font-geist-sans), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
-}
-
-/* ─── Scanlines ───────────────────────────────────────────────────────────── */
-body::after {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: 200;
-  pointer-events: none;
-  background: repeating-linear-gradient(
-    to bottom,
-    transparent        0px,
-    transparent        2px,
-    rgba(0, 0, 8, 0.048) 2px,
-    rgba(0, 0, 8, 0.048) 3px
-  );
 }
 
 main {
@@ -433,6 +417,15 @@ main {
   color: var(--ice);
   box-shadow: 0 0 16px rgba(184,240,255,0.16);
   text-shadow: 0 0 10px rgba(184,240,255,0.40);
+}
+
+/* ─── Cursor holo-ring color cycle ───────────────────────────────────────── */
+@keyframes holo-ring-cycle {
+  0%   { border-color: rgba(184,240,255,0.75); box-shadow: 0 0 8px rgba(184,240,255,0.35); }
+  25%  { border-color: rgba(160,255,200,0.70); box-shadow: 0 0 8px rgba(160,255,200,0.30); }
+  50%  { border-color: rgba(200,180,255,0.70); box-shadow: 0 0 8px rgba(200,180,255,0.30); }
+  75%  { border-color: rgba(255,200,180,0.65); box-shadow: 0 0 8px rgba(255,200,180,0.25); }
+  100% { border-color: rgba(184,240,255,0.75); box-shadow: 0 0 8px rgba(184,240,255,0.35); }
 }
 
 /* ─── Holographic sheen sweep on tab buttons ──────────────────────────────── */

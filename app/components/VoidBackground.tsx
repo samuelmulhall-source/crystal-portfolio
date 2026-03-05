@@ -1212,6 +1212,9 @@ function VoidModel({ entry }: { entry: WorkModelEntry }) {
     if (opacityRef.current > 0.04 && entranceRef.current < 1) {
       entranceRef.current = Math.min(entranceRef.current + dt / 0.8, 1);
     }
+    if (workModels.activeModelId === entry.id) {
+      voidState.modelEntranceProgress = entranceRef.current;
+    }
     if (scaleGroupRef.current) {
       const t    = entranceRef.current;
       const ease = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
@@ -1235,7 +1238,10 @@ function VoidModel({ entry }: { entry: WorkModelEntry }) {
       const targetY    = isExpanded ? 0 : getWorldY();
       const curY       = posGroupRef.current.position.y;
       const newY       = curY + (targetY - curY) * Math.min(dt * 4, 1);
-      posGroupRef.current.position.set(worldX, newY, worldZ - depthBack);
+      const ep         = entranceRef.current;
+      const entryEase  = ep < 0.5 ? 2 * ep * ep : -1 + (4 - 2 * ep) * ep;
+      const entryDrop  = (1 - entryEase) * 1.8;
+      posGroupRef.current.position.set(worldX, newY - entryDrop, worldZ - depthBack);
     }
 
     // ── Sync from workModels entry ─────────────────────────────────────────
@@ -1254,7 +1260,7 @@ function VoidModel({ entry }: { entry: WorkModelEntry }) {
         e.rotY += dt * 0.45;
       }
       // Entrance/exit spin: extra rotation that unwinds as the model fully appears
-      const entranceSpin = (1 - op) * Math.PI * 1.5;
+      const entranceSpin = (1 - op) * Math.PI * 0.35;
 
       // Camera-reactive spring tilt: model leans into mouse motion then settles.
       // Spring K≈2.5 gives a ~280ms lag — feels like the model has weight.

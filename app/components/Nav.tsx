@@ -27,8 +27,8 @@ export default function Nav() {
   useEffect(() => {
     gsap.registerPlugin(ScrollTrigger);
     gsap.fromTo(navRef.current,
-      { opacity: 0, y: -20 },
-      { opacity: 1, y: 0, duration: 1.4, ease: "power2.out", delay: 0.6 }
+      { opacity: 0, y: -10 },
+      { opacity: 1, y: 0, duration: 0.75, ease: "power3.out", delay: 0.30 }
     );
     ScrollTrigger.create({
       start:      "top -90px",
@@ -71,7 +71,7 @@ export default function Nav() {
     document.querySelector(href)?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const linkColor = scrolled ? "rgba(184,240,255,0.48)" : "rgba(184,240,255,0.60)";
+  const linkColor = scrolled ? "rgba(184,240,255,0.48)" : "rgba(184,240,255,0.78)";
   const linkShadow = scrolled ? "none" : "0 1px 4px rgba(0,0,0,0.5)";
 
   const openWork  = () => { if (closeTimer.current) clearTimeout(closeTimer.current); setWorkOpen(true);  };
@@ -154,14 +154,6 @@ export default function Nav() {
             }}
           >
             Work
-            <span style={{
-              fontSize: "0.55rem",
-              opacity: 0.55,
-              transform: workOpen ? "rotate(180deg)" : "rotate(0deg)",
-              transition: "transform 0.2s ease",
-              lineHeight: 1,
-              marginTop: "1px",
-            }}>▾</span>
           </a>
 
           {/* Dropdown */}
@@ -170,8 +162,8 @@ export default function Nav() {
             top:        "calc(100% + 8px)",
             left:       "50%",
             transform:  workOpen
-              ? "translateX(-50%) translateY(0)"
-              : "translateX(-50%) translateY(-6px)",
+              ? "translateX(-50%) translateY(0) scale(1)"
+              : "translateX(-50%) translateY(-5px) scale(0.96)",
             background: "linear-gradient(145deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.03) 50%, rgba(184,240,255,0.04) 100%)",
             backdropFilter: "blur(44px) saturate(2.0) brightness(1.07)",
             WebkitBackdropFilter: "blur(44px) saturate(2.0) brightness(1.07)",
@@ -183,7 +175,7 @@ export default function Nav() {
             minWidth:   "148px",
             opacity:    workOpen ? 1 : 0,
             pointerEvents: workOpen ? "auto" : "none",
-            transition: "opacity 0.18s ease, transform 0.18s ease",
+            transition: "opacity 0.15s ease, transform 0.15s cubic-bezier(0.22,1,0.36,1)",
             boxShadow:  "inset 0 1px 0 rgba(255,255,255,0.20), inset 0 -1px 0 rgba(0,0,14,0.18), 0 16px 48px rgba(0,0,18,0.60), 0 0 0 1px rgba(255,255,255,0.06), 0 0 20px rgba(184,240,255,0.06)",
           }}>
             {WORK_SUBS.map(({ label, tab }) => (
@@ -193,10 +185,10 @@ export default function Nav() {
                   onClick={(e) => { workModels.setPendingTab(tab); scrollTo(e, "#work"); setWorkOpen(false); }}
                   style={{
                     display:       "block",
-                    padding:       "12px 18px",
+                    padding:       "8px 16px",
                     minHeight:     "44px",
                     boxSizing:     "border-box",
-                    color:         "rgba(184,240,255,0.60)",
+                    color:         "rgba(184,240,255,0.75)",
                     textDecoration: "none",
                     fontFamily:    "var(--font-geist-mono), monospace",
                     fontSize:       "0.65rem",
@@ -213,7 +205,7 @@ export default function Nav() {
                   }}
                   onMouseLeave={e => {
                     const el = e.currentTarget as HTMLElement;
-                    el.style.color      = "rgba(184,240,255,0.60)";
+                    el.style.color      = "rgba(184,240,255,0.75)";
                     el.style.background = "";
                     el.style.textShadow = "";
                   }}
