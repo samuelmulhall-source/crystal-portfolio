@@ -1,33 +1,37 @@
 "use client";
 
 /**
- * CursorFollower — tinted glass arrow cursor.
+ * CursorFollower — precision glass arrow cursor.
  *
- * Arrow  — SVG pointer with layered glass body:
- *            1. Linear gradient body (ice-blue tint, clearly opaque)
- *            2. Radial caustic near tip (refracted-light pool)
- *            3. Refraction fringe (slightly scaled path, chromatic stroke)
- *            4. Lit leading edges (bright white)
- *            5. Tip sparkle
+ * Size: 12×20 CSS px (viewBox 0 0 12 19.5).
  *
- * Holo-ring — appears on hover over interactive elements, cycles through
- *             spectral colours via CSS animation defined in globals.css.
+ * Holographic stroke — the lit-edge highlight path uses a linearGradient
+ *   whose 5 stops are updated each frame. At rest: all stops are white.
+ *   On hover: stops cycle through the full visible spectrum (hue phases
+ *   72° apart, shifting at ~80°/s). Saturation lerps 0→95%, lightness
+ *   100→70%. Gives genuine thin-film iridescence, not RGB-shift cheapness.
  *
- * Drag tilt — CSS 3D perspective tilt driven by drag velocity via spring.
+ * 3D tilt — two independent sources:
+ *   • Model-region hover: tasteful 3D lean (±9°) as cursor moves over the
+ *     active 3D model. Driven by normalised offset from model centre.
+ *   • Drag: physical velocity tilt (±18°) when holding mousedown.
+ *   Both use the same spring (K=180, D=14).
  *
- * Canvas    — click particles only (no trailing ring).
+ * Glow — subtle sine-wave pulse (±6%) on the drop-shadow radius.
+ *
+ * Canvas — click particles only.
  */
 
 import { useEffect, useRef } from "react";
+import { voidState } from "../lib/voidState";
 
 type Particle = { x: number; y: number; vx: number; vy: number; life: number };
 
 const INTERACT = "a, button, [role=button], input, textarea, label, select, [data-cursor=expand]";
 
 export default function CursorFollower() {
-  const svgRef      = useRef<SVGSVGElement>(null);
-  const holoRingRef = useRef<HTMLDivElement>(null);
-  const cvRef       = useRef<HTMLCanvasElement>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
+  const cvRef  = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
@@ -40,7 +44,6 @@ export default function CursorFollower() {
     const cv  = cvRef.current!;
     const ctx = cv.getContext("2d")!;
     let dpr   = window.devicePixelRatio || 1;
-
     function resize() {
       dpr = window.devicePixelRatio || 1;
       cv.width  = window.innerWidth  * dpr;
@@ -52,22 +55,23 @@ export default function CursorFollower() {
     resize();
     window.addEventListener("resize", resize, { passive: true });
 
+    // ── Cache holo gradient stops ─────────────────────────────────────────────
+    const svgEl    = svgRef.current!;
+    const holoStops = Array.from(svgEl.querySelectorAll<SVGStopElement>("#gc-holo stop"));
+
     // ── State ────────────────────────────────────────────────────────────────
     let mouseX = window.innerWidth  / 2;
     let mouseY = window.innerHeight / 2;
     let lastMX = mouseX, lastMY = mouseY;
-    let onPage = false, hovering = false;
+    let onPage   = false;
+    let hovering = false;
 
-    // Arrow state
     let cScale    = 1.0;
     let cOpacity  = 0;
     let cBaseGlow = 1.0;
     let cFlash    = 0;
+    let holoSat   = 0; // 0 = white, 100 = full spectral
 
-    // Holo-ring state
-    let hOpacity = 0;
-
-    // Drag tilt state
     let isDragging = false;
     let dragVX = 0, dragVY = 0;
     let curRotX = 0, curRotY = 0;
@@ -89,8 +93,10 @@ export default function CursorFollower() {
     };
     const onLeave   = () => { onPage = false; };
     const onEnter   = () => { onPage = true; };
-    const onPtrOver = (e: PointerEvent) => { hovering = !!(e.target as Element).closest(INTERACT); };
-    const onDown    = (e: MouseEvent) => {
+    const onPtrOver = (e: PointerEvent) => {
+      hovering = !!(e.target as Element).closest(INTERACT);
+    };
+    const onDown = (e: MouseEvent) => {
       isDragging = true;
       lastMX = e.clientX; lastMY = e.clientY;
       dragVX = 0; dragVY = 0;
@@ -113,76 +119,99 @@ export default function CursorFollower() {
     // ── Render loop ──────────────────────────────────────────────────────────
     let raf: number;
     let lastT = performance.now();
+    const t0  = performance.now();
 
     function tick(now: number) {
       raf = requestAnimationFrame(tick);
       const dt = Math.min((now - lastT) / 1000, 0.05);
       lastT = now;
-      const f  = Math.min(dt * 60, 6);
+      const f = Math.min(dt * 60, 6);
+      const t = (now - t0) * 0.001;
 
-      const svg      = svgRef.current;
-      const holoRing = holoRingRef.current;
+      const svg = svgRef.current;
       if (!svg) return;
 
-      // Arrow lerps
-      const tScale = hovering ? 1.16 : 1.0;
-      const tGlow  = hovering ? 1.55 : 1.0;
+      // ── Arrow lerps ───────────────────────────────────────────────────────
+      const tScale = hovering ? 1.10 : 1.0;
+      const tGlow  = hovering ? 1.45 : 1.0;
       cScale    += (tScale           - cScale)    * Math.min(0.14 * f, 1);
       cOpacity  += ((onPage ? 1 : 0) - cOpacity)  * Math.min(0.15 * f, 1);
       cBaseGlow += (tGlow            - cBaseGlow)  * Math.min(0.11 * f, 1);
       cFlash    *= Math.pow(0.82, f);
 
-      // Drag velocity decay when not dragging
-      if (!isDragging) {
-        dragVX *= Math.pow(0.85, f);
-        dragVY *= Math.pow(0.85, f);
+      // ── Holographic stroke ────────────────────────────────────────────────
+      // Saturation lerps: 0 (white at rest) → 100 (full spectrum on hover)
+      holoSat += ((hovering ? 100 : 0) - holoSat) * Math.min(0.10 * f, 1);
+
+      if (holoStops.length >= 5) {
+        // Phase shifts 80°/s + slight shimmer wobble for thin-film texture
+        const phase = t * 80 + Math.sin(t * 2.3) * 12;
+        const sat   = holoSat * 0.95;              // 0% → 95%
+        const lgt   = 100 - (holoSat / 100) * 30; // 100% (white) → 70% (vivid)
+        for (let i = 0; i < 5; i++) {
+          const h = ((phase + i * 72) % 360).toFixed(0);
+          holoStops[i].setAttribute("stop-color",
+            `hsl(${h},${sat.toFixed(1)}%,${lgt.toFixed(1)}%)`);
+        }
       }
 
-      // Drag tilt spring (K=180, D=14)
-      const tRotX = isDragging ? Math.max(-22, Math.min(22, -dragVY * 0.06)) : 0;
-      const tRotY = isDragging ? Math.max(-22, Math.min(22,  dragVX * 0.06)) : 0;
-      rotVelX += (tRotX - curRotX) * 180 * dt;
-      rotVelX -= rotVelX * 14 * dt;
+      // ── 3D tilt — model hover (tasteful) + drag ───────────────────────────
+      let tRotX = 0, tRotY = 0;
+
+      const mr = voidState.modelRegion;
+      if (mr.rPx > 30) {
+        const dx = mouseX - mr.x;
+        const dy = mouseY - mr.y;
+        const overModel = dx * dx + dy * dy < mr.rPx * mr.rPx;
+        if (overModel && !isDragging) {
+          const nx = dx / mr.rPx; // −1..+1
+          const ny = dy / mr.rPx;
+          tRotX =  ny * 9;
+          tRotY = -nx * 9;
+        }
+      }
+
+      // Drag overrides model hover
+      if (isDragging) {
+        dragVX += 0; // keep drag vel live
+        tRotX = Math.max(-18, Math.min(18, -dragVY * 0.05));
+        tRotY = Math.max(-18, Math.min(18,  dragVX * 0.05));
+      } else {
+        dragVX *= Math.pow(0.88, f);
+        dragVY *= Math.pow(0.88, f);
+      }
+
+      // Spring integration (K=180, D=14)
+      rotVelX += (tRotX - curRotX) * 180 * dt; rotVelX -= rotVelX * 14 * dt;
+      rotVelY += (tRotY - curRotY) * 180 * dt; rotVelY -= rotVelY * 14 * dt;
       curRotX += rotVelX * dt;
-      rotVelY += (tRotY - curRotY) * 180 * dt;
-      rotVelY -= rotVelY * 14 * dt;
       curRotY += rotVelY * dt;
 
-      // Holo-ring opacity lerp
-      hOpacity += ((hovering ? 1 : 0) - hOpacity) * Math.min(0.12 * f, 1);
-
-      // Apply arrow with optional 3D perspective tilt
-      const hasTilt = Math.abs(curRotX) > 0.1 || Math.abs(curRotY) > 0.1;
-      if (hasTilt) {
-        svg.style.transform = `translate(${mouseX}px,${mouseY}px) scale(${cScale.toFixed(4)}) perspective(120px) rotateX(${curRotX.toFixed(2)}deg) rotateY(${curRotY.toFixed(2)}deg)`;
-      } else {
-        svg.style.transform = `translate(${mouseX}px,${mouseY}px) scale(${cScale.toFixed(4)})`;
-      }
+      // ── Apply transform ───────────────────────────────────────────────────
+      const hasTilt = Math.abs(curRotX) > 0.05 || Math.abs(curRotY) > 0.05;
+      svg.style.transform = hasTilt
+        ? `translate(${mouseX}px,${mouseY}px) scale(${cScale.toFixed(4)}) perspective(100px) rotateX(${curRotX.toFixed(2)}deg) rotateY(${curRotY.toFixed(2)}deg)`
+        : `translate(${mouseX}px,${mouseY}px) scale(${cScale.toFixed(4)})`;
       svg.style.opacity = cOpacity.toFixed(3);
 
-      const g = Math.max(cBaseGlow + cFlash, 0);
+      // Glow with subtle sine-wave pulse on the radius
+      const pulse = 1 + Math.sin(t * 3.2) * 0.06;
+      const g     = Math.max((cBaseGlow + cFlash) * pulse, 0);
       svg.style.filter = [
-        `drop-shadow(0 0 ${(3  * g).toFixed(1)}px rgba(215,240,255,${Math.min(0.65 * g, 1.00).toFixed(2)}))`,
-        `drop-shadow(0 0 ${(12 * g).toFixed(1)}px rgba(184,240,255,${Math.min(0.35 * g, 0.90).toFixed(2)}))`,
-        `drop-shadow(0 0 ${(28 * g).toFixed(1)}px rgba(184,240,255,${Math.min(0.12 * g, 0.45).toFixed(2)}))`,
+        `drop-shadow(0 0 ${(2.5 * g).toFixed(1)}px rgba(215,240,255,${Math.min(0.60 * g, 1).toFixed(2)}))`,
+        `drop-shadow(0 0 ${(10  * g).toFixed(1)}px rgba(184,240,255,${Math.min(0.30 * g, 0.9).toFixed(2)}))`,
+        `drop-shadow(0 0 ${(22  * g).toFixed(1)}px rgba(184,240,255,${Math.min(0.10 * g, 0.4).toFixed(2)}))`,
       ].join(" ");
 
-      // Holo-ring — centres on cursor tip
-      if (holoRing) {
-        const hr = 13; // half of 26px diameter
-        holoRing.style.transform = `translate(${(mouseX - hr).toFixed(1)}px,${(mouseY - hr).toFixed(1)}px)`;
-        holoRing.style.opacity   = (cOpacity * hOpacity).toFixed(3);
-      }
-
-      // Canvas — particles
+      // ── Canvas — click particles ──────────────────────────────────────────
       ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
       for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i];
-        p.x  += p.vx; p.y  += p.vy;
+        p.x += p.vx; p.y += p.vy;
         p.vx *= 0.91; p.vy *= 0.91;
         p.life -= dt * 1.6;
         if (p.life <= 0) { particles.splice(i, 1); continue; }
-        ctx.fillStyle = `rgba(200,240,255,${(p.life * 0.90).toFixed(3)})`;
+        ctx.fillStyle = `rgba(200,240,255,${(p.life * 0.9).toFixed(3)})`;
         ctx.beginPath();
         ctx.arc(p.x, p.y, Math.max(0.4, 2.2 * p.life), 0, Math.PI * 2);
         ctx.fill();
@@ -205,36 +234,15 @@ export default function CursorFollower() {
 
   return (
     <>
-      {/* ── Holo-ring — spectral colour cycle on interactive hover ───────── */}
-      <div
-        ref={holoRingRef}
-        aria-hidden="true"
-        style={{
-          position:      "fixed",
-          top:           0,
-          left:          0,
-          width:         "26px",
-          height:        "26px",
-          borderRadius:  "50%",
-          border:        "1px solid transparent",
-          background:    "transparent",
-          pointerEvents: "none",
-          zIndex:        9998,
-          willChange:    "transform, opacity",
-          opacity:       0,
-          animation:     "holo-ring-cycle 1.8s linear infinite",
-        }}
-      />
-
       {/* ── Glass arrow — tip at (0,0), pointing upper-left ─────────────── */}
-      {/*    viewBox 0 0 12 19.5 → rendered at 16×26 CSS px                  */}
-      {/*    Five layers: gradient body, caustic, refraction fringe,           */}
-      {/*                 lit edges, tip sparkle                               */}
+      {/*    Rendered at 12×20 CSS px (viewBox 0 0 12 19.5).                  */}
+      {/*    Lit-edge stroke uses #gc-holo gradient — white at rest, full      */}
+      {/*    iridescent spectrum on hover. Stops updated each frame via JS.    */}
       <svg
         ref={svgRef}
         aria-hidden="true"
-        width="16"
-        height="26"
+        width="12"
+        height="20"
         viewBox="0 0 12 19.5"
         style={{
           position:        "fixed",
@@ -249,54 +257,61 @@ export default function CursorFollower() {
         }}
       >
         <defs>
-          {/* Layer 1 — tinted glass body: ice-blue, clearly visible */}
+          {/* Glass body fill */}
           <linearGradient id="gc-body" x1="0" y1="0" x2="12" y2="19.5" gradientUnits="userSpaceOnUse">
-            <stop offset="0%"   stopColor="#a8d8f8" stopOpacity="0.58" />
-            <stop offset="42%"  stopColor="#7ab8e8" stopOpacity="0.26" />
-            <stop offset="100%" stopColor="#5090c0" stopOpacity="0.06" />
+            <stop offset="0%"   stopColor="#a8d8f8" stopOpacity="0.50" />
+            <stop offset="42%"  stopColor="#7ab8e8" stopOpacity="0.20" />
+            <stop offset="100%" stopColor="#5090c0" stopOpacity="0.04" />
           </linearGradient>
-          {/* Layer 2 — inner light caustic: refracted-light pool near tip */}
+          {/* Caustic light pool near tip */}
           <radialGradient id="gc-caustic" cx="2" cy="2.5" r="7" gradientUnits="userSpaceOnUse">
-            <stop offset="0%"   stopColor="white" stopOpacity="0.45" />
-            <stop offset="60%"  stopColor="white" stopOpacity="0.08" />
+            <stop offset="0%"   stopColor="white" stopOpacity="0.35" />
+            <stop offset="60%"  stopColor="white" stopOpacity="0.05" />
             <stop offset="100%" stopColor="white" stopOpacity="0"    />
           </radialGradient>
+          {/* Holographic edge gradient — 5 stops updated per frame in JS.     */}
+          {/* Runs diagonally tip→tail. At rest: all stops = pure white.       */}
+          {/* On hover: stops phase-offset 72° apart through full hue wheel.   */}
+          <linearGradient id="gc-holo" x1="12" y1="0" x2="0" y2="17" gradientUnits="userSpaceOnUse">
+            <stop offset="0%"   stopColor="hsl(0,0%,100%)"   stopOpacity="0.92" />
+            <stop offset="25%"  stopColor="hsl(72,0%,100%)"  stopOpacity="0.92" />
+            <stop offset="50%"  stopColor="hsl(144,0%,100%)" stopOpacity="0.92" />
+            <stop offset="75%"  stopColor="hsl(216,0%,100%)" stopOpacity="0.92" />
+            <stop offset="100%" stopColor="hsl(288,0%,100%)" stopOpacity="0.92" />
+          </linearGradient>
         </defs>
 
-        {/* Layer 1 — glass body */}
+        {/* Glass body — tinted fill */}
         <path
           d="M 0,0 L 0,17 L 4.5,13 L 7,18.5 L 9,17.5 L 6.5,12 L 12,12 Z"
           fill="url(#gc-body)"
-          stroke="rgba(255,255,255,0.75)"
-          strokeWidth="0.65"
-          strokeLinejoin="round"
+          stroke="none"
         />
-        {/* Layer 2 — caustic light pool */}
+        {/* Caustic light pool */}
         <path
           d="M 0,0 L 0,17 L 4.5,13 L 7,18.5 L 9,17.5 L 6.5,12 L 12,12 Z"
           fill="url(#gc-caustic)"
           stroke="none"
         />
-        {/* Layer 3 — refraction fringe: slightly scaled path, chromatic edge */}
+        {/* Outer body outline — subtle fixed white, not holo */}
         <path
           d="M 0,0 L 0,17 L 4.5,13 L 7,18.5 L 9,17.5 L 6.5,12 L 12,12 Z"
-          transform="scale(1.06) translate(-0.2,-0.1)"
           fill="none"
-          stroke="rgba(150,230,255,0.18)"
-          strokeWidth="0.6"
+          stroke="rgba(255,255,255,0.45)"
+          strokeWidth="0.55"
           strokeLinejoin="round"
         />
-        {/* Layer 4 — lit leading edges: top + left face the light source */}
+        {/* Lit leading edges — holographic on hover, white at rest */}
         <path
           d="M 12,12 L 0,0 L 0,17 L 4.5,13"
           fill="none"
-          stroke="rgba(255,255,255,0.92)"
-          strokeWidth="0.82"
+          stroke="url(#gc-holo)"
+          strokeWidth="0.85"
           strokeLinecap="round"
           strokeLinejoin="round"
         />
-        {/* Layer 5 — tip sparkle */}
-        <circle cx="0" cy="0" r="1.1" fill="white" opacity="0.95" />
+        {/* Tip sparkle */}
+        <circle cx="0" cy="0" r="1.0" fill="white" opacity="0.90" />
       </svg>
 
       {/* Canvas — particles only, additive blend */}
