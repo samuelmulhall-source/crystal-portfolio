@@ -130,18 +130,14 @@ function FullscreenViewer({
       ref={overlayRef}
       style={{
         position: "fixed", inset: 0, zIndex: 100, opacity: 0,
-        // Semi-transparent tint so model shows through from behind
-        background: "rgba(2,4,14,0.58)",
+        // Desktop: gradient dark left (text) → transparent right (model visible)
+        // Mobile: transparent so model shows clearly in top half
+        background: mobile
+          ? "transparent"
+          : "linear-gradient(to right, rgba(2,4,14,0.88) 0%, rgba(2,4,14,0.60) 28%, rgba(2,4,14,0.18) 52%, transparent 72%)",
         pointerEvents: "none",
       }}
     >
-      {/* Left-side reading gradient — improves text contrast without boxing it in */}
-      {!mobile && (
-        <div style={{
-          position: "absolute", inset: 0, pointerEvents: "none",
-          background: "linear-gradient(to right, rgba(2,4,14,0.52) 0%, rgba(2,4,14,0.22) 44%, transparent 68%)",
-        }} />
-      )}
 
       {/* Close — bracket notation, top-right */}
       <button
@@ -166,16 +162,23 @@ function FullscreenViewer({
         <span style={{ opacity: 0.50 }}>]</span>
       </button>
 
-      {/* Content column — floats over the scene on the left */}
+      {/* Content column — floats over the scene on the left (desktop) or anchored bottom (mobile) */}
       <div
         ref={contentRef}
         style={{
           position: "absolute",
-          top: 0, left: 0, bottom: 0,
-          width: mobile ? "100%" : "min(520px, 50vw)",
+          // Mobile: panel at bottom half, leaving top clear for 3D model
+          // Desktop: full left column
+          ...(mobile
+            ? { left: 0, right: 0, bottom: 0, height: "52vh",
+                background: "linear-gradient(to bottom, rgba(2,4,14,0.72) 0%, rgba(2,4,14,0.94) 18%)",
+                borderTop: "1px solid rgba(184,240,255,0.12)",
+                backdropFilter: "blur(18px) saturate(1.4)",
+                WebkitBackdropFilter: "blur(18px) saturate(1.4)" }
+            : { top: 0, left: 0, bottom: 0, width: "min(520px, 50vw)" }),
           overflowY: "auto", overflowX: "hidden",
           padding: mobile
-            ? "4.5rem 1.75rem 3.5rem"
+            ? "1.5rem 1.75rem 2.5rem"
             : "clamp(3.5rem, 8vh, 5.5rem) clamp(2rem, 5vw, 4rem) 3rem",
           display: "flex", flexDirection: "column",
           pointerEvents: "auto",

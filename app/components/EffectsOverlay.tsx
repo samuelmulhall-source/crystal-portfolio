@@ -103,6 +103,7 @@ export default function EffectsOverlay() {
     let raf: number;
     const t0 = performance.now();
     let lastT = performance.now();
+    let loadFade = 0; // smoothed loading opacity for HUD text
 
     const resize = () => {
       canvas.width  = window.innerWidth;
@@ -121,6 +122,9 @@ export default function EffectsOverlay() {
       const dt  = Math.min((now - lastT) * 0.001, 0.05);
       lastT     = now;
       const t   = (now - t0) * 0.001;
+
+      // Smooth loading fade (used for HUD text below)
+      loadFade += ((voidState.modelLoading ? 1 : 0) - loadFade) * Math.min(dt * 2.5, 1);
 
       const SPRING_K = 420;
       const SPRING_D = 26;
@@ -317,13 +321,6 @@ export default function EffectsOverlay() {
         const met = voidState.meteorSlots[m];
         if (!met.active || met.env < 0.01) continue;
 
-        // Suppress trail when the head is inside the active model's screen region
-        const mr = voidState.modelRegion;
-        if (mr.rPx > 20) {
-          const dx = met.hsx - mr.x, dy = met.hsy - mr.y;
-          if (dx * dx + dy * dy < mr.rPx * mr.rPx) continue;
-        }
-
         const { hsx, hsy, tsx, tsy, env } = met;
 
         ctx!.save();
@@ -381,6 +378,42 @@ export default function EffectsOverlay() {
         ctx!.arc(hsx, hsy, sparkR * 2.5, 0, Math.PI * 2);
         ctx!.fill();
 
+        ctx!.restore();
+      }
+
+      // ── 5. Model loading HUD ────────────────────────────────────────────
+      if (loadFade > 0.01) {
+        const mr       = voidState.modelRegion;
+        const cx       = w / 2;
+        const baseY    = mr.rPx > 30 ? mr.y + mr.rPx + 44 : h * 0.62;
+        const pulse    = 0.55 + Math.sin(t * 2.4) * 0.18;
+        const alpha    = loadFade * pulse;
+        const dotCount = Math.floor(t * 1.8) % 4;
+        const dots     = ".".repeat(dotCount);
+
+        ctx!.save();
+        ctx!.globalCompositeOperation = "source-over";
+        ctx!.textAlign    = "center";
+        ctx!.textBaseline = "middle";
+        ctx!.font         = "600 9px 'Courier New', monospace";
+        ctx!.fillStyle    = `rgba(184,240,255,${alpha.toFixed(3)})`;
+        ctx!.shadowColor  = "rgba(184,240,255,0.40)";
+        ctx!.shadowBlur   = 10;
+        ctx!.fillText(`/// MATERIALIZING${dots}`, cx, baseY);
+
+        // Thin accent line above text
+        const lw = 80 * loadFade;
+        const lg = ctx!.createLinearGradient(cx - lw, baseY - 14, cx + lw, baseY - 14);
+        lg.addColorStop(0,   "rgba(0,0,0,0)");
+        lg.addColorStop(0.5, `rgba(184,240,255,${(loadFade * 0.35).toFixed(3)})`);
+        lg.addColorStop(1,   "rgba(0,0,0,0)");
+        ctx!.strokeStyle = lg;
+        ctx!.lineWidth   = 0.75;
+        ctx!.shadowBlur  = 0;
+        ctx!.beginPath();
+        ctx!.moveTo(cx - lw, baseY - 14);
+        ctx!.lineTo(cx + lw, baseY - 14);
+        ctx!.stroke();
         ctx!.restore();
       }
     }

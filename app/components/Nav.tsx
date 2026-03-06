@@ -22,7 +22,16 @@ export default function Nav() {
   const [scrolled, setScrolled]     = useState(false);
   const [workOpen, setWorkOpen]     = useState(false);
   const [activeSection, setActiveSection] = useState<SectionId>("hero");
+  const [isMobile, setIsMobile]     = useState(false);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 768px)");
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
 
   useEffect(() => {
     gsap.registerPlugin(ScrollTrigger);
@@ -129,10 +138,13 @@ export default function Nav() {
       <ul style={{ display: "flex", alignItems: "center", gap: "2.2rem", listStyle: "none", margin: 0, padding: 0 }}>
 
         {/* Work — hover on desktop, tap to toggle on mobile */}
-        <li style={{ position: "relative" }} onMouseEnter={openWork} onMouseLeave={closeWork}>
+        <li style={{ position: "relative" }}
+          onMouseEnter={!isMobile ? openWork : undefined}
+          onMouseLeave={!isMobile ? closeWork : undefined}
+        >
           <a
             href="#work"
-            className="frost-link"
+            className="frost-link nav-link"
             onClick={(e) => {
               if (window.matchMedia("(max-width: 768px)").matches) {
                 e.preventDefault();
@@ -217,7 +229,7 @@ export default function Nav() {
           <li key={href}>
             <a
               href={href}
-              className="frost-link"
+              className="frost-link nav-link"
               onClick={(e) => { scrollTo(e, href); setWorkOpen(false); }}
               style={{
                 color: activeSection === "contact" ? "rgba(220,248,255,0.92)" : linkColor,

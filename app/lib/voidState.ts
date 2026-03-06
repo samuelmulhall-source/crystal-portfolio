@@ -48,4 +48,9 @@ export const voidState = {
   // Written by VoidModel's useFrame as the model materialises (0=start, 1=done).
   // Read by EffectsOverlay to draw the scan-line sweep.
   modelEntranceProgress: 0,
+
+  // ── Model loading state ───────────────────────────────────────────────────
+  // True when the active model is loading / hasn't materialised yet.
+  // Drives the orbital loading animation and EffectsOverlay loading HUD text.
+  modelLoading: false,
 };

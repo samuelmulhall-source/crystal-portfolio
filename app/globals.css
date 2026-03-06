@@ -243,6 +243,8 @@ main {
   letter-spacing: 0.40em;
 }
 .frost-link:hover::after { width: 100%; }
+/* Nav frost-links: disable letter-spacing expansion to prevent sibling shift */
+.nav-link.frost-link:hover { letter-spacing: 0.32em; }
 
 /* ─── Nav wordmark glitch ─────────────────────────────────────────────────── */
 .glitch { position: relative; }

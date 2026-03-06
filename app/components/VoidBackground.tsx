@@ -357,10 +357,15 @@ function VoidMotion() {
     voidState.mouseVel  *= Math.pow(0.88, f);
     voidState.scrollVel *= Math.pow(0.90, f);
 
-    // Motion blur: CSS blur on the Three.js canvas proportional to scroll speed
-    const blur = Math.min(voidState.scrollVel * 3.2, 5.5);
-    (gl.domElement as HTMLCanvasElement).style.filter =
-      blur > 0.25 ? `blur(${blur.toFixed(2)}px)` : "";
+    // Motion blur: CSS blur proportional to scroll speed + extra during model load.
+    // scaleY stretch hints at vertical scroll direction without affecting horizontal detail.
+    const scrollBlur  = Math.min(voidState.scrollVel * 3.2, 5.5);
+    const loadingBlur = voidState.modelLoading ? 2.8 : 0;
+    const blur = Math.min(scrollBlur + loadingBlur, 7.0);
+    const canvas = gl.domElement as HTMLCanvasElement;
+    canvas.style.filter    = blur > 0.20 ? `blur(${blur.toFixed(2)}px)` : "";
+    const sy = 1 + Math.min(voidState.scrollVel * 0.05, 0.10);
+    canvas.style.transform = sy > 1.005 ? `scaleY(${sy.toFixed(3)})` : "";
   });
   return null;
 }
@@ -618,13 +623,6 @@ function ShootingStars({
     new Float32Array(layers[1].count * 3),
   ], [layers]);
 
-  // Per-star model mask (0–1): how much to fade this star toward void-black.
-  const modelMask = useMemo(() => [
-    new Float32Array(layers[0].count),
-    new Float32Array(layers[1].count),
-    new Float32Array(layers[2].count),
-  ], [layers]);
-
   // Traveling point lights (Three.js only — add atmosphere to 3D starfield)
   const lights = useMemo(() =>
     Array.from({ length: METEOR_COUNT }, () => new THREE.PointLight("#4488ff", 0, 16)),
@@ -874,23 +872,11 @@ function ShootingStars({
       const NDC_R      = 0.36;  // repulsion radius (NDC)
       const NDC_R2     = NDC_R * NDC_R;
       const NDC_PUSH   = 0.14;
-      const MASK_R     = 0.30;  // mask radius — slightly larger than model visual footprint
-      const MASK_R2    = MASK_R * MASK_R;
       const W3D        = 5.5;
       const W3D2       = W3D * W3D;
       const W3D_PUSH   = 0.18;
-      const MASK_DECAY = Math.pow(0.72, Math.min(dt * 60, 6)); // fast recovery
-
-      // Decay all masks toward 0 — refreshed below for currently visible models
-      for (let li = 0; li < 3; li++) {
-        const mask = modelMask[li];
-        const cnt  = li < 2 ? layers[li].count : layers[2].count;
-        // eslint-disable-next-line react-hooks/immutability
-        for (let i = 0; i < cnt; i++) { if (mask[i] > 0) mask[i] *= MASK_DECAY; }
-      }
 
       workModels.entries.forEach((entry) => {
-        // Only mask stars for the actively-selected model
         if (workModels.activeModelId !== entry.id) return;
         const proximity = 1;
 
@@ -905,14 +891,13 @@ function ShootingStars({
         const cx = screenValid ? tmpV.x : 0;
         const cy = screenValid ? tmpV.y : 0;
 
-        // Layers 0+1 get velocity physics; all 3 layers get colour masking
-        for (let li = 0; li < 3; li++) {
+        // Layers 0+1 get velocity physics (depth push away from model)
+        for (let li = 0; li < 2; li++) {
           const pObj = pts[li]?.current;
           if (!pObj) continue;
           const posArr = pObj.geometry.attributes.position.array as Float32Array;
           const cnt    = layers[li].count;
-          const mask   = modelMask[li];
-          const vel    = li < 2 ? velBufs[li] : null;
+          const vel    = velBufs[li];
 
           for (let i = 0; i < cnt; i++) {
             const sx = posArr[i * 3], sy = posArr[i * 3 + 1], sz = posArr[i * 3 + 2];
@@ -930,7 +915,7 @@ function ShootingStars({
               }
             }
 
-            // ── NDC push + colour mask (all 3 layers) ─────────────────────
+            // ── NDC velocity push ──────────────────────────────────────────
             if (!screenValid) continue;
             tmpV2.set(sx, sy, sz).applyMatrix4(pObj.matrixWorld).project(camera);
             if (tmpV2.z > 1) continue;
@@ -939,54 +924,16 @@ function ShootingStars({
             if (nd2 > NDC_R2 || nd2 < 0.000001) continue;
 
             const ndDist = Math.sqrt(nd2);
-
-            // NDC velocity push (layers 0+1 only, depth-scaled)
-            if (vel) {
-              const approxDist = Math.sqrt(sx * sx + sy * sy + sz * sz);
-              const depthScale = Math.max(1, approxDist / 14);
-              const str        = (1 - ndDist / NDC_R) * NDC_PUSH * proximity * depthScale;
-              const nx2 = ndx / ndDist, ny2 = ndy / ndDist;
-              vel[i * 3]     += (camR.x * nx2 + camU.x * ny2) * str;
-              vel[i * 3 + 1] += (camR.y * nx2 + camU.y * ny2) * str;
-              vel[i * 3 + 2] += (camR.z * nx2 + camU.z * ny2) * str;
-            }
-
-            // Colour mask: set when inside MASK_R, otherwise let decay handle it
-            if (nd2 < MASK_R2) {
-              const strength = (1 - ndDist / MASK_R) * proximity;
-              if (strength > mask[i]) mask[i] = strength;
-            }
+            const approxDist = Math.sqrt(sx * sx + sy * sy + sz * sz);
+            const depthScale = Math.max(1, approxDist / 14);
+            const str        = (1 - ndDist / NDC_R) * NDC_PUSH * proximity * depthScale;
+            const nx2 = ndx / ndDist, ny2 = ndy / ndDist;
+            vel[i * 3]     += (camR.x * nx2 + camU.x * ny2) * str;
+            vel[i * 3 + 1] += (camR.y * nx2 + camU.y * ny2) * str;
+            vel[i * 3 + 2] += (camR.z * nx2 + camU.z * ny2) * str;
           }
         }
       });
-
-      // ── Apply model colour mask to all 3 star layers ─────────────────────
-      for (let li = 0; li < 3; li++) {
-        const pObj = pts[li]?.current;
-        if (!pObj) continue;
-        const mask   = modelMask[li];
-        const colArr = pObj.geometry.attributes.color.array as Float32Array;
-        const oc     = origColors[li];
-        const cnt    = layers[li].count;
-        let   changed = false;
-
-        for (let i = 0; i < cnt; i++) {
-          if (mask[i] > 0.006) {
-            changed = true;
-            const fl = mask[i];
-            colArr[i * 3]     = oc[i * 3]     * (1 - fl);
-            colArr[i * 3 + 1] = oc[i * 3 + 1] * (1 - fl);
-            colArr[i * 3 + 2] = oc[i * 3 + 2] * (1 - fl);
-          } else if (mask[i] > 0) {
-            changed = true;
-            mask[i] = 0;
-            colArr[i * 3]     = oc[i * 3];
-            colArr[i * 3 + 1] = oc[i * 3 + 1];
-            colArr[i * 3 + 2] = oc[i * 3 + 2];
-          }
-        }
-        if (changed) pObj.geometry.attributes.color.needsUpdate = true;
-      }
     }
   });
 
@@ -1231,6 +1178,11 @@ function VoidModel({ entry }: { entry: WorkModelEntry }) {
       voidState.firstModelReady = true;
     }
 
+    // ── Signal model loading state (drives orbital loading animation) ──────
+    if (workModels.activeModelId === entry.id) {
+      voidState.modelLoading = op < 0.10;
+    }
+
     // ── Depth: model arrives from / recedes into background ───────────────
     if (posGroupRef.current) {
       const depthBack  = (1 - op) * 5;   // 5 units back (was 9) — less dramatic depth
@@ -1444,6 +1396,105 @@ function WorkModelsInScene() {
   );
 }
 
+// ─── Model loading orbital ring ────────────────────────────────────────────
+// Three concentric rings of ice-blue particles orbiting the model centre
+// while the FBX is loading.  The rings fade in/out with voidState.modelLoading.
+// Canvas CSS blur (set in VoidMotion) gives them a natural streak.
+function ModelLoadingOrbit({ isMobile }: { isMobile: boolean }) {
+  const opRef = useRef(0);
+
+  // Ring configs: { count, radius, speed (rad/s), tiltX, tiltZ }
+  const RINGS = [
+    { count: isMobile ? 20 : 30, radius: 1.3, speed:  0.90, tiltX: 0,          tiltZ: 0 },
+    { count: isMobile ? 16 : 22, radius: 2.1, speed: -0.58, tiltX: Math.PI/4,  tiltZ: 0 },
+    { count: isMobile ? 12 : 18, radius: 3.0, speed:  0.38, tiltX: 0,          tiltZ: Math.PI/3 },
+  ] as const;
+
+  const total = RINGS.reduce((s, r) => s + r.count, 0);
+
+  const geo = useMemo(() => {
+    const pos = new Float32Array(total * 3);
+    const col = new Float32Array(total * 3);
+    const brightness = [0.85, 0.65, 0.45]; // dimmer outer rings
+    let idx = 0;
+    RINGS.forEach((r, ri) => {
+      const br = brightness[ri];
+      for (let i = 0; i < r.count; i++) {
+        const a = (i / r.count) * Math.PI * 2;
+        pos[idx * 3]     = Math.cos(a) * r.radius;
+        pos[idx * 3 + 1] = Math.sin(a) * r.radius;
+        pos[idx * 3 + 2] = 0;
+        col[idx * 3]     = br * 0.72;
+        col[idx * 3 + 1] = br * 0.94;
+        col[idx * 3 + 2] = br * 1.00;
+        idx++;
+      }
+    });
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+    g.setAttribute("color",    new THREE.BufferAttribute(col, 3));
+    return g;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [total]);
+
+  const mat = useMemo(() => {
+    const m = makeHoloStarMat();
+    m.uniforms.uSize.value    = 0.32;
+    m.uniforms.uOpacity.value = 0;
+    return m;
+  }, []);
+
+  useEffect(() => () => { geo.dispose(); mat.dispose(); }, [geo, mat]);
+
+  useFrame((s, dt) => {
+    const target = voidState.modelLoading ? 1 : 0;
+    opRef.current += (target - opRef.current) * Math.min(dt * 2.2, 1);
+    const op = opRef.current;
+
+    mat.uniforms.uOpacity.value = op * 0.80;
+    mat.uniforms.uVH.value      = (s.gl.domElement as HTMLCanvasElement).height * 0.5;
+
+    if (op < 0.01) return;
+
+    const t      = s.clock.elapsedTime;
+    const posArr = geo.attributes.position.array as Float32Array;
+    let   idx    = 0;
+
+    RINGS.forEach((r) => {
+      const cosX = Math.cos(r.tiltX), sinX = Math.sin(r.tiltX);
+      const cosZ = Math.cos(r.tiltZ), sinZ = Math.sin(r.tiltZ);
+      for (let i = 0; i < r.count; i++) {
+        const a = (i / r.count) * Math.PI * 2 + t * r.speed;
+        // Base ring in XY plane
+        let x = Math.cos(a) * r.radius;
+        let y = Math.sin(a) * r.radius;
+        let z = 0;
+        // Tilt around X
+        const y1 = y * cosX - z * sinX;
+        const z1 = y * sinX + z * cosX;
+        y = y1; z = z1;
+        // Tilt around Z
+        const x2 = x * cosZ - y * sinZ;
+        const y2 = x * sinZ + y * cosZ;
+        posArr[idx * 3]     = x2;
+        posArr[idx * 3 + 1] = y2;
+        posArr[idx * 3 + 2] = z;
+        idx++;
+      }
+    });
+
+    geo.attributes.position.needsUpdate = true;
+  });
+
+  return (
+    // Centred at model world position (0, 0, 2)
+    <points position={[0, 0, 2]} renderOrder={0} frustumCulled={false}>
+      <primitive object={geo} attach="geometry" />
+      <primitive object={mat} attach="material" />
+    </points>
+  );
+}
+
 // ─── Scene ─────────────────────────────────────────────────────────────────
 function VoidScene({ isMobile }: { isMobile: boolean }) {
   const pts0 = useRef<THREE.Points | null>(null);
@@ -1489,6 +1540,9 @@ function VoidScene({ isMobile }: { isMobile: boolean }) {
 
       <StarHoverSystem pts={[pts0, pts1, pts2]} />
       <ShootingStars   pts={[pts0, pts1, pts2]} />
+
+      {/* Gravitational orbit ring — visible while model is loading */}
+      <ModelLoadingOrbit isMobile={isMobile} />
 
       {/* Work models rendered directly in the void — no separate canvas */}
       <Suspense fallback={null}>
