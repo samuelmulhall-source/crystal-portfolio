@@ -460,6 +460,15 @@ main {
   animation: holo-sweep 0.55s ease forwards;
 }
 
+/* ─── Fullscreen viewer: hide page DOM so 3D canvas shows through ─────────── */
+/* FullscreenViewer portals to document.body, outside <main>.                  */
+/* Hiding main reveals the Three.js canvas (fixed z:0) without any overlay.    */
+body.viewer-open main {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.28s ease;
+}
+
 /* ─── Responsive ──────────────────────────────────────────────────────────── */
 @media (max-width: 700px) {
   .hero-title { letter-spacing: 0.14em; }
