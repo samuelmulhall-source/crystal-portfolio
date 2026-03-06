@@ -82,7 +82,11 @@ function FullscreenViewer({
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = prev; };
+    document.body.classList.add("viewer-open");
+    return () => {
+      document.body.style.overflow = prev;
+      document.body.classList.remove("viewer-open");
+    };
   }, []);
 
   useEffect(() => {
@@ -130,11 +134,10 @@ function FullscreenViewer({
       ref={overlayRef}
       style={{
         position: "fixed", inset: 0, zIndex: 100, opacity: 0,
-        // Desktop: gradient dark left (text) → transparent right (model visible)
-        // Mobile: transparent so model shows clearly in top half
-        background: mobile
-          ? "transparent"
-          : "linear-gradient(to right, rgba(2,4,14,0.88) 0%, rgba(2,4,14,0.60) 28%, rgba(2,4,14,0.18) 52%, transparent 72%)",
+        // Overlay is near-transparent — DOM content is hidden via body.viewer-open CSS,
+        // so the Three.js canvas (z:0, fixed, outside <main>) shows through cleanly.
+        // The faint tint suppresses any stray fixed elements and gives depth.
+        background: "rgba(2,4,14,0.10)",
         pointerEvents: "none",
       }}
     >
@@ -168,14 +171,19 @@ function FullscreenViewer({
         style={{
           position: "absolute",
           // Mobile: panel at bottom half, leaving top clear for 3D model
-          // Desktop: full left column
+          // Desktop: full left column — gets its own dark glass background since the
+          //          overlay is near-transparent (body.viewer-open hides main instead)
           ...(mobile
             ? { left: 0, right: 0, bottom: 0, height: "52vh",
-                background: "linear-gradient(to bottom, rgba(2,4,14,0.72) 0%, rgba(2,4,14,0.94) 18%)",
+                background: "linear-gradient(to bottom, rgba(2,4,14,0.78) 0%, rgba(2,4,14,0.96) 22%)",
                 borderTop: "1px solid rgba(184,240,255,0.12)",
                 backdropFilter: "blur(18px) saturate(1.4)",
                 WebkitBackdropFilter: "blur(18px) saturate(1.4)" }
-            : { top: 0, left: 0, bottom: 0, width: "min(520px, 50vw)" }),
+            : { top: 0, left: 0, bottom: 0, width: "min(520px, 50vw)",
+                background: "rgba(2,4,14,0.88)",
+                backdropFilter: "blur(14px) saturate(1.3)",
+                WebkitBackdropFilter: "blur(14px) saturate(1.3)",
+                borderRight: "1px solid rgba(184,240,255,0.06)" }),
           overflowY: "auto", overflowX: "hidden",
           padding: mobile
             ? "1.5rem 1.75rem 2.5rem"

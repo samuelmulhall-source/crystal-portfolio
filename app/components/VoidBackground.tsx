@@ -357,11 +357,11 @@ function VoidMotion() {
     voidState.mouseVel  *= Math.pow(0.88, f);
     voidState.scrollVel *= Math.pow(0.90, f);
 
-    // Motion blur: CSS blur proportional to scroll speed + extra during model load.
-    // scaleY stretch hints at vertical scroll direction without affecting horizontal detail.
+    // Motion blur: CSS blur proportional to scroll speed + dramatic blur during model load.
+    // Loading blur is high so orbiting stars read as arc streaks — a kinetic loading indicator.
     const scrollBlur  = Math.min(voidState.scrollVel * 3.2, 5.5);
-    const loadingBlur = voidState.modelLoading ? 2.8 : 0;
-    const blur = Math.min(scrollBlur + loadingBlur, 7.0);
+    const loadingBlur = voidState.modelLoading ? 9.0 : 0;
+    const blur = Math.min(scrollBlur + loadingBlur, 12.0);
     const canvas = gl.domElement as HTMLCanvasElement;
     canvas.style.filter    = blur > 0.20 ? `blur(${blur.toFixed(2)}px)` : "";
     const sy = 1 + Math.min(voidState.scrollVel * 0.05, 0.10);
@@ -579,9 +579,10 @@ function ShootingStars({
     React.RefObject<THREE.Points | null>,
   ];
 }) {
-  const { camera }   = useThree();
-  const groupRef     = useRef<THREE.Group>(null);
-  const nextSpawnRef = useRef(4 + sr(99999) * 4);
+  const { camera }     = useThree();
+  const groupRef       = useRef<THREE.Group>(null);
+  const nextSpawnRef   = useRef(4 + sr(99999) * 4);
+  const loadPhaseRef   = useRef(0); // 0→1 lerp driven by voidState.modelLoading
   const meteorsRef   = useRef<MeteorState[]>(
     Array.from({ length: METEOR_COUNT }, () => ({
       active: false, t: 0, maxLife: 1.8,
@@ -818,10 +819,20 @@ function ShootingStars({
       if (changed) pObj.geometry.attributes.color.needsUpdate = true;
     }
 
+    // ── Loading orbit: draw existing stars into gravitational swirl ─────────
+    // Lerp loadPhase 0→1 when a model is loading, then back to 0.
+    // Stars in layers 0+1 feel centripetal attraction + tangential swirl impulse
+    // toward the model world centre.  Spring stiffness is softened during loading
+    // so the orbital force dominates.  CSS blur in VoidMotion is cranked up at
+    // the same time, turning blurred arcs into a kinetic loading indicator.
+    loadPhaseRef.current += ((voidState.modelLoading ? 1 : 0) - loadPhaseRef.current) * Math.min(dt * 2.0, 1);
+    const loadPhase = loadPhaseRef.current;
+
     // Spring-return physics: pull displaced stars back to their rest positions.
-    // K = spring stiffness (lower = slower return), damp = energy decay per frame.
-    const SPRING_K  = 4.5;
-    const dampFac   = Math.pow(0.90, Math.min(dt * 60, 6));
+    // K is softened during loading so the orbital force has room to work.
+    const SPRING_K = loadPhase > 0.2 ? 4.5 * (1 - loadPhase * 0.85) : 4.5;
+    const dampFac  = Math.pow(0.90, Math.min(dt * 60, 6));
+
     for (let li = 0; li < 2; li++) {
       const pObj   = pts[li].current;
       if (!pObj) continue;
@@ -831,10 +842,42 @@ function ShootingStars({
       const cnt     = layers[li].count;
       let posChanged = false;
 
+      // Transform model world position (0, 0, 2) into this layer's local space
+      // (each StarLayer Points object accumulates rotation, so local ≠ world).
+      let modelLX = 0, modelLY = 0, modelLZ = 2;
+      if (loadPhase > 0.01) {
+        tmpV.set(0, 0, 2).applyMatrix4(tmpM.copy(pObj.matrixWorld).invert());
+        modelLX = tmpV.x; modelLY = tmpV.y; modelLZ = tmpV.z;
+      }
+
       for (let i = 0; i < cnt; i++) {
-        const b  = i * 3;
+        const b = i * 3;
+        let hasOrbit = false;
+
+        // ── Gravitational swirl toward model centre ──────────────────────
+        if (loadPhase > 0.01) {
+          const sx = posArr[b], sy = posArr[b + 1], sz = posArr[b + 2];
+          const toX = modelLX - sx, toY = modelLY - sy, toZ = modelLZ - sz;
+          const dist = Math.sqrt(toX * toX + toY * toY + toZ * toZ);
+          if (dist > 3 && dist < 34) {
+            hasOrbit = true;
+            const invD = 1 / dist;
+            const ph   = loadPhase;
+            // Centripetal: constant acceleration toward model (invD normalises)
+            const aStr = 0.65 * ph;
+            vel[b]     += toX * invD * aStr * dt;
+            vel[b + 1] += toY * invD * aStr * dt;
+            vel[b + 2] += toZ * invD * aStr * dt;
+            // Tangential swirl: cross( toModel_norm, up=[0,1,0] ) = (-toZ/dist, 0, toX/dist)
+            // Gives a consistent spin direction around the Y axis.
+            const tStr = 1.25 * ph;
+            vel[b]     += (-toZ * invD) * tStr * dt;
+            vel[b + 2] += ( toX * invD) * tStr * dt;
+          }
+        }
+
         const v0 = vel[b], v1 = vel[b + 1], v2 = vel[b + 2];
-        if (v0 * v0 + v1 * v1 + v2 * v2 < 0.0002) continue;
+        if (!hasOrbit && v0 * v0 + v1 * v1 + v2 * v2 < 0.0002) continue;
         posChanged = true;
 
         // Spring force toward original rest position
@@ -1396,105 +1439,6 @@ function WorkModelsInScene() {
   );
 }
 
-// ─── Model loading orbital ring ────────────────────────────────────────────
-// Three concentric rings of ice-blue particles orbiting the model centre
-// while the FBX is loading.  The rings fade in/out with voidState.modelLoading.
-// Canvas CSS blur (set in VoidMotion) gives them a natural streak.
-function ModelLoadingOrbit({ isMobile }: { isMobile: boolean }) {
-  const opRef = useRef(0);
-
-  // Ring configs: { count, radius, speed (rad/s), tiltX, tiltZ }
-  const RINGS = [
-    { count: isMobile ? 20 : 30, radius: 1.3, speed:  0.90, tiltX: 0,          tiltZ: 0 },
-    { count: isMobile ? 16 : 22, radius: 2.1, speed: -0.58, tiltX: Math.PI/4,  tiltZ: 0 },
-    { count: isMobile ? 12 : 18, radius: 3.0, speed:  0.38, tiltX: 0,          tiltZ: Math.PI/3 },
-  ] as const;
-
-  const total = RINGS.reduce((s, r) => s + r.count, 0);
-
-  const geo = useMemo(() => {
-    const pos = new Float32Array(total * 3);
-    const col = new Float32Array(total * 3);
-    const brightness = [0.85, 0.65, 0.45]; // dimmer outer rings
-    let idx = 0;
-    RINGS.forEach((r, ri) => {
-      const br = brightness[ri];
-      for (let i = 0; i < r.count; i++) {
-        const a = (i / r.count) * Math.PI * 2;
-        pos[idx * 3]     = Math.cos(a) * r.radius;
-        pos[idx * 3 + 1] = Math.sin(a) * r.radius;
-        pos[idx * 3 + 2] = 0;
-        col[idx * 3]     = br * 0.72;
-        col[idx * 3 + 1] = br * 0.94;
-        col[idx * 3 + 2] = br * 1.00;
-        idx++;
-      }
-    });
-    const g = new THREE.BufferGeometry();
-    g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
-    g.setAttribute("color",    new THREE.BufferAttribute(col, 3));
-    return g;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [total]);
-
-  const mat = useMemo(() => {
-    const m = makeHoloStarMat();
-    m.uniforms.uSize.value    = 0.32;
-    m.uniforms.uOpacity.value = 0;
-    return m;
-  }, []);
-
-  useEffect(() => () => { geo.dispose(); mat.dispose(); }, [geo, mat]);
-
-  useFrame((s, dt) => {
-    const target = voidState.modelLoading ? 1 : 0;
-    opRef.current += (target - opRef.current) * Math.min(dt * 2.2, 1);
-    const op = opRef.current;
-
-    mat.uniforms.uOpacity.value = op * 0.80;
-    mat.uniforms.uVH.value      = (s.gl.domElement as HTMLCanvasElement).height * 0.5;
-
-    if (op < 0.01) return;
-
-    const t      = s.clock.elapsedTime;
-    const posArr = geo.attributes.position.array as Float32Array;
-    let   idx    = 0;
-
-    RINGS.forEach((r) => {
-      const cosX = Math.cos(r.tiltX), sinX = Math.sin(r.tiltX);
-      const cosZ = Math.cos(r.tiltZ), sinZ = Math.sin(r.tiltZ);
-      for (let i = 0; i < r.count; i++) {
-        const a = (i / r.count) * Math.PI * 2 + t * r.speed;
-        // Base ring in XY plane
-        let x = Math.cos(a) * r.radius;
-        let y = Math.sin(a) * r.radius;
-        let z = 0;
-        // Tilt around X
-        const y1 = y * cosX - z * sinX;
-        const z1 = y * sinX + z * cosX;
-        y = y1; z = z1;
-        // Tilt around Z
-        const x2 = x * cosZ - y * sinZ;
-        const y2 = x * sinZ + y * cosZ;
-        posArr[idx * 3]     = x2;
-        posArr[idx * 3 + 1] = y2;
-        posArr[idx * 3 + 2] = z;
-        idx++;
-      }
-    });
-
-    geo.attributes.position.needsUpdate = true;
-  });
-
-  return (
-    // Centred at model world position (0, 0, 2)
-    <points position={[0, 0, 2]} renderOrder={0} frustumCulled={false}>
-      <primitive object={geo} attach="geometry" />
-      <primitive object={mat} attach="material" />
-    </points>
-  );
-}
-
 // ─── Scene ─────────────────────────────────────────────────────────────────
 function VoidScene({ isMobile }: { isMobile: boolean }) {
   const pts0 = useRef<THREE.Points | null>(null);
@@ -1540,9 +1484,6 @@ function VoidScene({ isMobile }: { isMobile: boolean }) {
 
       <StarHoverSystem pts={[pts0, pts1, pts2]} />
       <ShootingStars   pts={[pts0, pts1, pts2]} />
-
-      {/* Gravitational orbit ring — visible while model is loading */}
-      <ModelLoadingOrbit isMobile={isMobile} />
 
       {/* Work models rendered directly in the void — no separate canvas */}
       <Suspense fallback={null}>
