@@ -52,7 +52,6 @@ function getStarGeom(n: number): { verts: Vec3[]; faces: Face[] } {
     const o2 = 2 + ((i + 1) % n) * 2; // outer[i+1]
 
     const inner  = o + 1;
-    const inner2 = ni < verts.length ? ni + 1 : 3; // inner[i+1]
 
     // Top faces (apex=0): outer[i] → inner[i] → apex, inner[i] → outer[i+1] → apex
     faces.push([0, o, inner]);
