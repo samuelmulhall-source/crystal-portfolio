@@ -39,11 +39,7 @@ const LAYERS_MOBILE = [
 
 const VoidContext = createContext<{ isMobile: boolean; layers: LayerConfig }>({ isMobile: false, layers: LAYERS_DESKTOP });
 
-// ─── Seeded random ─────────────────────────────────────────────────────────
-function sr(seed: number) {
-  const x = Math.sin(seed * 9301 + 49297) * 233280;
-  return x - Math.floor(x);
-}
+import { sr } from "../lib/seededRandom";
 
 
 // ─── Star color builder ────────────────────────────────────────────────────
@@ -903,14 +899,11 @@ function ShootingStars({
     camR.setFromMatrixColumn(camera.matrixWorld, 0);
     camU.setFromMatrixColumn(camera.matrixWorld, 1);
 
-    // ── Model star repulsion + colour masking ─────────────────────────────
-    // Three complementary techniques clear stars from around each visible model:
+    // ── Model star repulsion ───────────────────────────────────────────────
+    // Two complementary techniques clear stars from around each visible model:
     //   1. 3D world-space push  — physical velocity impulse outward from model centre.
     //   2. NDC screen-space push — camera-plane impulse scaled by star depth so
     //      background stars get a proportionally larger world-space kick.
-    //   3. NDC colour mask — stars projecting inside the model's screen footprint
-    //      are faded toward void-black regardless of physics, definitively
-    //      preventing visual overlap from any depth or direction.
     if (workModels.entries.length > 0) {
       const NDC_R      = 0.36;  // repulsion radius (NDC)
       const NDC_R2     = NDC_R * NDC_R;

@@ -25,11 +25,7 @@ type WebGPUThree = typeof import("three/webgpu") & {
 };
 const WebGPUContext = createContext<WebGPUThree | null>(null);
 
-// ─── Seeded random ─────────────────────────────────────────────────────────
-function sr(seed: number) {
-  const x = Math.sin(seed * 9301 + 49297) * 233280;
-  return x - Math.floor(x);
-}
+import { sr } from "../lib/seededRandom";
 
 // ─── Loading fallback ───────────────────────────────────────────────────────
 function ShowcaseLoading() {
