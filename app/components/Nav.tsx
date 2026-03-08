@@ -138,7 +138,7 @@ export default function Nav() {
       <ul style={{ display: "flex", alignItems: "center", gap: "2.2rem", listStyle: "none", margin: 0, padding: 0 }}>
 
         {/* Work — hover on desktop, tap to toggle on mobile */}
-        <li style={{ position: "relative" }}
+        <li style={{ position: "relative", minWidth: "3.2rem", textAlign: "center" }}
           onMouseEnter={!isMobile ? openWork : undefined}
           onMouseLeave={!isMobile ? closeWork : undefined}
         >
@@ -146,7 +146,7 @@ export default function Nav() {
             href="#work"
             className="frost-link nav-link"
             onClick={(e) => {
-              if (window.matchMedia("(max-width: 768px)").matches) {
+              if (isMobile) {
                 e.preventDefault();
                 toggleWork();
               } else {
@@ -170,10 +170,10 @@ export default function Nav() {
           <ul style={{
             position:   "absolute",
             top:        "calc(100% + 8px)",
-            left:       "50%",
+            right:      0,
             transform:  workOpen
-              ? "translateX(-50%) translateY(0) scale(1)"
-              : "translateX(-50%) translateY(-5px) scale(0.96)",
+              ? "translateY(0) scale(1)"
+              : "translateY(-5px) scale(0.96)",
             background:   "rgba(5,7,15,0.96)",
             borderTop:    "1px solid rgba(184,240,255,0.22)",
             borderRadius: "2px",
@@ -226,7 +226,7 @@ export default function Nav() {
         </li>
 
         {LINKS.map(({ label, href }) => (
-          <li key={href}>
+          <li key={href} style={{ minWidth: "3.2rem", textAlign: "center" }}>
             <a
               href={href}
               className="frost-link nav-link"

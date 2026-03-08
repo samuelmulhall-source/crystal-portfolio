@@ -380,38 +380,89 @@ export default function EffectsOverlay() {
         ctx!.restore();
       }
 
-      // ── 5. Model loading HUD ────────────────────────────────────────────
+      // ── 5. Model loading HUD — technical readout with arc progress ───────
       if (loadFade > 0.01) {
         const mr       = voidState.modelRegion;
-        const cx       = w / 2;
-        const baseY    = mr.rPx > 30 ? mr.y + mr.rPx + 44 : h * 0.62;
+        const cx       = mr.rPx > 30 ? mr.x : w / 2;
+        const cy       = mr.rPx > 30 ? mr.y : h * 0.50;
+        const arcR     = mr.rPx > 30 ? mr.rPx + 28 : Math.min(w, h) * 0.14;
         const pulse    = 0.55 + Math.sin(t * 2.4) * 0.18;
         const alpha    = loadFade * pulse;
-        const dotCount = Math.floor(t * 1.8) % 4;
-        const dots     = ".".repeat(dotCount);
+        const progress = Math.min(voidState.modelOpacity / 0.35, 1); // 0→1 as model materialises
+        const pct      = Math.round(progress * 100);
 
         ctx!.save();
         ctx!.globalCompositeOperation = "source-over";
+
+        // ── Circular arc progress ────────────────────────────────────────
+        const startAngle  = -Math.PI / 2;
+        const sweepAngle  = progress * Math.PI * 2;
+        const dashOffset  = t * 1.2; // rotating dash pattern
+
+        // Background ring (faint)
+        ctx!.beginPath();
+        ctx!.arc(cx, cy, arcR, 0, Math.PI * 2);
+        ctx!.strokeStyle = `rgba(184,240,255,${(loadFade * 0.06).toFixed(3)})`;
+        ctx!.lineWidth   = 1;
+        ctx!.stroke();
+
+        // Progress arc (bright, dashed)
+        ctx!.beginPath();
+        ctx!.arc(cx, cy, arcR, startAngle, startAngle + sweepAngle);
+        ctx!.strokeStyle = `rgba(184,240,255,${(loadFade * 0.45).toFixed(3)})`;
+        ctx!.lineWidth   = 1.5;
+        ctx!.setLineDash([4, 6]);
+        ctx!.lineDashOffset = -dashOffset * 20;
+        ctx!.shadowColor = "rgba(184,240,255,0.35)";
+        ctx!.shadowBlur  = 6;
+        ctx!.stroke();
+        ctx!.setLineDash([]);
+        ctx!.shadowBlur  = 0;
+
+        // Arc head dot
+        if (sweepAngle > 0.1) {
+          const headX = cx + Math.cos(startAngle + sweepAngle) * arcR;
+          const headY = cy + Math.sin(startAngle + sweepAngle) * arcR;
+          ctx!.beginPath();
+          ctx!.arc(headX, headY, 2.5, 0, Math.PI * 2);
+          ctx!.fillStyle = `rgba(184,240,255,${(loadFade * 0.75).toFixed(3)})`;
+          ctx!.shadowColor = "rgba(184,240,255,0.60)";
+          ctx!.shadowBlur  = 8;
+          ctx!.fill();
+          ctx!.shadowBlur  = 0;
+        }
+
+        // ── Text readout below arc ───────────────────────────────────────
+        const textY = cy + arcR + 28;
+        const dotCount = Math.floor(t * 1.8) % 4;
+        const dots     = ".".repeat(dotCount);
+
         ctx!.textAlign    = "center";
         ctx!.textBaseline = "middle";
-        ctx!.font         = "600 9px 'Courier New', monospace";
-        ctx!.fillStyle    = `rgba(184,240,255,${alpha.toFixed(3)})`;
-        ctx!.shadowColor  = "rgba(184,240,255,0.40)";
-        ctx!.shadowBlur   = 10;
-        ctx!.fillText(`/// MATERIALIZING${dots}`, cx, baseY);
+        ctx!.font         = "500 8px 'Courier New', monospace";
+        ctx!.letterSpacing = "2px";
+        ctx!.fillStyle    = `rgba(184,240,255,${(alpha * 0.85).toFixed(3)})`;
+        ctx!.shadowColor  = "rgba(184,240,255,0.30)";
+        ctx!.shadowBlur   = 8;
+        ctx!.fillText(`LOADING ASSET${dots}`, cx, textY);
+
+        // Percentage readout
+        ctx!.font      = "400 7px 'Courier New', monospace";
+        ctx!.fillStyle = `rgba(184,240,255,${(alpha * 0.55).toFixed(3)})`;
+        ctx!.shadowBlur = 0;
+        ctx!.fillText(`${pct}%`, cx, textY + 14);
 
         // Thin accent line above text
-        const lw = 80 * loadFade;
-        const lg = ctx!.createLinearGradient(cx - lw, baseY - 14, cx + lw, baseY - 14);
+        const lw = 48 * loadFade;
+        const lg = ctx!.createLinearGradient(cx - lw, textY - 12, cx + lw, textY - 12);
         lg.addColorStop(0,   "rgba(0,0,0,0)");
-        lg.addColorStop(0.5, `rgba(184,240,255,${(loadFade * 0.35).toFixed(3)})`);
+        lg.addColorStop(0.5, `rgba(184,240,255,${(loadFade * 0.28).toFixed(3)})`);
         lg.addColorStop(1,   "rgba(0,0,0,0)");
         ctx!.strokeStyle = lg;
         ctx!.lineWidth   = 0.75;
-        ctx!.shadowBlur  = 0;
         ctx!.beginPath();
-        ctx!.moveTo(cx - lw, baseY - 14);
-        ctx!.lineTo(cx + lw, baseY - 14);
+        ctx!.moveTo(cx - lw, textY - 12);
+        ctx!.lineTo(cx + lw, textY - 12);
         ctx!.stroke();
         ctx!.restore();
       }

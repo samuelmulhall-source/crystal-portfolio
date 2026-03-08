@@ -53,4 +53,15 @@ export const voidState = {
   // True when the active model is loading / hasn't materialised yet.
   // Drives the orbital loading animation and EffectsOverlay loading HUD text.
   modelLoading: false,
+
+  // ── Loading phase ────────────────────────────────────────────────────────
+  // 0→1 lerp tracking how deep into the loading orbital animation we are.
+  // Written by ShootingStars, read by VoidMotion for directional blur and
+  // EffectsOverlay for the arc progress indicator.
+  loadPhase: 0,
+
+  // ── Model opacity ───────────────────────────────────────────────────────
+  // Current opacity of the active model (0→1). Used by EffectsOverlay for
+  // loading progress percentage.
+  modelOpacity: 0,
 };
