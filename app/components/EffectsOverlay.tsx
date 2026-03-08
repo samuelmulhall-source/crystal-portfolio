@@ -384,11 +384,13 @@ export default function EffectsOverlay() {
       // Dark gravitational center where the model will appear.  Stars orbit
       // around it via velocity forces in ShootingStars — their per-star
       // motion-blur streaks create the visual loading circle naturally.
-      if (loadFade > 0.01) {
+      // modelRegion is now populated by ShootingStars immediately (before FBX
+      // loads), so position is always correct relative to the work section.
+      if (loadFade > 0.01 && voidState.modelRegion.rPx > 10) {
         const mr       = voidState.modelRegion;
-        const cx       = mr.rPx > 30 ? mr.x : w / 2;
-        const cy       = mr.rPx > 30 ? mr.y : h * 0.50;
-        const coreR    = Math.max(mr.rPx * 0.45, 28) * loadFade;
+        const cx       = mr.x;
+        const cy       = mr.y;
+        const coreR    = Math.max(mr.rPx * 0.5, 32) * loadFade;
         const eventR   = coreR * 1.6;
         const progress = Math.min(voidState.modelOpacity / 0.35, 1);
 

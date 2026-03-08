@@ -643,10 +643,12 @@ function ShootingStars({
     React.RefObject<THREE.Points | null>,
   ];
 }) {
-  const { camera }     = useThree();
+  const { camera, gl } = useThree();
   const groupRef       = useRef<THREE.Group>(null);
   const nextSpawnRef   = useRef(4 + sr(99999) * 4);
   const loadPhaseRef   = useRef(0); // 0→1 lerp driven by voidState.modelLoading
+  const lastActiveRef  = useRef<string | null>(null); // track activeModelId changes
+  const lockedLoadY    = useRef<number | null>(null);  // locked worldY for loading position
   const meteorsRef   = useRef<MeteorState[]>(
     Array.from({ length: METEOR_COUNT }, () => ({
       active: false, t: 0, maxLife: 1.8,
@@ -885,12 +887,48 @@ function ShootingStars({
       if (changed) pObj.geometry.attributes.color.needsUpdate = true;
     }
 
+    // ── Loading state management (runs BEFORE Suspense/VoidModel) ───────────
+    // Detect activeModelId changes immediately so the loading animation starts
+    // before the FBX suspends and parses (which is the main stutter source).
+    const currentActive = workModels.activeModelId;
+    if (currentActive !== lastActiveRef.current) {
+      lastActiveRef.current = currentActive;
+      if (currentActive) {
+        voidState.modelOpacity = 0;     // reset — new model hasn't materialised
+        voidState.modelLoading = true;  // start loading animation immediately
+        lockedLoadY.current = null;     // reset locked Y for new model
+      }
+    }
+    // Drive modelLoading: true when a model is active but not yet materialised.
+    // VoidModel writes modelOpacity once it renders; until then opacity stays 0.
+    // Only show loading when work section is at least partially visible.
+    if (currentActive) {
+      voidState.modelLoading = voidState.modelOpacity < 0.35 && workModels.sectionRatio > 0.05;
+    } else {
+      voidState.modelLoading = false;
+    }
+
+    // ── Write modelRegion from camera projection (even before VoidModel loads) ──
+    // The model always renders at worldX=0, worldZ=2; worldY tracks scroll.
+    // Lock worldY when work section is visible (mirrors VoidModel logic).
+    if (voidState.modelLoading) {
+      const dynamicY = -voidState.scrollProgress * 7.5;
+      if (workModels.sectionRatio > 0.20) lockedLoadY.current = dynamicY;
+      const modelY = lockedLoadY.current ?? dynamicY;
+      tmpV.set(0, modelY, 2).project(camera);
+      const cW = gl.domElement.clientWidth;
+      const cH = gl.domElement.clientHeight;
+      voidState.modelRegion.x   = (tmpV.x + 1) / 2 * cW;
+      voidState.modelRegion.y   = (1 - tmpV.y) / 2 * cH;
+      voidState.modelRegion.rPx = Math.min(cW, cH) * 0.22;
+    }
+
     // ── Loading orbit: draw existing stars into gravitational swirl ─────────
     // Lerp loadPhase 0→1 when a model is loading, then back to 0.
     // Stars in layers 0+1 feel centripetal attraction + tangential swirl impulse
     // toward the model world centre.  Spring stiffness is softened during loading
-    // so the orbital force dominates.  CSS blur in VoidMotion is cranked up at
-    // the same time, turning blurred arcs into a kinetic loading indicator.
+    // so the orbital force dominates.  Per-star velocity motion blur in the shader
+    // turns the orbital streaks into a kinetic loading indicator naturally.
     // Slower lerp (dt*1.0) builds/decays orbit more gradually for visible effect
     loadPhaseRef.current += ((voidState.modelLoading ? 1 : 0) - loadPhaseRef.current) * Math.min(dt * 1.0, 1);
     const loadPhase = loadPhaseRef.current;
@@ -910,11 +948,13 @@ function ShootingStars({
       const cnt     = layers[li].count;
       let posChanged = false;
 
-      // Transform model world position (0, 0, 2) into this layer's local space
+      // Transform model world position into this layer's local space
       // (each StarLayer Points object accumulates rotation, so local ≠ world).
-      let modelLX = 0, modelLY = 0, modelLZ = 2;
+      // Use the same worldY as the model (tracks scroll, locked when work section visible).
+      const modelWorldY = lockedLoadY.current ?? (-voidState.scrollProgress * 7.5);
+      let modelLX = 0, modelLY = modelWorldY, modelLZ = 2;
       if (loadPhase > 0.01) {
-        tmpV.set(0, 0, 2).applyMatrix4(tmpM.copy(pObj.matrixWorld).invert());
+        tmpV.set(0, modelWorldY, 2).applyMatrix4(tmpM.copy(pObj.matrixWorld).invert());
         modelLX = tmpV.x; modelLY = tmpV.y; modelLZ = tmpV.z;
       }
 
@@ -993,9 +1033,9 @@ function ShootingStars({
         if (workModels.activeModelId !== entry.id) return;
         const proximity = 1;
 
-        // Model is always centred at (0, 0, 2) in the new menu-based layout
+        // Model position tracks scroll (same Y as VoidModel + orbital center)
         const mwX    = 0;
-        const mwY    = 0;
+        const mwY    = lockedLoadY.current ?? (-voidState.scrollProgress * 7.5);
         const mwZ    = 2.0;
         const mwZeff = mwZ;
 
@@ -1314,10 +1354,8 @@ function VoidModel({ entry }: { entry: WorkModelEntry }) {
       voidState.firstModelReady = true;
     }
 
-    // ── Signal model loading state (drives orbital loading animation) ──────
-    // Threshold 0.35 keeps orbit visible longer while model materialises
+    // ── Write model opacity (ShootingStars reads this to drive modelLoading) ──
     if (workModels.activeModelId === entry.id) {
-      voidState.modelLoading = op < 0.35;
       voidState.modelOpacity = op;
     }
 
