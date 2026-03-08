@@ -97,34 +97,80 @@ function buildStarPositions(count: number, rMin: number, rMax: number, seed: num
   return pos;
 }
 
-function buildStarGeo(count: number, rMin: number, rMax: number, seed: number) {
+function buildStarGeo(count: number, rMin: number, rMax: number, seed: number, hasVelocity: boolean) {
   const pos = buildStarPositions(count, rMin, rMax, seed);
   const col = buildStarColors(count, seed);
   const g = new THREE.BufferGeometry();
   g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
   g.setAttribute("color",    new THREE.BufferAttribute(col, 3));
+  if (hasVelocity) {
+    // Velocity attribute for per-star motion blur — updated each frame by ShootingStars
+    const vel = new Float32Array(count * 3);
+    g.setAttribute("aVelocity", new THREE.BufferAttribute(vel, 3));
+  }
   return g;
 }
 
-// ─── Star sprite shader: clean round dot — no wide halo, no ray pattern ───
-// Wide halos cause additive-blending bloom/flicker when many stars overlap.
-// Holographic hover effects live in EffectsOverlay (2D canvas) instead.
-function makeHoloStarMat(): THREE.ShaderMaterial {
+// ─── Star sprite shader with per-star velocity motion blur ─────────────────
+// Each star streaks along its velocity vector: the point is enlarged to contain
+// the trail and the fragment shader applies a directional Gaussian with a
+// bright leading edge and fading tail.  Stars at rest render as clean round dots.
+function makeHoloStarMat(hasVelocity: boolean): THREE.ShaderMaterial {
   return new THREE.ShaderMaterial({
     uniforms: {
       uSize:    { value: 0.22 },
       uOpacity: { value: 0.90 },
       uVH:      { value: 400.0 }, // physical half-height of canvas, updated per frame
     },
-    vertexShader: /* glsl */`
+    vertexShader: hasVelocity ? /* glsl */`
+      attribute vec3 aVelocity;
+      varying vec3 vColor;
+      varying vec2 vVelDir;    // normalised screen-space velocity direction
+      varying float vTrailLen; // trail length in point-size units (0..1)
+      varying float vBaseR;    // base star radius (no trail) in point-size units
+      uniform float uSize;
+      uniform float uVH;
+
+      void main() {
+        vColor = color;
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        float nat = uSize * projectionMatrix[1][1] * uVH / (-mv.z);
+        if (nat < 0.5) {
+          gl_Position = vec4(10.0, 10.0, 10.0, 1.0);
+          gl_PointSize = 1.0;
+          vVelDir = vec2(0.0);
+          vTrailLen = 0.0;
+          vBaseR = 0.5;
+          return;
+        }
+
+        gl_Position = projectionMatrix * mv;
+
+        // Project velocity endpoint to screen space
+        // aVelocity is in world-units/sec; 0.016 ≈ 1 frame at 60fps
+        vec4 mvEnd = modelViewMatrix * vec4(position + aVelocity * 0.045, 1.0);
+        vec4 clipEnd = projectionMatrix * mvEnd;
+        vec2 screenStart = gl_Position.xy / gl_Position.w;
+        vec2 screenEnd = clipEnd.xy / clipEnd.w;
+        vec2 screenVel = (screenEnd - screenStart) * uVH; // in physical pixels
+
+        float velMag = length(screenVel);
+        float trailPx = min(velMag * 0.6, 18.0); // cap trail to 18px
+
+        float totalSize = max(2.0, nat + trailPx);
+        gl_PointSize = totalSize;
+
+        vVelDir = velMag > 0.1 ? screenVel / velMag : vec2(0.0, 1.0);
+        vTrailLen = trailPx / totalSize;
+        vBaseR = nat / totalSize;
+      }
+    ` : /* glsl */`
       varying vec3 vColor;
       uniform float uSize;
       uniform float uVH;
       void main() {
         vColor = color;
         vec4 mv = modelViewMatrix * vec4(position, 1.0);
-        // Correct pixel size: projectionMatrix[1][1] = 1/tan(fov/2)
-        // uVH = drawingBufferHeight * 0.5 (physical pixels, includes dpr)
         float nat = uSize * projectionMatrix[1][1] * uVH / (-mv.z);
         if (nat < 0.5) {
           gl_Position = vec4(10.0, 10.0, 10.0, 1.0);
@@ -135,18 +181,48 @@ function makeHoloStarMat(): THREE.ShaderMaterial {
         gl_PointSize = max(2.0, nat);
       }
     `,
-    fragmentShader: /* glsl */`
+    fragmentShader: hasVelocity ? /* glsl */`
       uniform float uOpacity;
       varying vec3 vColor;
+      varying vec2 vVelDir;
+      varying float vTrailLen;
+      varying float vBaseR;
 
+      void main() {
+        vec2 uv = gl_PointCoord * 2.0 - 1.0;
+
+        // Rotate UV into velocity-aligned frame
+        // vVelDir is in screen space (+Y = up in NDC, but gl_PointCoord +Y = down)
+        vec2 dir = vec2(vVelDir.x, -vVelDir.y);
+        vec2 perp = vec2(-dir.y, dir.x);
+        float along = dot(uv, dir);   // positive = leading edge
+        float across = dot(uv, perp);
+
+        // Elliptical stretch along velocity: trail elongates, cross-axis stays tight
+        float stretch = 1.0 + vTrailLen * 3.0;
+        float rx = along / stretch;
+        float ry = across;
+        float r = length(vec2(rx, ry));
+        if (r > 1.0) discard;
+
+        // Directional fade: leading edge bright, trailing edge fades out
+        float trailFade = 1.0 - max(0.0, -along) * vTrailLen * 1.8;
+        trailFade = max(trailFade, 0.15);
+
+        float core = exp(-r * r * 7.0) * trailFade;
+        float a = uOpacity * core;
+        if (a < 0.004) discard;
+        gl_FragColor = vec4(vColor * core, a);
+      }
+    ` : /* glsl */`
+      uniform float uOpacity;
+      varying vec3 vColor;
       void main() {
         vec2 uv = gl_PointCoord * 2.0 - 1.0;
         float r = length(uv);
         if (r > 1.0) discard;
-
-        // exp(-r²×7): soft enough to be visible at 2–3px, crisp enough to avoid halos
         float core = exp(-r * r * 7.0);
-        float a    = uOpacity * core;
+        float a = uOpacity * core;
         if (a < 0.004) discard;
         gl_FragColor = vec4(vColor * core, a);
       }
@@ -169,8 +245,10 @@ function StarLayer({
 }) {
   const { layers } = useContext(VoidContext);
   const cfg    = layers[li];
-  const geo    = useMemo(() => buildStarGeo(cfg.count, cfg.rMin, cfg.rMax, cfg.seed), [cfg]);
-  const mat    = useMemo(() => makeHoloStarMat(), []);
+  // Layers 0+1 have velocity physics → motion blur shader; layer 2 is rotation-only
+  const hasVel = li < 2;
+  const geo    = useMemo(() => buildStarGeo(cfg.count, cfg.rMin, cfg.rMax, cfg.seed, hasVel), [cfg, hasVel]);
+  const mat    = useMemo(() => makeHoloStarMat(hasVel), [hasVel]);
 
   useEffect(() => () => mat.dispose(), [mat]);
 
@@ -344,38 +422,14 @@ function ExpandedOrbitControls() {
   );
 }
 
-// ─── Velocity decay + scroll motion blur ───────────────────────────────────
+// ─── Velocity decay ─────────────────────────────────────────────────────────
+// Motion blur is now per-star in the shader (aVelocity attribute) — no CSS blur.
 function VoidMotion() {
-  const { gl } = useThree();
-  const { isMobile } = useContext(VoidContext);
   useFrame((_, dt) => {
-    voidState.ready = true; // signal LoadingScreen that first frame is done
+    voidState.ready = true;
     const f = Math.min(dt * 60, 6);
     voidState.mouseVel  *= Math.pow(0.88, f);
     voidState.scrollVel *= Math.pow(0.90, f);
-
-    // Motion blur: CSS blur proportional to scroll speed + dramatic blur during model load.
-    // Loading blur creates arc streaks from orbital motion — kinetic loading indicator.
-    const scrollBlur  = Math.min(voidState.scrollVel * 3.2, 5.5);
-    const lp          = voidState.loadPhase;
-    const loadingBlur = lp > 0.01 ? lp * (isMobile ? 5.0 : 9.0) : 0;
-    const blur = Math.min(scrollBlur + loadingBlur, isMobile ? 8.0 : 12.0);
-    const canvas = gl.domElement as HTMLCanvasElement;
-    canvas.style.filter = blur > 0.20 ? `blur(${blur.toFixed(2)}px)` : "";
-
-    // Directional stretch: vertical for scroll, slight anamorphic during loading
-    if (isMobile) {
-      // Skip transforms on mobile — expensive composite layer
-      canvas.style.transform = "";
-    } else {
-      const sy = 1 + Math.min(voidState.scrollVel * 0.08, 0.12);
-      const sx = lp > 0.01 ? 1 + lp * 0.012 : 1;
-      const needsT = sy > 1.005 || sx > 1.005;
-      canvas.style.transform = needsT ? `scale(${sx.toFixed(4)}, ${sy.toFixed(4)})` : "";
-    }
-
-    // Counteract additive-blending brightness boost during blur
-    canvas.style.opacity = blur > 1 ? `${(1 - blur * 0.012).toFixed(3)}` : "";
   });
   return null;
 }
@@ -911,6 +965,12 @@ function ShootingStars({
       }
 
       if (posChanged) pObj.geometry.attributes.position.needsUpdate = true;
+      // Sync velocity attribute for per-star motion blur shader
+      const velAttr = pObj.geometry.attributes.aVelocity;
+      if (velAttr) {
+        (velAttr as THREE.BufferAttribute).array = vel;
+        velAttr.needsUpdate = true;
+      }
     }
 
     // ── Camera axes (used by mouse + model repulsion below) ────────────────
@@ -1119,30 +1179,51 @@ function VoidModel({ entry }: { entry: WorkModelEntry }) {
     if (!texSig) return;
     const loader = new THREE.TextureLoader();
     const t      = entry.textures;
+    let cancelled = false;
 
     const applyAll = (update: (m: THREE.MeshPhysicalMaterial) => void) => {
       allMats.current.forEach(m => { if (m) { update(m); m.needsUpdate = true; } });
     };
 
-    if (t.map) loader.loadAsync(t.map).then(tex => {
-      tex.colorSpace = THREE.SRGBColorSpace;
-      applyAll(m => { m.map = tex; });
-    }).catch(() => {});
+    // Stagger texture loads to spread GPU upload across frames and reduce stutters.
+    // Each texture loads sequentially with a small delay between uploads.
+    const loadQueue: Array<{
+      url: string;
+      apply: (tex: THREE.Texture) => void;
+    }> = [];
 
-    if (t.normalMap) loader.loadAsync(t.normalMap).then(tex => {
-      tex.colorSpace = THREE.NoColorSpace; // normal maps are linear data, not sRGB
-      applyAll(m => { m.normalMap = tex; m.normalMapType = THREE.TangentSpaceNormalMap; });
-    }).catch(() => {});
+    if (t.map) loadQueue.push({
+      url: t.map,
+      apply: tex => { tex.colorSpace = THREE.SRGBColorSpace; applyAll(m => { m.map = tex; }); },
+    });
+    if (t.normalMap) loadQueue.push({
+      url: t.normalMap,
+      apply: tex => { tex.colorSpace = THREE.NoColorSpace; applyAll(m => { m.normalMap = tex; m.normalMapType = THREE.TangentSpaceNormalMap; }); },
+    });
+    if (t.roughnessMap) loadQueue.push({
+      url: t.roughnessMap,
+      apply: tex => { applyAll(m => { m.roughnessMap = tex; m.roughness = 0.88; }); },
+    });
+    if (t.metalnessMap) loadQueue.push({
+      url: t.metalnessMap,
+      apply: tex => { applyAll(m => { m.metalnessMap = tex; m.metalness = 0.85; }); },
+    });
 
-    if (t.roughnessMap) loader.loadAsync(t.roughnessMap).then(tex => {
-      // Cap at 0.88 so surfaces never go full mirror — prevents dark patches on metallic faces
-      applyAll(m => { m.roughnessMap = tex; m.roughness = 0.88; });
-    }).catch(() => {});
+    const processQueue = async () => {
+      for (const item of loadQueue) {
+        if (cancelled) return;
+        try {
+          const tex = await loader.loadAsync(item.url);
+          if (cancelled) return;
+          item.apply(tex);
+          // Wait a frame + 80ms before next upload to avoid GPU stall
+          await new Promise(r => setTimeout(r, 80));
+        } catch { /* texture missing — skip */ }
+      }
+    };
+    processQueue();
 
-    if (t.metalnessMap) loader.loadAsync(t.metalnessMap).then(tex => {
-      // Cap at 0.85 — retains slight diffuse response so dark metals catch fill lights
-      applyAll(m => { m.metalnessMap = tex; m.metalness = 0.85; });
-    }).catch(() => {});
+    return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [texSig]);
 
