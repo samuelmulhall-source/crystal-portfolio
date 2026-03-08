@@ -347,6 +347,7 @@ function ExpandedOrbitControls() {
 // ─── Velocity decay + scroll motion blur ───────────────────────────────────
 function VoidMotion() {
   const { gl } = useThree();
+  const { isMobile } = useContext(VoidContext);
   useFrame((_, dt) => {
     voidState.ready = true; // signal LoadingScreen that first frame is done
     const f = Math.min(dt * 60, 6);
@@ -354,14 +355,27 @@ function VoidMotion() {
     voidState.scrollVel *= Math.pow(0.90, f);
 
     // Motion blur: CSS blur proportional to scroll speed + dramatic blur during model load.
-    // Loading blur is high so orbiting stars read as arc streaks — a kinetic loading indicator.
+    // Loading blur creates arc streaks from orbital motion — kinetic loading indicator.
     const scrollBlur  = Math.min(voidState.scrollVel * 3.2, 5.5);
-    const loadingBlur = voidState.modelLoading ? 9.0 : 0;
-    const blur = Math.min(scrollBlur + loadingBlur, 12.0);
+    const lp          = voidState.loadPhase;
+    const loadingBlur = lp > 0.01 ? lp * (isMobile ? 5.0 : 9.0) : 0;
+    const blur = Math.min(scrollBlur + loadingBlur, isMobile ? 8.0 : 12.0);
     const canvas = gl.domElement as HTMLCanvasElement;
-    canvas.style.filter    = blur > 0.20 ? `blur(${blur.toFixed(2)}px)` : "";
-    const sy = 1 + Math.min(voidState.scrollVel * 0.05, 0.10);
-    canvas.style.transform = sy > 1.005 ? `scaleY(${sy.toFixed(3)})` : "";
+    canvas.style.filter = blur > 0.20 ? `blur(${blur.toFixed(2)}px)` : "";
+
+    // Directional stretch: vertical for scroll, slight anamorphic during loading
+    if (isMobile) {
+      // Skip transforms on mobile — expensive composite layer
+      canvas.style.transform = "";
+    } else {
+      const sy = 1 + Math.min(voidState.scrollVel * 0.08, 0.12);
+      const sx = lp > 0.01 ? 1 + lp * 0.012 : 1;
+      const needsT = sy > 1.005 || sx > 1.005;
+      canvas.style.transform = needsT ? `scale(${sx.toFixed(4)}, ${sy.toFixed(4)})` : "";
+    }
+
+    // Counteract additive-blending brightness boost during blur
+    canvas.style.opacity = blur > 1 ? `${(1 - blur * 0.012).toFixed(3)}` : "";
   });
   return null;
 }
@@ -594,7 +608,7 @@ function ShootingStars({
   const camR  = useMemo(() => new THREE.Vector3(), []); // camera right
   const camU  = useMemo(() => new THREE.Vector3(), []); // camera up
 
-  const { layers } = useContext(VoidContext);
+  const { isMobile, layers } = useContext(VoidContext);
   // Per-star disruption strength buffer
   const disruption = useMemo(() => [
     new Float32Array(layers[0].count),
@@ -638,11 +652,13 @@ function ShootingStars({
     const W       = typeof window !== "undefined" ? window.innerWidth  : 1920;
     const H       = typeof window !== "undefined" ? window.innerHeight : 1080;
 
-    // Spawn
+    // Spawn — cap to 3 simultaneous meteors on mobile for perf
+    const maxActive = isMobile ? 3 : METEOR_COUNT;
     if (t >= nextSpawnRef.current) {
       const burst = 1 + Math.floor(sr(Math.floor(t * 1000) % 99999) * 3);
       let spawned = 0;
-      for (let m = 0; m < METEOR_COUNT && spawned < burst; m++) {
+      const activeCount = meteors.filter(m => m.active).length;
+      for (let m = 0; m < METEOR_COUNT && spawned < burst && activeCount + spawned < maxActive; m++) {
         if (!meteors[m].active) {
           const met  = meteors[m];
           met.active = true;
@@ -724,9 +740,9 @@ function ShootingStars({
       light.position.set(met.px, met.py, met.pz);
       light.intensity = env * 4.5;
 
-      // Starfield disruption — compact but visible (DR=9 gives a nice visible
-      // burst without the old over-wide footprint).  Inner wake zone pulls stars.
-      const DR     = 9.0;
+      // Starfield disruption — compact but visible.  Inner wake zone pulls stars.
+      // Smaller radius on mobile saves ~40% star iteration work.
+      const DR     = isMobile ? 6.0 : 9.0;
       const DR2    = DR * DR;
       const WAKE_R = DR * 0.38; // inner wake zone radius
       for (let li = 0; li < 2; li++) {
@@ -821,8 +837,10 @@ function ShootingStars({
     // toward the model world centre.  Spring stiffness is softened during loading
     // so the orbital force dominates.  CSS blur in VoidMotion is cranked up at
     // the same time, turning blurred arcs into a kinetic loading indicator.
-    loadPhaseRef.current += ((voidState.modelLoading ? 1 : 0) - loadPhaseRef.current) * Math.min(dt * 2.0, 1);
+    // Slower lerp (dt*1.0) builds/decays orbit more gradually for visible effect
+    loadPhaseRef.current += ((voidState.modelLoading ? 1 : 0) - loadPhaseRef.current) * Math.min(dt * 1.0, 1);
     const loadPhase = loadPhaseRef.current;
+    voidState.loadPhase = loadPhase;
 
     // Spring-return physics: pull displaced stars back to their rest positions.
     // K is softened during loading so the orbital force has room to work.
@@ -855,18 +873,18 @@ function ShootingStars({
           const sx = posArr[b], sy = posArr[b + 1], sz = posArr[b + 2];
           const toX = modelLX - sx, toY = modelLY - sy, toZ = modelLZ - sz;
           const dist = Math.sqrt(toX * toX + toY * toY + toZ * toZ);
-          if (dist > 3 && dist < 34) {
+          if (dist > 2 && dist < 40) {
             hasOrbit = true;
             const invD = 1 / dist;
             const ph   = loadPhase;
             // Centripetal: constant acceleration toward model (invD normalises)
-            const aStr = 0.65 * ph;
+            const aStr = 0.85 * ph;
             vel[b]     += toX * invD * aStr * dt;
             vel[b + 1] += toY * invD * aStr * dt;
             vel[b + 2] += toZ * invD * aStr * dt;
             // Tangential swirl: cross( toModel_norm, up=[0,1,0] ) = (-toZ/dist, 0, toX/dist)
             // Gives a consistent spin direction around the Y axis.
-            const tStr = 1.25 * ph;
+            const tStr = 1.6 * ph;
             vel[b]     += (-toZ * invD) * tStr * dt;
             vel[b + 2] += ( toX * invD) * tStr * dt;
           }
@@ -900,17 +918,16 @@ function ShootingStars({
     camU.setFromMatrixColumn(camera.matrixWorld, 1);
 
     // ── Model star repulsion ───────────────────────────────────────────────
-    // Two complementary techniques clear stars from around each visible model:
-    //   1. 3D world-space push  — physical velocity impulse outward from model centre.
-    //   2. NDC screen-space push — camera-plane impulse scaled by star depth so
-    //      background stars get a proportionally larger world-space kick.
-    if (workModels.entries.length > 0) {
-      const NDC_R      = 0.36;  // repulsion radius (NDC)
+    // Gentle nudge: stars behind the model are naturally occluded by depth buffer
+    // (stars: depthTest=true, depthWrite=false; models: renderOrder=1).
+    // Only a soft push prevents stars from clipping right at the model silhouette.
+    if (workModels.activeModelId && workModels.entries.length > 0) {
+      const NDC_R      = 0.14;  // small repulsion radius (NDC)
       const NDC_R2     = NDC_R * NDC_R;
-      const NDC_PUSH   = 0.14;
-      const W3D        = 5.5;
+      const NDC_PUSH   = 0.04;
+      const W3D        = 2.2;
       const W3D2       = W3D * W3D;
-      const W3D_PUSH   = 0.18;
+      const W3D_PUSH   = 0.06;
 
       workModels.entries.forEach((entry) => {
         if (workModels.activeModelId !== entry.id) return;
@@ -1020,6 +1037,7 @@ export const MODEL_X_OFFSETS = [0, 0.6, -0.6, 0.3, -0.3];
 export const MODEL_Z_OFFSETS = [0, -0.3, 0.3, 0.15, -0.15];
 
 function VoidModel({ entry }: { entry: WorkModelEntry }) {
+  const { isMobile }  = useContext(VoidContext);
   const scene         = useFBX(entry.modelPath);
   const posGroupRef   = useRef<THREE.Group>(null);  // world position + depth offset
   const rotGroupRef   = useRef<THREE.Group>(null);  // user/auto rotation
@@ -1185,8 +1203,9 @@ function VoidModel({ entry }: { entry: WorkModelEntry }) {
 
   useFrame((s, dt) => {
     // ── Opacity: driven by activeModelId, not scroll position ─────────────
+    // Gentler ramp (dt*2.5) reduces GPU stutter from burst texture/material setup
     const opTarget = workModels.activeModelId === entry.id ? 1 : 0;
-    opacityRef.current += (opTarget - opacityRef.current) * Math.min(dt * 5.5, 1);
+    opacityRef.current += (opTarget - opacityRef.current) * Math.min(dt * 2.5, 1);
 
     // Reset entrance when fully faded so re-entry re-animates
     if (opacityRef.current < 0.01) entranceRef.current = 0;
@@ -1215,15 +1234,17 @@ function VoidModel({ entry }: { entry: WorkModelEntry }) {
     }
 
     // ── Signal model loading state (drives orbital loading animation) ──────
+    // Threshold 0.35 keeps orbit visible longer while model materialises
     if (workModels.activeModelId === entry.id) {
-      voidState.modelLoading = op < 0.10;
+      voidState.modelLoading = op < 0.35;
+      voidState.modelOpacity = op;
     }
 
     // ── Depth: model arrives from / recedes into background ───────────────
     if (posGroupRef.current) {
       const depthBack  = (1 - op) * 5;   // 5 units back (was 9) — less dramatic depth
       const isExpanded = workModels.expandedModelId === entry.id;
-      const targetY    = isExpanded ? 0 : getWorldY();
+      const targetY    = isExpanded ? (isMobile ? 1.2 : 0) : getWorldY();
       const curY       = posGroupRef.current.position.y;
       const newY       = curY + (targetY - curY) * Math.min(dt * 4, 1);
       const ep         = entranceRef.current;
@@ -1233,7 +1254,9 @@ function VoidModel({ entry }: { entry: WorkModelEntry }) {
       // sectionRatio 0.85→0 maps to exitLift 0→6 world units.
       const exitFactor = isExpanded ? 0 : Math.max(0, Math.min(1, (0.85 - workModels.sectionRatio) / 0.55));
       const exitLift   = exitFactor * 6;
-      posGroupRef.current.position.set(worldX, newY - entryDrop + exitLift, worldZ - depthBack);
+      // When expanded: nudge model right (desktop) so content panel doesn't overlap
+      const expandedX  = isExpanded && !isMobile ? 1.8 : 0;
+      posGroupRef.current.position.set(worldX + expandedX, newY - entryDrop + exitLift, worldZ - depthBack);
     }
 
     // ── Sync from workModels entry ─────────────────────────────────────────
@@ -1475,7 +1498,8 @@ function VoidScene({ isMobile }: { isMobile: boolean }) {
       <ExpandedOrbitControls />
       <VoidMotion />
 
-      <StarHoverSystem pts={[pts0, pts1, pts2]} />
+      {/* Skip hover system on mobile — no mouse cursor on touch devices */}
+      {!isMobile && <StarHoverSystem pts={[pts0, pts1, pts2]} />}
       <ShootingStars   pts={[pts0, pts1, pts2]} />
 
       {/* Work models rendered directly in the void — no separate canvas */}

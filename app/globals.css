@@ -214,19 +214,22 @@ main {
   content: '';
   position: absolute;
   bottom: -3px; left: 0;
-  width: 0; height: 1px;
+  width: 100%; height: 1px;
   background: var(--ice);
   box-shadow: 0 0 10px rgba(184,240,255,0.70);
-  transition: width 0.38s cubic-bezier(0.23,1,0.32,1);
+  transform: scaleX(0);
+  transform-origin: center;
+  transition: transform 0.38s cubic-bezier(0.23,1,0.32,1);
 }
 .frost-link:hover {
   color: var(--ice);
   text-shadow: 0 0 14px rgba(184,240,255,0.45);
   letter-spacing: 0.40em;
 }
-.frost-link:hover::after { width: 100%; }
-/* Nav frost-links: disable letter-spacing expansion to prevent sibling shift */
+.frost-link:hover::after { transform: scaleX(1); }
+/* Nav frost-links: disable letter-spacing expansion and underline to prevent sibling shift */
 .nav-link.frost-link:hover { letter-spacing: 0.32em; }
+.nav-link.frost-link::after { display: none; }
 
 /* ─── Nav wordmark glitch ─────────────────────────────────────────────────── */
 .glitch { position: relative; }

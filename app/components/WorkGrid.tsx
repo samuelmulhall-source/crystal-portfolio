@@ -174,13 +174,13 @@ function FullscreenViewer({
           // Desktop: full left column — gets its own dark glass background since the
           //          overlay is near-transparent (body.viewer-open hides main instead)
           ...(mobile
-            ? { left: 0, right: 0, bottom: 0, height: "52vh",
-                background: "linear-gradient(to bottom, rgba(2,4,14,0.78) 0%, rgba(2,4,14,0.96) 22%)",
+            ? { left: 0, right: 0, bottom: 0, height: "38vh",
+                background: "linear-gradient(to bottom, rgba(2,4,14,0.40) 0%, rgba(2,4,14,0.92) 28%)",
                 borderTop: "1px solid rgba(184,240,255,0.12)",
                 backdropFilter: "blur(18px) saturate(1.4)",
                 WebkitBackdropFilter: "blur(18px) saturate(1.4)" }
-            : { top: 0, left: 0, bottom: 0, width: "min(520px, 50vw)",
-                background: "rgba(2,4,14,0.88)",
+            : { top: 0, left: 0, bottom: 0, width: "min(440px, 40vw)",
+                background: "rgba(2,4,14,0.72)",
                 backdropFilter: "blur(14px) saturate(1.3)",
                 WebkitBackdropFilter: "blur(14px) saturate(1.3)",
                 borderRight: "1px solid rgba(184,240,255,0.06)" }),
