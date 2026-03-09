@@ -17,7 +17,8 @@ export default function WeaponHUD() {
   const [visible, setVisible] = useState(false);
   const rafRef = useRef<number>(0);
 
-  // Poll voidState.activeStationIndex via rAF
+  // Poll voidState.activeStationIndex via rAF + update URL hash
+  const lastHashRef = useRef("");
   useEffect(() => {
     const tick = () => {
       rafRef.current = requestAnimationFrame(tick);
@@ -25,10 +26,32 @@ export default function WeaponHUD() {
       if (newIdx !== activeIdx) setActiveIdx(newIdx);
       // Show HUD once scrolled past hero
       setVisible(voidState.scrollProgress > 0.05);
+      // Update URL hash for deep-linking
+      const hash = newIdx >= 0 ? `#${STATIONS[newIdx].id}` : "";
+      if (hash !== lastHashRef.current) {
+        lastHashRef.current = hash;
+        if (hash) {
+          window.history.replaceState(null, "", hash);
+        } else if (window.location.hash) {
+          window.history.replaceState(null, "", window.location.pathname);
+        }
+      }
     };
     rafRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafRef.current);
   });
+
+  // On mount: if URL has a station hash, scroll to it
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const hash = window.location.hash.replace("#", "");
+    if (!hash) return;
+    const idx = STATIONS.findIndex(s => s.id === hash);
+    if (idx < 0) return;
+    // Delay to let page height settle
+    setTimeout(() => jumpTo(idx), 500);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const jumpTo = (index: number) => {
     const station = STATIONS[index];

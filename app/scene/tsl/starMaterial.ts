@@ -49,6 +49,7 @@ export interface StarUniforms {
   size: { value: number };
   opacity: { value: number };
   vh: { value: number };
+  velocityScale: { value: number };
 }
 
 /**
@@ -63,6 +64,7 @@ export function makeStarMaterialTSL(hasVelocity: boolean): {
   const uSize = uniform(0.22);
   const uOpacity = uniform(0.90);
   const uVH = uniform(400.0);
+  const uVelocityScale = uniform(1.0); // Multiplied by scroll speed for streak boost
 
   const mat = new PointsNodeMaterial({
     transparent: true,
@@ -82,8 +84,8 @@ export function makeStarMaterialTSL(hasVelocity: boolean): {
     const projY = cameraProjectionMatrix.element(1).element(1); // projectionMatrix[1][1]
     const nat = uSize.mul(projY).mul(uVH).div(depth);
 
-    // Velocity in screen space
-    const posEnd = positionLocal.add(aVelocity.mul(0.045));
+    // Velocity in screen space (scaled by scroll speed for streak boost)
+    const posEnd = positionLocal.add(aVelocity.mul(float(0.045).mul(uVelocityScale)));
     const mvEnd = modelViewMatrix.mul(vec4(posEnd, 1.0));
     const clipEnd = cameraProjectionMatrix.mul(mvEnd);
     const clipStart = cameraProjectionMatrix.mul(positionView);
@@ -178,6 +180,7 @@ export function makeStarMaterialTSL(hasVelocity: boolean): {
     size: uSize as unknown as { value: number },
     opacity: uOpacity as unknown as { value: number },
     vh: uVH as unknown as { value: number },
+    velocityScale: uVelocityScale as unknown as { value: number },
   };
 
   return { material: mat, uniforms };

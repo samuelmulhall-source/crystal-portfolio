@@ -107,6 +107,8 @@ export function StarLayer({
     uniformsRef.current.opacity.value = 0.90 * dim;
     uniformsRef.current.size.value    = cfg.size;
     uniformsRef.current.vh.value = ((s.gl as unknown as { domElement: HTMLCanvasElement }).domElement).height * 0.5;
+    // Scroll velocity → star streak intensity (1x at rest, up to 3x during fast scroll)
+    uniformsRef.current.velocityScale.value = 1 + Math.min(Math.abs(voidState.scrollVel) * 3, 2);
   });
 
   return (
