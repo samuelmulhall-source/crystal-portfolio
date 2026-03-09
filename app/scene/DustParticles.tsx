@@ -10,7 +10,7 @@
 import { useRef, useMemo, useEffect } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
-import { makeDustMat } from "./dustShader";
+import { makeDustMaterialTSL } from "./tsl/dustMaterial";
 import { sr } from "../lib/seededRandom";
 
 export default function DustParticles() {
@@ -36,7 +36,7 @@ export default function DustParticles() {
     return g;
   }, []);
 
-  const mat = useMemo(() => makeDustMat(), []);
+  const mat = useMemo(() => makeDustMaterialTSL(), []);
 
   useEffect(() => () => { geo.dispose(); mat.dispose(); }, [geo, mat]);
 

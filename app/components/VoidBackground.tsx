@@ -10,11 +10,17 @@
  */
 
 import React, { useRef, useState, useEffect, useCallback } from "react";
-import { Canvas } from "@react-three/fiber";
+import { Canvas, extend } from "@react-three/fiber";
 import * as THREE from "three";
+import * as WEBGPU from "three/webgpu";
 import { voidState } from "../lib/voidState";
 import { workModels, subscribeExpanded } from "../lib/workModels";
 import VoidScene from "../scene/VoidScene";
+
+// Register WebGPU-aware Three.js constructors with R3F.
+// This ensures NodeMaterial and friends are recognized by the reconciler.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+extend(WEBGPU as any);
 
 export default function VoidBackground() {
   const [mounted, setMounted] = useState(false);
@@ -109,7 +115,23 @@ export default function VoidBackground() {
     return () => { unsub(); };
   }, []);
 
-  const onCanvasCreated = useCallback((state: { gl: THREE.WebGLRenderer & { domElement?: HTMLCanvasElement } }) => {
+  // WebGPURenderer factory — async init, forceWebGL for point-size support
+  // WebGPURenderer auto-falls back to WebGL2 backend; TSL compiles to GLSL.
+  // forceWebGL: true ensures gl_PointSize works for our starfield Points.
+  const glFactory = useCallback(async (props: Record<string, unknown>) => {
+    const { WebGPURenderer } = await import("three/webgpu");
+    const renderer = new WebGPURenderer({
+      ...props,
+      forceWebGL: true,
+      antialias: true,
+      alpha: false,
+      powerPreference: "high-performance",
+    } as ConstructorParameters<typeof WebGPURenderer>[0]);
+    await renderer.init();
+    return renderer;
+  }, []);
+
+  const onCanvasCreated = useCallback((state: { gl: { domElement?: HTMLCanvasElement } }) => {
     const canvas = state.gl?.domElement;
     if (!canvas?.addEventListener) return;
     const onContextLost = (e: Event) => {
@@ -141,8 +163,10 @@ export default function VoidBackground() {
       aria-hidden="true"
     >
       <Canvas
+        gl={glFactory}
         camera={{ position: [0, 0, 14], fov: 50 }}
         dpr={[1, 1.5]}
+        frameloop="always"
         style={{ width: "100%", height: "100%", display: "block" }}
         aria-label="Interactive 3D cinematic weapon journey"
         onCreated={onCanvasCreated}

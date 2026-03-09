@@ -4,7 +4,7 @@
  * Starfield — 3 layers of star points with motion blur, scroll-boost rotation,
  * and Milky Way band clustering.
  *
- * Extracted from VoidBackground.tsx lines 26-275.
+ * Phase 2: Now uses TSL PointsNodeMaterial instead of raw GLSL ShaderMaterial.
  */
 
 import React, { useRef, useMemo, useEffect, useContext } from "react";
@@ -12,7 +12,7 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { voidState } from "../lib/voidState";
 import { VoidContext } from "./VoidScene";
-import { makeHoloStarMat } from "./starShader";
+import { makeStarMaterialTSL, type StarUniforms } from "./tsl/starMaterial";
 import { sr } from "../lib/seededRandom";
 
 // ─── Star color builder ────────────────────────────────────────────────────
@@ -89,20 +89,24 @@ export function StarLayer({
   const cfg    = layers[li];
   const hasVel = li < 2;
   const geo    = useMemo(() => buildStarGeo(cfg.count, cfg.rMin, cfg.rMax, cfg.seed, hasVel), [cfg, hasVel]);
-  const mat    = useMemo(() => makeHoloStarMat(hasVel), [hasVel]);
+
+  // TSL material + uniform handles
+  const { material: mat, uniforms } = useMemo(() => makeStarMaterialTSL(hasVel), [hasVel]);
+  const uniformsRef = useRef<StarUniforms>(uniforms);
+  uniformsRef.current = uniforms;
 
   useEffect(() => () => mat.dispose(), [mat]);
 
   useFrame((s, dt) => {
-    if (!pointsRef.current || !mat.uniforms) return;
+    if (!pointsRef.current) return;
     const scrollBoost = 1 + Math.min(Math.abs(voidState.scrollVel) * 4, 3);
     pointsRef.current.rotation.y += dt * cfg.rotSpd * scrollBoost;
     pointsRef.current.rotation.x += dt * cfg.rotSpd * 0.32 * scrollBoost;
 
     const dim = 1 - voidState.scrollProgress * 0.12;
-    mat.uniforms.uOpacity.value = 0.90 * dim;
-    mat.uniforms.uSize.value    = cfg.size;
-    mat.uniforms.uVH.value = (s.gl.domElement as HTMLCanvasElement).height * 0.5;
+    uniformsRef.current.opacity.value = 0.90 * dim;
+    uniformsRef.current.size.value    = cfg.size;
+    uniformsRef.current.vh.value = ((s.gl as unknown as { domElement: HTMLCanvasElement }).domElement).height * 0.5;
   });
 
   return (

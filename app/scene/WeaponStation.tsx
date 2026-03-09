@@ -18,7 +18,7 @@ import * as THREE from "three";
 import { voidState } from "../lib/voidState";
 import { workModels, type WorkModelEntry } from "../lib/workModels";
 import { type WeaponStation as WeaponStationConfig } from "../lib/journeyConfig";
-import { makeWireframeMat } from "./wireframeShader";
+import { makeWireframeMaterialTSL, type WireframeUniforms } from "./tsl/wireframeMaterial";
 import { VoidContext } from "./VoidScene";
 
 interface Props {
@@ -33,7 +33,7 @@ export default function WeaponStation({ station, entry }: Props) {
   const rotGroupRef   = useRef<THREE.Group>(null);
   const scaleGroupRef = useRef<THREE.Group>(null);
   const allMats       = useRef<THREE.MeshPhysicalMaterial[]>([]);
-  const wireMatRefs   = useRef<THREE.ShaderMaterial[]>([]);
+  const wireMatRefs   = useRef<Array<{ material: THREE.Material; uniforms: WireframeUniforms }>>([]);
   const opacityRef    = useRef(0);
   const entranceRef   = useRef(0);
   const tiltX         = useRef(0);
@@ -139,7 +139,7 @@ export default function WeaponStation({ station, entry }: Props) {
     if (scaleGroupRef.current) scaleGroupRef.current.scale.setScalar(0.001);
   }, []);
 
-  // Wireframe edges
+  // Wireframe edges (TSL material)
   useEffect(() => {
     wireMatRefs.current = [];
     scene.traverse((o) => {
@@ -147,10 +147,10 @@ export default function WeaponStation({ station, entry }: Props) {
         const mesh = o as THREE.Mesh;
         try {
           const edgeGeo = new THREE.EdgesGeometry(mesh.geometry, 15);
-          const mat     = makeWireframeMat();
-          const lines   = new THREE.LineSegments(edgeGeo, mat);
+          const { material, uniforms } = makeWireframeMaterialTSL();
+          const lines   = new THREE.LineSegments(edgeGeo, material);
           mesh.add(lines);
-          wireMatRefs.current.push(mat);
+          wireMatRefs.current.push({ material, uniforms });
         } catch { /* skip */ }
       }
     });
@@ -252,9 +252,9 @@ export default function WeaponStation({ station, entry }: Props) {
     }
 
     // Wireframe: keep hidden for now (Phase 3 enables scan-line reveal)
-    wireMatRefs.current.forEach((m) => {
-      if (!m) return;
-      m.uniforms.uOpacity.value += (0 - m.uniforms.uOpacity.value) * 0.12;
+    wireMatRefs.current.forEach(({ uniforms: wu }) => {
+      if (!wu) return;
+      wu.opacity.value += (0 - wu.opacity.value) * 0.12;
     });
 
     // Write model screen region for hover suppression

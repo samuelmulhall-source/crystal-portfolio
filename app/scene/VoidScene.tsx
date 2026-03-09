@@ -17,6 +17,7 @@ import ExpandedViewer from "./ExpandedViewer";
 import StarHoverSystem from "./StarHoverSystem";
 import ShootingStars from "./ShootingStars";
 import WeaponStations from "./WeaponStations";
+import PostPipeline from "./postprocessing/PostPipeline";
 
 // ─── Star layer config ─────────────────────────────────────────────────────
 type LayerConfig = readonly { count: number; rMin: number; rMax: number; rotSpd: number; size: number; seed: number }[];
@@ -62,6 +63,9 @@ export default function VoidScene({ isMobile }: { isMobile: boolean }) {
       <ShootingStars pts={[pts0, pts1, pts2]} />
 
       <WeaponStations />
+
+      {/* Post-processing pipeline: bloom, grain, chromatic aberration, vignette */}
+      <PostPipeline />
     </VoidContext.Provider>
   );
 }
