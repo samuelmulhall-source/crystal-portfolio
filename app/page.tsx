@@ -10,6 +10,8 @@ import Hero            from "./components/Hero";
 import WorkGrid        from "./components/WorkGrid";
 import AboutContact    from "./components/AboutContact";
 import Nav             from "./components/Nav";
+import WeaponHUD       from "./components/WeaponHUD";
+import { STATIONS, TOTAL_SCROLL_VH } from "./lib/journeyConfig";
 
 export default function Home() {
   return (
@@ -23,10 +25,32 @@ export default function Home() {
       </Suspense>
       <EffectsOverlay />
 
+      {/* Weapon navigation HUD (fixed overlay) */}
+      <WeaponHUD />
+
       {/* ── Scrollable page content ── */}
       <main>
         <Nav />
         <Hero />
+
+        {/* Weapon station scroll anchors — invisible, provide scroll height for camera journey */}
+        {STATIONS.map((station) => (
+          <section
+            key={station.id}
+            id={`station-${station.id}`}
+            style={{
+              height: `${(station.scrollEnd - station.scrollStart) * TOTAL_SCROLL_VH}vh`,
+              background: "transparent",
+              pointerEvents: "none",
+            }}
+            aria-label={`${station.loreName} — ${station.loreTag}`}
+          />
+        ))}
+
+        {/* Transit space between last weapon and content sections */}
+        <div style={{ height: "80vh", background: "transparent", pointerEvents: "none" }} />
+
+        {/* Work section preserved for video/image tabs */}
         <Suspense fallback={<CosmicLoader />}>
           <WorkGrid />
         </Suspense>

@@ -16,6 +16,12 @@ export const voidState = {
   mouseVel:       0,       // cursor speed in NDC units / second (decays in VoidMotion)
   scrollVel:      0,       // scroll speed in progress units / second (decays in VoidMotion)
 
+  // ── Camera journey state ─────────────────────────────────────────────────
+  // Written by CameraRig each frame.
+  activeStationIndex: -1,          // -1 = transit, 0-4 = weapon index
+  cameraProgress: 0,               // raw 0-1 scroll position on spline
+  stationProximity: [0, 0, 0, 0, 0] as number[], // per-station proximity 0-1
+
   // ── Hover star screen positions ──────────────────────────────────────────
   // Written by StarHoverSystem (inside Three.js canvas, has camera access).
   // Read by EffectsOverlay (2D canvas) to draw holographic crystal glow.
