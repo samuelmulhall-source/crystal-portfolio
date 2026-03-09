@@ -109,8 +109,13 @@ export default function CameraRig() {
     springLook.current.y += springLookVel.current.y * cdt;
     springLook.current.z += springLookVel.current.z * cdt;
 
-    // Smooth FOV
-    currentFov.current += (fov - currentFov.current) * Math.min(dt * 3, 1);
+    // Warp-speed distortion: FOV stretch during fast scrolling
+    const scrollSpeed = Math.abs(voidState.scrollVel);
+    const warpFov = scrollSpeed > 0.3 ? Math.min((scrollSpeed - 0.3) * 15, 12) : 0;
+
+    // Smooth FOV (base + warp)
+    const targetFov = fov + warpFov;
+    currentFov.current += (targetFov - currentFov.current) * Math.min(dt * 3, 1);
 
     // Apply to camera
     camera.position.copy(springPos.current);

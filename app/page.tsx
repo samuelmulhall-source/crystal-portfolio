@@ -11,12 +11,14 @@ import WorkGrid        from "./components/WorkGrid";
 import AboutContact    from "./components/AboutContact";
 import Nav             from "./components/Nav";
 import WeaponHUD       from "./components/WeaponHUD";
+import AudioController from "./components/AudioController";
 import { STATIONS, TOTAL_SCROLL_VH } from "./lib/journeyConfig";
 
 export default function Home() {
   return (
     <>
       <LoadingTerminal />
+      <AudioController />
       <CursorFollower />
       <HUDCorners />
       {/* Film grain now in PostPipeline (TSL) */}
