@@ -17,7 +17,9 @@ import ExpandedViewer from "./ExpandedViewer";
 import StarHoverSystem from "./StarHoverSystem";
 import ShootingStars from "./ShootingStars";
 import WeaponStations from "./WeaponStations";
+import StationInfo from "./hud/StationInfo";
 import PostPipeline from "./postprocessing/PostPipeline";
+import { STATIONS } from "../lib/journeyConfig";
 
 // ─── Star layer config ─────────────────────────────────────────────────────
 type LayerConfig = readonly { count: number; rMin: number; rMax: number; rotSpd: number; size: number; seed: number }[];
@@ -63,6 +65,11 @@ export default function VoidScene({ isMobile }: { isMobile: boolean }) {
       <ShootingStars pts={[pts0, pts1, pts2]} />
 
       <WeaponStations />
+
+      {/* In-world HUD: floating labels + scan lines per station */}
+      {!isMobile && STATIONS.map((station, i) => (
+        <StationInfo key={station.id} station={station} stationIndex={i} />
+      ))}
 
       {/* Post-processing pipeline: bloom, grain, chromatic aberration, vignette */}
       <PostPipeline />

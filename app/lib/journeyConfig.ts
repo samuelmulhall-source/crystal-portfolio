@@ -19,6 +19,10 @@ export interface WeaponStation {
   loreName: string;
   /** Short lore tagline */
   loreTag: string;
+  /** Technical spec line for HUD display */
+  loreSpec: string;
+  /** Station designation (e.g. "STATION 01") */
+  designation: string;
   /** Scroll fraction (0-1) where this station begins */
   scrollStart: number;
   /** Scroll fraction (0-1) where this station ends */
@@ -37,6 +41,8 @@ export const STATIONS: WeaponStation[] = [
     worldPosition: [8, -8, 0],
     loreName: "THE IGNIS CORE",
     loreTag: "Deep-space navigation vessel",
+    loreSpec: "THERMAL OUTPUT: 4.2 × 10⁷ K",
+    designation: "STATION 01",
     scrollStart: 0.12,
     scrollEnd: 0.24,
   },
@@ -47,6 +53,8 @@ export const STATIONS: WeaponStation[] = [
     worldPosition: [-7, -20, 0],
     loreName: "VOID-SLIVER",
     loreTag: "Collapsed star matter blade",
+    loreSpec: "DENSITY: 2.8 × 10¹⁴ kg/m³",
+    designation: "STATION 02",
     scrollStart: 0.26,
     scrollEnd: 0.38,
   },
@@ -57,6 +65,8 @@ export const STATIONS: WeaponStation[] = [
     worldPosition: [6, -32, 0],
     loreName: "NEBULA AEGIS",
     loreTag: "Reactive starfield mirror",
+    loreSpec: "REFLECTIVITY: 99.97% λ 380-780nm",
+    designation: "STATION 03",
     scrollStart: 0.40,
     scrollEnd: 0.52,
   },
@@ -67,6 +77,8 @@ export const STATIONS: WeaponStation[] = [
     worldPosition: [-8, -44, 0],
     loreName: "EVENT HORIZON",
     loreTag: "Gravitational-lensing edge",
+    loreSpec: "CURVATURE: Δg 10⁶ m/s² ACROSS EDGE",
+    designation: "STATION 04",
     scrollStart: 0.54,
     scrollEnd: 0.66,
   },
@@ -77,6 +89,8 @@ export const STATIONS: WeaponStation[] = [
     worldPosition: [0, -56, 0],
     loreName: "PHOTON STRINGER",
     loreTag: "Concentrated light launcher",
+    loreSpec: "YIELD: 3.1 × 10²⁶ W FOCUSED BEAM",
+    designation: "STATION 05",
     scrollStart: 0.68,
     scrollEnd: 0.80,
   },

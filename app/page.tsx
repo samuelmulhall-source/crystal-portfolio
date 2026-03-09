@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import VoidBackground  from "./components/VoidBackground";
 import EffectsOverlay  from "./components/EffectsOverlay";
 // LensOverlay removed — grain now handled by TSL PostPipeline
-import LoadingScreen   from "./components/LoadingScreen";
+import LoadingTerminal from "./components/LoadingTerminal";
 import CosmicLoader    from "./components/CosmicLoader";
 import CursorFollower  from "./components/CursorFollower";
 import HUDCorners      from "./components/HUDCorners";
@@ -16,7 +16,7 @@ import { STATIONS, TOTAL_SCROLL_VH } from "./lib/journeyConfig";
 export default function Home() {
   return (
     <>
-      <LoadingScreen />
+      <LoadingTerminal />
       <CursorFollower />
       <HUDCorners />
       {/* Film grain now in PostPipeline (TSL) */}
