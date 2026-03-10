@@ -7,8 +7,10 @@
  * Provides VoidContext for shared isMobile/layers config.
  */
 
-import React, { createContext, useRef } from "react";
+import React, { Suspense, createContext, useRef } from "react";
+import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
+import { voidState } from "../lib/voidState";
 import Lighting from "./Lighting";
 import { StarLayer } from "./Starfield";
 import DustParticles from "./DustParticles";
@@ -18,7 +20,6 @@ import StarHoverSystem from "./StarHoverSystem";
 import ShootingStars from "./ShootingStars";
 import WeaponStations from "./WeaponStations";
 import StationInfo from "./hud/StationInfo";
-import PostPipeline from "./postprocessing/PostPipeline";
 import { STATIONS } from "../lib/journeyConfig";
 
 // ─── Star layer config ─────────────────────────────────────────────────────
@@ -40,6 +41,25 @@ export const VoidContext = createContext<{ isMobile: boolean; layers: LayerConfi
   layers: LAYERS_DESKTOP,
 });
 
+/**
+ * SceneReady — signals that the scene has rendered at least one frame.
+ * Sets voidState.firstModelReady as a fallback after the scene mounts,
+ * ensuring the loading terminal dismisses even before weapon models load.
+ */
+function SceneReady() {
+  const signalled = useRef(false);
+  useFrame(() => {
+    if (!signalled.current) {
+      signalled.current = true;
+      // Signal ready after a short delay to let starfield render a few frames
+      setTimeout(() => {
+        voidState.firstModelReady = true;
+      }, 600);
+    }
+  });
+  return null;
+}
+
 export default function VoidScene({ isMobile }: { isMobile: boolean }) {
   const pts0 = useRef<THREE.Points | null>(null);
   const pts1 = useRef<THREE.Points | null>(null);
@@ -49,6 +69,7 @@ export default function VoidScene({ isMobile }: { isMobile: boolean }) {
 
   return (
     <VoidContext.Provider value={{ isMobile, layers }}>
+      <SceneReady />
       <Lighting />
 
       <StarLayer li={0} pointsRef={pts0} />
@@ -66,13 +87,14 @@ export default function VoidScene({ isMobile }: { isMobile: boolean }) {
 
       <WeaponStations />
 
-      {/* In-world HUD: floating labels + scan lines per station */}
-      {!isMobile && STATIONS.map((station, i) => (
-        <StationInfo key={station.id} station={station} stationIndex={i} />
-      ))}
-
-      {/* Post-processing pipeline: bloom, grain, chromatic aberration, vignette */}
-      <PostPipeline />
+      {/* In-world HUD: floating labels + scan lines per station (Suspense for font loading) */}
+      {!isMobile && (
+        <Suspense fallback={null}>
+          {STATIONS.map((station, i) => (
+            <StationInfo key={station.id} station={station} stationIndex={i} />
+          ))}
+        </Suspense>
+      )}
     </VoidContext.Provider>
   );
 }

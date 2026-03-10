@@ -6,7 +6,7 @@
  * Extracted from VoidBackground.tsx lines 278-314 + VoidScene lights (1587-1607).
  */
 
-import { useRef } from "react";
+import { Suspense, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Environment } from "@react-three/drei";
 import * as THREE from "three";
@@ -68,8 +68,10 @@ export default function Lighting() {
       <directionalLight position={[ 0, 12,  2]}  intensity={0.8} color="#f0f0f0" />
       {/* Camera-adjacent point */}
       <pointLight position={[0, 0, 5]} intensity={2.5} color="#ffffff" distance={22} />
-      {/* IBL: studio preset */}
-      <Environment preset="studio" environmentIntensity={1.1} />
+      {/* IBL: studio preset — Suspense boundary prevents R3F Canvas Block */}
+      <Suspense fallback={null}>
+        <Environment preset="studio" environmentIntensity={1.1} />
+      </Suspense>
 
       <VoidCore />
       <MouseLight />

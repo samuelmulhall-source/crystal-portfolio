@@ -3,8 +3,7 @@
 /**
  * WeaponStation — single weapon model placed at a fixed world position.
  *
- * Adapted from VoidModel in VoidBackground.tsx lines 1135-1452.
- * Key differences:
+ * Key differences from the old VoidModel:
  *   - World position is static (from journeyConfig), not tracking scroll
  *   - Opacity driven by camera proximity to station, not activeModelId
  *   - Auto-rotation + camera-reactive tilt preserved
@@ -18,8 +17,7 @@ import * as THREE from "three";
 import { voidState } from "../lib/voidState";
 import { workModels, type WorkModelEntry } from "../lib/workModels";
 import { type WeaponStation as WeaponStationConfig } from "../lib/journeyConfig";
-import { makeWireframeMaterialTSL, type WireframeUniforms } from "./tsl/wireframeMaterial";
-import { makeWeaponMaterialTSL, type WeaponHoloUniforms } from "./tsl/weaponMaterial";
+import { makeWireframeMat } from "./wireframeShader";
 import { VoidContext } from "./VoidScene";
 
 interface Props {
@@ -33,23 +31,13 @@ export default function WeaponStation({ station, entry }: Props) {
   const posGroupRef   = useRef<THREE.Group>(null);
   const rotGroupRef   = useRef<THREE.Group>(null);
   const scaleGroupRef = useRef<THREE.Group>(null);
-  const allMats       = useRef<THREE.Material[]>([]);
-  const wireMatRefs   = useRef<Array<{ material: THREE.Material; uniforms: WireframeUniforms }>>([]);
-  const holoRef       = useRef<WeaponHoloUniforms | null>(null);
+  const allMats       = useRef<THREE.MeshPhysicalMaterial[]>([]);
+  const wireMatRefs   = useRef<THREE.ShaderMaterial[]>([]);
   const opacityRef    = useRef(0);
   const entranceRef   = useRef(0);
   const tiltX         = useRef(0);
   const tiltY         = useRef(0);
   const tmpMp         = useMemo(() => new THREE.Vector3(), []);
-
-  // TSL holofoil material — one per station (independent opacity)
-  const { material: holoMat, uniforms: holoUniforms } = useMemo(
-    () => makeWeaponMaterialTSL(), []
-  );
-  holoRef.current = holoUniforms;
-
-  // Dispose TSL material on unmount
-  useEffect(() => () => holoMat.dispose(), [holoMat]);
 
   // Replace FBX materials + compute normScale
   const { normScale, centreOffset } = useMemo(() => {
@@ -64,9 +52,25 @@ export default function WeaponStation({ station, entry }: Props) {
         const mesh = o as THREE.Mesh;
         const prev = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
         prev.forEach(m => (m as THREE.Material)?.dispose());
-        // Clone the TSL holofoil material for each mesh (shared uniform nodes)
-        mesh.material = holoMat;
-        allMats.current.push(holoMat);
+        const mat = new THREE.MeshPhysicalMaterial({
+          color:              0xffffff,
+          emissive:           new THREE.Color(0x000000),
+          emissiveIntensity:  0,
+          roughness:          0.65,
+          metalness:          0.08,
+          transparent:        true,
+          opacity:            0,
+          depthWrite:         true,
+          envMapIntensity:    2.4,
+          iridescence:        0.4,
+          iridescenceIOR:     1.8,
+          iridescenceThicknessRange: [200, 600],
+          clearcoat:          0.18,
+          clearcoatRoughness: 0.08,
+          side:               THREE.FrontSide,
+        });
+        mesh.material = mat;
+        allMats.current.push(mat);
       }
     });
     const box    = new THREE.Box3().setFromObject(scene);
@@ -77,7 +81,7 @@ export default function WeaponStation({ station, entry }: Props) {
     const maxDim = Math.max(size.x, size.y, size.z);
     const ns     = maxDim > 0 ? 4.5 / maxDim : 1;
     return { normScale: ns, centreOffset: center.clone().negate().multiplyScalar(ns) };
-  }, [scene, holoMat]);
+  }, [scene]);
 
   // Async PBR texture loading
   const texSig = [
@@ -91,9 +95,8 @@ export default function WeaponStation({ station, entry }: Props) {
     const t      = entry.textures;
     let cancelled = false;
 
-    // holoMat extends MeshPhysicalMaterial — same texture property API
     const applyAll = (update: (m: THREE.MeshPhysicalMaterial) => void) => {
-      allMats.current.forEach(m => { if (m) { update(m as THREE.MeshPhysicalMaterial); m.needsUpdate = true; } });
+      allMats.current.forEach(m => { if (m) { update(m); m.needsUpdate = true; } });
     };
 
     const loadQueue: Array<{ url: string; apply: (tex: THREE.Texture) => void }> = [];
@@ -137,7 +140,7 @@ export default function WeaponStation({ station, entry }: Props) {
     if (scaleGroupRef.current) scaleGroupRef.current.scale.setScalar(0.001);
   }, []);
 
-  // Wireframe edges (TSL material)
+  // Wireframe edges (GLSL ShaderMaterial)
   useEffect(() => {
     wireMatRefs.current = [];
     scene.traverse((o) => {
@@ -145,10 +148,10 @@ export default function WeaponStation({ station, entry }: Props) {
         const mesh = o as THREE.Mesh;
         try {
           const edgeGeo = new THREE.EdgesGeometry(mesh.geometry, 15);
-          const { material, uniforms } = makeWireframeMaterialTSL();
-          const lines   = new THREE.LineSegments(edgeGeo, material);
+          const mat = makeWireframeMat();
+          const lines   = new THREE.LineSegments(edgeGeo, mat);
           mesh.add(lines);
-          wireMatRefs.current.push({ material, uniforms });
+          wireMatRefs.current.push(mat);
         } catch { /* skip */ }
       }
     });
@@ -199,14 +202,14 @@ export default function WeaponStation({ station, entry }: Props) {
       scaleGroupRef.current.scale.setScalar(0.94 + ease * 0.06);
     }
 
-    // Apply opacity via TSL uniform (drives opacityNode on holofoil material)
+    // Apply opacity + iridescence modulated by proximity
     const op = opacityRef.current;
-    if (holoRef.current) {
-      holoRef.current.opacity.value = op;
-      // Modulate holofoil intensity by proximity — stronger glow when camera is close
-      holoRef.current.iridescenceStrength.value = 0.3 + proximity * 0.5;
-      holoRef.current.rimStrength.value = 0.2 + proximity * 0.4;
-    }
+    allMats.current.forEach((m) => {
+      if (m) {
+        m.opacity = op;
+        m.iridescence = 0.2 + proximity * 0.6;
+      }
+    });
 
     // Signal first model ready
     if (op > 0.3 && station.modelIndex === 0) {
@@ -254,10 +257,10 @@ export default function WeaponStation({ station, entry }: Props) {
       }
     }
 
-    // Wireframe: keep hidden for now (Phase 3 enables scan-line reveal)
-    wireMatRefs.current.forEach(({ uniforms: wu }) => {
-      if (!wu) return;
-      wu.opacity.value += (0 - wu.opacity.value) * 0.12;
+    // Wireframe: keep hidden for now
+    wireMatRefs.current.forEach((m) => {
+      if (!m) return;
+      m.uniforms.uOpacity.value += (0 - m.uniforms.uOpacity.value) * 0.12;
     });
 
     // Write model screen region for hover suppression

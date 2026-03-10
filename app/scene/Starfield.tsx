@@ -4,7 +4,7 @@
  * Starfield — 3 layers of star points with motion blur, scroll-boost rotation,
  * and Milky Way band clustering.
  *
- * Phase 2: Now uses TSL PointsNodeMaterial instead of raw GLSL ShaderMaterial.
+ * Uses GLSL ShaderMaterial for point sprites with velocity motion blur.
  */
 
 import React, { useRef, useMemo, useEffect, useContext } from "react";
@@ -12,7 +12,7 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { voidState } from "../lib/voidState";
 import { VoidContext } from "./VoidScene";
-import { makeStarMaterialTSL, type StarUniforms } from "./tsl/starMaterial";
+import { makeHoloStarMat } from "./starShader";
 import { sr } from "../lib/seededRandom";
 
 // ─── Star color builder ────────────────────────────────────────────────────
@@ -90,25 +90,22 @@ export function StarLayer({
   const hasVel = li < 2;
   const geo    = useMemo(() => buildStarGeo(cfg.count, cfg.rMin, cfg.rMax, cfg.seed, hasVel), [cfg, hasVel]);
 
-  // TSL material + uniform handles
-  const { material: mat, uniforms } = useMemo(() => makeStarMaterialTSL(hasVel), [hasVel]);
-  const uniformsRef = useRef<StarUniforms>(uniforms);
-  uniformsRef.current = uniforms;
+  // GLSL ShaderMaterial
+  const mat = useMemo(() => makeHoloStarMat(hasVel), [hasVel]);
 
   useEffect(() => () => mat.dispose(), [mat]);
 
-  useFrame((s, dt) => {
+  useFrame((s) => {
     if (!pointsRef.current) return;
+    const dt = s.clock.getDelta() || 0.016;
     const scrollBoost = 1 + Math.min(Math.abs(voidState.scrollVel) * 4, 3);
     pointsRef.current.rotation.y += dt * cfg.rotSpd * scrollBoost;
     pointsRef.current.rotation.x += dt * cfg.rotSpd * 0.32 * scrollBoost;
 
     const dim = 1 - voidState.scrollProgress * 0.12;
-    uniformsRef.current.opacity.value = 0.90 * dim;
-    uniformsRef.current.size.value    = cfg.size;
-    uniformsRef.current.vh.value = ((s.gl as unknown as { domElement: HTMLCanvasElement }).domElement).height * 0.5;
-    // Scroll velocity → star streak intensity (1x at rest, up to 3x during fast scroll)
-    uniformsRef.current.velocityScale.value = 1 + Math.min(Math.abs(voidState.scrollVel) * 3, 2);
+    mat.uniforms.uOpacity.value = 0.90 * dim;
+    mat.uniforms.uSize.value    = cfg.size;
+    mat.uniforms.uVH.value = (s.gl.domElement).height * 0.5;
   });
 
   return (
