@@ -88,7 +88,26 @@ export default function AboutContact() {
     >
       <div style={{ maxWidth: "1060px", margin: "0 auto", padding: "0 2.5rem 9rem" }}>
 
-        <p className="label reveal" style={{ marginBottom: "3.5rem" }}>02 — About & Contact</p>
+        {/* Console-styled section header */}
+        <div className="reveal" style={{ marginBottom: "3.5rem" }}>
+          <div style={{
+            display: "flex", alignItems: "center", gap: "0.75rem",
+            marginBottom: "0.6rem",
+          }}>
+            <span style={{
+              fontFamily: "var(--font-geist-mono), monospace",
+              fontSize: "0.42rem", letterSpacing: "0.24em", textTransform: "uppercase",
+              color: "rgba(255,160,60,0.45)",
+            }}>
+              TERMINAL ACCESS
+            </span>
+            <span style={{
+              flex: 1, height: "1px",
+              background: "linear-gradient(90deg, rgba(255,160,60,0.15), transparent 60%)",
+            }} />
+          </div>
+          <p className="label" style={{ margin: 0 }}>02 — About & Contact</p>
+        </div>
 
         {/* ── Two-column unified layout ─────────────────────────────────── */}
         <div
@@ -224,23 +243,36 @@ export default function AboutContact() {
         </div>
       </div>
 
-      {/* Footer */}
+      {/* Footer — console-styled */}
       <div style={{
         borderTop: "1px solid rgba(184,240,255,0.06)",
         padding: "1.6rem 2rem",
         display: "flex", justifyContent: "space-between", alignItems: "center",
         maxWidth: "1100px", margin: "0 auto",
       }}>
-        <span style={{
-          fontFamily: "var(--font-geist-mono), monospace",
-          fontSize: "0.555rem", letterSpacing: "0.26em",
-          textTransform: "uppercase", color: "var(--text-muted)",
-        }}>
-          © 2026 Multiscatter
-        </span>
-        <a href="https://x.com/multiscatter" target="_blank" rel="noopener noreferrer" className="frost-link">
-          @multiscatter
-        </a>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+          <span className="status-led" />
+          <span style={{
+            fontFamily: "var(--font-geist-mono), monospace",
+            fontSize: "0.555rem", letterSpacing: "0.26em",
+            textTransform: "uppercase", color: "var(--text-muted)",
+          }}>
+            © 2026 Multiscatter
+          </span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
+          <span style={{
+            fontFamily: "var(--font-geist-mono), monospace",
+            fontSize: "0.42rem", letterSpacing: "0.2em",
+            textTransform: "uppercase",
+            color: "rgba(184,240,255,0.22)",
+          }}>
+            SYS:ONLINE · WEBGL
+          </span>
+          <a href="https://x.com/multiscatter" target="_blank" rel="noopener noreferrer" className="frost-link">
+            @multiscatter
+          </a>
+        </div>
       </div>
 
       <style>{`

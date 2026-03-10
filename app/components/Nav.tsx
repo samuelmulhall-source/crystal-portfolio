@@ -131,9 +131,11 @@ export default function Nav() {
             ? "0 0 16px rgba(255,160,60,0.3)"
             : scrolled ? "none" : "0 0 22px rgba(184,240,255,0.18), 0 1px 2px rgba(0,0,0,0.4)",
           transition: "color 0.35s ease, text-shadow 0.35s ease",
-          minHeight: "44px", display: "flex", alignItems: "center",
+          minHeight: "44px", display: "flex", alignItems: "center", gap: "0.5rem",
         }}
       >
+        {/* PS2-style status LED */}
+        <span className="status-led" />
         MULTISCATTER
       </a>
 

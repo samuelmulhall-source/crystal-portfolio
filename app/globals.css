@@ -503,6 +503,68 @@ body.viewer-open main {
   .heading-xl, .heading-lg { animation: none; filter: none; }
   .label { animation: none; }
   .glitch::before, .glitch::after { animation: none; display: none; }
+  .scan-line { animation: none; display: none; }
+  .status-led { animation: none; }
+}
+
+/* ─── Traveling scan line — premium CRT monitor feel ─────────────────────── */
+@keyframes scan-travel {
+  0%   { top: -2px; opacity: 0; }
+  3%   { opacity: 1; }
+  97%  { opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+
+.scan-line {
+  position: fixed;
+  left: 0; right: 0;
+  height: 1px;
+  z-index: 44;
+  pointer-events: none;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(184, 240, 255, 0.06) 20%,
+    rgba(184, 240, 255, 0.10) 50%,
+    rgba(184, 240, 255, 0.06) 80%,
+    transparent 100%
+  );
+  animation: scan-travel 8s linear infinite;
+  mix-blend-mode: screen;
+}
+
+/* ─── Status LED — PS2-style power indicator ─────────────────────────────── */
+@keyframes led-pulse {
+  0%, 100% { box-shadow: 0 0 3px rgba(120, 255, 180, 0.4), 0 0 8px rgba(120, 255, 180, 0.15); }
+  50%      { box-shadow: 0 0 5px rgba(120, 255, 180, 0.6), 0 0 14px rgba(120, 255, 180, 0.25); }
+}
+
+.status-led {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: rgba(120, 255, 180, 0.7);
+  animation: led-pulse 3s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+/* ─── Console data frame — wraps content sections with terminal border ──── */
+.data-frame {
+  position: relative;
+  border: 1px solid rgba(184, 240, 255, 0.06);
+  border-radius: 2px;
+}
+.data-frame::before {
+  content: attr(data-label);
+  position: absolute;
+  top: -0.45em;
+  left: 1rem;
+  padding: 0 0.5rem;
+  background: var(--void-mid, #05070f);
+  font-family: var(--font-geist-mono, monospace);
+  font-size: 0.42rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: rgba(255, 160, 60, 0.4);
 }
 
 /* ─── Responsive ──────────────────────────────────────────────────────────── */

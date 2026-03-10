@@ -28,6 +28,8 @@ export default function Home() {
       <HUDCorners />
       <LensOverlay />
       <CRTOverlay />
+      {/* Traveling scan line — premium CRT monitor sweep */}
+      <div className="scan-line" aria-hidden="true" />
       <Suspense fallback={<CosmicLoader />}>
         <VoidBackground />
       </Suspense>

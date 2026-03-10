@@ -254,28 +254,41 @@ function FullscreenViewer({
       }}
     >
 
-      {/* Close — bracket notation, top-right */}
-      <button
-        onClick={close}
-        style={{
-          position: "fixed",
-          top: "1.4rem", right: "clamp(1.2rem, 3.5vw, 2rem)",
-          zIndex: 102, pointerEvents: "auto",
-          background: "transparent", border: "none", cursor: "pointer",
-          padding: "0.6rem", margin: "-0.6rem",
-          minHeight: "44px", display: "flex", alignItems: "center", gap: "0.18rem",
-          ...MON, fontSize: "0.50rem", letterSpacing: "0.26em",
-          color: "rgba(184,240,255,0.48)",
-          transition: "color 0.2s ease",
-        }}
-        onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "rgba(220,248,255,0.90)"; }}
-        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "rgba(184,240,255,0.48)"; }}
-        aria-label="Close viewer"
-      >
-        <span style={{ opacity: 0.50 }}>[</span>
-        <span style={{ margin: "0 0.2em" }}>esc</span>
-        <span style={{ opacity: 0.50 }}>]</span>
-      </button>
+      {/* Top bar — console header + close */}
+      <div style={{
+        position: "fixed", top: 0, left: 0, right: 0,
+        zIndex: 102, pointerEvents: "none",
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "1.2rem clamp(1.2rem, 3.5vw, 2rem)",
+      }}>
+        {/* Console label — top-left */}
+        <span style={{
+          ...MON, fontSize: "0.42rem", letterSpacing: "0.24em",
+          color: "rgba(255,160,60,0.4)", pointerEvents: "none",
+        }}>
+          SPECIMEN ANALYSIS · {project.title.toUpperCase()}
+        </span>
+
+        {/* Close — bracket notation, top-right */}
+        <button
+          onClick={close}
+          style={{
+            background: "transparent", border: "none", cursor: "pointer",
+            padding: "0.6rem", margin: "-0.6rem", pointerEvents: "auto",
+            minHeight: "44px", display: "flex", alignItems: "center", gap: "0.18rem",
+            ...MON, fontSize: "0.50rem", letterSpacing: "0.26em",
+            color: "rgba(184,240,255,0.48)",
+            transition: "color 0.2s ease",
+          }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "rgba(220,248,255,0.90)"; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "rgba(184,240,255,0.48)"; }}
+          aria-label="Close viewer"
+        >
+          <span style={{ opacity: 0.50 }}>[</span>
+          <span style={{ margin: "0 0.2em" }}>esc</span>
+          <span style={{ opacity: 0.50 }}>]</span>
+        </button>
+      </div>
 
       {/* ── Model controls bar — console-styled ── */}
       <ViewerControls mobile={mobile} />
@@ -1199,6 +1212,23 @@ function WorkGridContent() {
           padding:       isNarrow ? "0.6rem 0" : "0.8rem 0",
         }}
       >
+        {/* Console-styled section label */}
+        <div style={{
+          display: "flex", alignItems: "center", gap: "0.75rem",
+          marginBottom: "0.45rem",
+        }}>
+          <span style={{
+            fontFamily: "var(--font-geist-mono), monospace",
+            fontSize: "0.42rem", letterSpacing: "0.24em", textTransform: "uppercase",
+            color: "rgba(255,160,60,0.45)",
+          }}>
+            RECOVERED DATA
+          </span>
+          <span style={{
+            flex: 1, height: "1px",
+            background: "linear-gradient(90deg, rgba(255,160,60,0.15), transparent 60%)",
+          }} />
+        </div>
         <p className="label" style={{ marginBottom: isNarrow ? "0.5rem" : "1.0rem", opacity: 0.85 }}>01 — Work</p>
 
         {/* Tab strip: desktop only here; mobile shows tabs at bottom */}
@@ -1415,33 +1445,41 @@ function WorkGridContent() {
       )}
 
       {/* ── Videos tab content — always mounted, opacity-toggled for smooth transition ── */}
-      <div style={{
-        position: "absolute",
-        top: "clamp(155px, 22vh, 195px)",
-        left: 0, right: 0, bottom: 0,
-        display: "flex",
-        alignItems: "center",
-        zIndex: 2,
-        opacity:       activeTab === 'videos' ? 1 : 0,
-        transform:     `translateY(${activeTab === 'videos' ? 0 : 8}px)`,
-        pointerEvents: activeTab === 'videos' ? "auto" : "none",
-        transition:    "opacity 0.20s cubic-bezier(0.22,1,0.36,1), transform 0.20s cubic-bezier(0.22,1,0.36,1)",
-      }}>
+      <div
+        className="data-frame"
+        data-label="▶ RECOVERED DATA LOGS"
+        style={{
+          position: "absolute",
+          top: "clamp(155px, 22vh, 195px)",
+          left: "clamp(0.5rem, 1vw, 1rem)", right: "clamp(0.5rem, 1vw, 1rem)",
+          bottom: "clamp(0.5rem, 1vh, 1rem)",
+          display: "flex",
+          alignItems: "center",
+          zIndex: 2,
+          opacity:       activeTab === 'videos' ? 1 : 0,
+          transform:     `translateY(${activeTab === 'videos' ? 0 : 8}px)`,
+          pointerEvents: activeTab === 'videos' ? "auto" : "none",
+          transition:    "opacity 0.20s cubic-bezier(0.22,1,0.36,1), transform 0.20s cubic-bezier(0.22,1,0.36,1)",
+        }}>
         <VideosContent visible={activeTab === 'videos'} isNarrow={isNarrow} />
       </div>
 
       {/* ── Images tab content — always mounted, opacity-toggled ── */}
-      <div style={{
-        position: "absolute",
-        top: "clamp(155px, 22vh, 195px)",
-        left: 0, right: 0, bottom: 0,
-        zIndex: 2,
-        overflowY: activeTab === 'images' ? "auto" : "hidden",
-        opacity:       activeTab === 'images' ? 1 : 0,
-        transform:     `translateY(${activeTab === 'images' ? 0 : 8}px)`,
-        pointerEvents: activeTab === 'images' ? "auto" : "none",
-        transition:    "opacity 0.20s cubic-bezier(0.22,1,0.36,1), transform 0.20s cubic-bezier(0.22,1,0.36,1)",
-      }}>
+      <div
+        className="data-frame"
+        data-label="▪ MEMORY CARD ARCHIVE"
+        style={{
+          position: "absolute",
+          top: "clamp(155px, 22vh, 195px)",
+          left: "clamp(0.5rem, 1vw, 1rem)", right: "clamp(0.5rem, 1vw, 1rem)",
+          bottom: "clamp(0.5rem, 1vh, 1rem)",
+          zIndex: 2,
+          overflowY: activeTab === 'images' ? "auto" : "hidden",
+          opacity:       activeTab === 'images' ? 1 : 0,
+          transform:     `translateY(${activeTab === 'images' ? 0 : 8}px)`,
+          pointerEvents: activeTab === 'images' ? "auto" : "none",
+          transition:    "opacity 0.20s cubic-bezier(0.22,1,0.36,1), transform 0.20s cubic-bezier(0.22,1,0.36,1)",
+        }}>
         <ImagesContent />
       </div>
 
