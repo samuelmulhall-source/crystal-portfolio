@@ -15,6 +15,7 @@ import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { workModels, TextureSet, subscribePendingTab } from "../lib/workModels";
 import { voidState } from "../lib/voidState";
+import { STATIONS } from "../lib/journeyConfig";
 import { trackModelView, trackVideoPlay, trackImageView, trackTabSwitch, trackWireframeToggle } from "../lib/analytics";
 import { useIsMobile } from "../lib/useMediaQuery";
 
@@ -1087,7 +1088,7 @@ function WorkGridContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projects]);
 
-  // ── Model selection ──────────────────────────────────────────────────────
+  // ── Model selection — scroll to weapon station to show the 3D model ─────
   const selectModel = (id: string) => {
     if (activeId && activeId !== id) {
       const prev = workModels.entries.find(e => e.id === activeId);
@@ -1096,6 +1097,14 @@ function WorkGridContent() {
     setActiveId(id);
     workModels.activeModelId = id;
     workModels.version++;
+
+    // Scroll camera to this model's weapon station
+    const station = STATIONS.find(s => s.modelId === id);
+    if (station) {
+      const mid = (station.scrollStart + station.scrollEnd) / 2;
+      const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+      window.scrollTo({ top: mid * maxScroll, behavior: "smooth" });
+    }
   };
 
   // ── Expand model to fullscreen viewer ────────────────────────────────────

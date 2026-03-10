@@ -37,8 +37,9 @@ export default function WeaponHUD() {
         setActiveIdx(newIdx);
         if (newIdx >= 0) trackStationVisit(newIdx, STATIONS[newIdx].loreName);
       }
-      // Show HUD once scrolled past hero
-      setVisible(voidState.scrollProgress > 0.05);
+      // Show HUD during weapon journey (after hero, before Work section)
+      const sp = voidState.scrollProgress;
+      setVisible(sp > 0.05 && sp < 0.88);
       // Update URL hash for deep-linking
       const hash = newIdx >= 0 ? `#${STATIONS[newIdx].id}` : "";
       if (hash !== lastHashRef.current) {

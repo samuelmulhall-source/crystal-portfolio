@@ -5,7 +5,7 @@
  * based on camera proximity. Pre-loads 1 station ahead.
  */
 
-import { useState, Suspense } from "react";
+import { useState, useRef, Suspense } from "react";
 import { useFrame } from "@react-three/fiber";
 import { voidState } from "../lib/voidState";
 import { workModels, type WorkModelEntry } from "../lib/workModels";
@@ -15,7 +15,7 @@ import WeaponStation from "./WeaponStation";
 export default function WeaponStations() {
   const [loadedStations, setLoadedStations] = useState<Set<string>>(new Set());
   const [entries, setEntries] = useState<WorkModelEntry[]>([]);
-  const versionRef = { current: -1 };
+  const versionRef = useRef(-1);
 
   useFrame(() => {
     // Sync entries from workModels
