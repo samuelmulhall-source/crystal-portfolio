@@ -468,6 +468,8 @@ export default function EffectsOverlay() {
   return (
     <canvas
       ref={canvasRef}
+      role="presentation"
+      aria-hidden="true"
       style={{
         position:      "fixed",
         top:           0,

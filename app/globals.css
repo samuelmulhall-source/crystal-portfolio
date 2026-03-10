@@ -456,6 +456,55 @@ body.viewer-open main {
   transition: opacity 0.28s ease;
 }
 
+/* ─── Focus ring — visible keyboard focus for accessibility ───────────────── */
+:focus-visible {
+  outline: 1px solid rgba(184,240,255,0.55);
+  outline-offset: 2px;
+  box-shadow: 0 0 8px rgba(184,240,255,0.18);
+}
+
+/* ─── Skip-to-content — visually hidden until focused ────────────────────── */
+.skip-link {
+  position: fixed;
+  top: -100%;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  background: rgba(4,8,20,0.95);
+  color: var(--ice);
+  border: 1px solid rgba(184,240,255,0.3);
+  padding: 0.6rem 1.4rem;
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-decoration: none;
+  border-radius: 3px;
+  transition: top 0.2s ease;
+}
+.skip-link:focus {
+  top: 1rem;
+  outline: none;
+  box-shadow: 0 0 16px rgba(184,240,255,0.3);
+}
+
+/* ─── Reduced motion — respect user preferences ──────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .scroll-indicator { animation: none; }
+  .hero-title { animation: none; text-shadow: 0 0 7px rgba(210,246,255,0.52); }
+  .heading-xl, .heading-lg { animation: none; filter: none; }
+  .label { animation: none; }
+  .glitch::before, .glitch::after { animation: none; display: none; }
+}
+
 /* ─── Responsive ──────────────────────────────────────────────────────────── */
 @media (max-width: 700px) {
   .hero-title { letter-spacing: 0.14em; }

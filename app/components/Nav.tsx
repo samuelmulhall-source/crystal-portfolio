@@ -1,15 +1,24 @@
 "use client";
 
+/**
+ * Nav — Console-themed top navigation bar.
+ *
+ * PS2/GameCube aesthetic: metallic glass panel with subtle warm accents,
+ * monospace typography, and a structured dropdown for Work sub-tabs.
+ * Active section uses orange phosphor accent; inactive uses ice-blue.
+ */
+
 import { useEffect, useRef, useState } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { workModels } from "../lib/workModels";
+import { useIsMobile } from "../lib/useMediaQuery";
 
 type WorkTab = 'models' | 'videos' | 'images';
-const WORK_SUBS: { label: string; tab: WorkTab }[] = [
-  { label: "3D Models",      tab: "models" },
-  { label: "Video Renders",  tab: "videos" },
-  { label: "Image Renders",  tab: "images" },
+const WORK_SUBS: { icon: string; label: string; tab: WorkTab }[] = [
+  { icon: "\u25C7", label: "Artifacts",    tab: "models" },
+  { icon: "\u25B6", label: "Data Logs",    tab: "videos" },
+  { icon: "\u25AA", label: "Memory Cards", tab: "images" },
 ];
 const LINKS = [
   { label: "Contact", href: "#contact" },
@@ -22,16 +31,8 @@ export default function Nav() {
   const [scrolled, setScrolled]     = useState(false);
   const [workOpen, setWorkOpen]     = useState(false);
   const [activeSection, setActiveSection] = useState<SectionId>("hero");
-  const [isMobile, setIsMobile]     = useState(false);
+  const isMobile = useIsMobile();
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    const mq = window.matchMedia("(max-width: 768px)");
-    const update = () => setIsMobile(mq.matches);
-    update();
-    mq.addEventListener("change", update);
-    return () => mq.removeEventListener("change", update);
-  }, []);
 
   useEffect(() => {
     gsap.registerPlugin(ScrollTrigger);
@@ -46,7 +47,7 @@ export default function Nav() {
     });
   }, []);
 
-  // Active section highlight: which section is in view (smooth scroll already via scrollIntoView)
+  // Active section highlight
   useEffect(() => {
     const sections = [
       { id: "hero" as const, el: document.getElementById("hero") },
@@ -74,22 +75,22 @@ export default function Nav() {
     return () => observer.disconnect();
   }, []);
 
-  const scrollTo = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+  const scrollTo = (e: React.MouseEvent<HTMLAnchorElement | HTMLButtonElement>, href: string) => {
     e.preventDefault();
     setWorkOpen(false);
     document.querySelector(href)?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const linkColor = scrolled ? "rgba(184,240,255,0.48)" : "rgba(184,240,255,0.78)";
-  const linkShadow = scrolled ? "none" : "0 1px 4px rgba(0,0,0,0.5)";
-
   const openWork  = () => { if (closeTimer.current) clearTimeout(closeTimer.current); setWorkOpen(true);  };
   const closeWork = () => { closeTimer.current = setTimeout(() => setWorkOpen(false), 160); };
   const toggleWork = () => setWorkOpen((o) => !o);
 
+  const linkActive = (section: SectionId) => activeSection === section;
+
   return (
     <nav
       ref={navRef}
+      aria-label="Main navigation"
       style={{
         position:       "fixed",
         top: 0, left: 0, right: 0,
@@ -98,18 +99,20 @@ export default function Nav() {
         alignItems:     "center",
         justifyContent: "space-between",
         padding:        "0 clamp(1rem, 4vw, 2.5rem)",
-        height:          scrolled ? "50px" : "66px",
+        height:          scrolled ? "48px" : "62px",
         background:     scrolled
-          ? "linear-gradient(180deg, rgba(255,255,255,0.07) 0%, rgba(3,6,20,0.78) 100%)"
+          ? "linear-gradient(145deg, rgba(8,14,32,0.82) 0%, rgba(4,8,20,0.90) 100%)"
           : "transparent",
-        backdropFilter:  scrolled ? "blur(44px) saturate(2.0) brightness(1.06)" : "none",
-        WebkitBackdropFilter: scrolled ? "blur(44px) saturate(2.0) brightness(1.06)" : "none",
-        borderBottom:    scrolled ? "1px solid rgba(255,255,255,0.14)" : "none",
-        boxShadow:       scrolled ? "0 1px 0 rgba(184,240,255,0.10), 0 8px 32px rgba(0,0,14,0.40)" : "none",
-        transition:     "height 0.4s ease, background 0.4s ease, box-shadow 0.4s ease",
+        backdropFilter:  scrolled ? "blur(32px) saturate(1.8) brightness(1.04)" : "none",
+        WebkitBackdropFilter: scrolled ? "blur(32px) saturate(1.8) brightness(1.04)" : "none",
+        borderBottom:    scrolled ? "1px solid rgba(184,240,255,0.06)" : "none",
+        boxShadow:       scrolled
+          ? "inset 0 1px 0 rgba(255,255,255,0.04), 0 8px 32px rgba(0,0,12,0.5)"
+          : "none",
+        transition:     "height 0.4s ease, background 0.4s ease, box-shadow 0.4s ease, border-color 0.4s ease",
       }}
     >
-      {/* Wordmark */}
+      {/* ── Wordmark ── */}
       <a
         href="#hero"
         className="glitch"
@@ -117,28 +120,28 @@ export default function Nav() {
         onClick={(e) => scrollTo(e, "#hero")}
         style={{
           fontFamily:    "var(--font-geist-mono), monospace",
-          fontSize:       "0.6875rem",
-          letterSpacing:  "0.30em",
+          fontSize:       "0.65rem",
+          letterSpacing:  "0.28em",
           textTransform:  "uppercase",
-          color:          activeSection === "hero"
-            ? "rgba(238,248,255,0.98)"
-            : scrolled ? "var(--text-primary)" : "rgba(238,248,255,0.90)",
+          color:          linkActive("hero")
+            ? "rgba(255,160,60,0.9)"
+            : scrolled ? "rgba(184,240,255,0.6)" : "rgba(238,248,255,0.88)",
           textDecoration: "none",
-          textShadow: activeSection === "hero"
-            ? "0 0 22px rgba(184,240,255,0.28), 0 1px 2px rgba(0,0,0,0.4)"
-            : scrolled ? "0 0 18px rgba(184,240,255,0.14)" : "0 0 28px rgba(184,240,255,0.22), 0 1px 3px rgba(0,0,0,0.6)",
-          transition: "color 0.4s ease, text-shadow 0.4s ease",
+          textShadow: linkActive("hero")
+            ? "0 0 16px rgba(255,160,60,0.3)"
+            : scrolled ? "none" : "0 0 22px rgba(184,240,255,0.18), 0 1px 2px rgba(0,0,0,0.4)",
+          transition: "color 0.35s ease, text-shadow 0.35s ease",
           minHeight: "44px", display: "flex", alignItems: "center",
         }}
       >
         MULTISCATTER
       </a>
 
-      {/* Links */}
-      <ul style={{ display: "flex", alignItems: "center", gap: "2.2rem", listStyle: "none", margin: 0, padding: 0 }}>
+      {/* ── Links ── */}
+      <ul style={{ display: "flex", alignItems: "center", gap: "1.8rem", listStyle: "none", margin: 0, padding: 0 }}>
 
-        {/* Work — hover on desktop, tap to toggle on mobile */}
-        <li style={{ position: "relative", minWidth: "3.2rem", textAlign: "center" }}
+        {/* Work — hover on desktop, tap toggle on mobile */}
+        <li style={{ position: "relative", minWidth: "3rem", textAlign: "center" }}
           onMouseEnter={!isMobile ? openWork : undefined}
           onMouseLeave={!isMobile ? closeWork : undefined}
         >
@@ -154,70 +157,100 @@ export default function Nav() {
               }
             }}
             style={{
-              color: activeSection === "work" ? "rgba(220,248,255,0.92)" : linkColor,
-              textShadow: activeSection === "work" ? "0 0 14px rgba(184,240,255,0.25)" : linkShadow,
-              display: "flex", alignItems: "center", gap: "0.28rem",
+              color: linkActive("work") ? "rgba(255,160,60,0.85)" : scrolled ? "rgba(184,240,255,0.48)" : "rgba(184,240,255,0.72)",
+              textShadow: linkActive("work") ? "0 0 12px rgba(255,160,60,0.25)" : "none",
+              display: "flex", alignItems: "center", gap: "0.3rem",
               minHeight: "44px", justifyContent: "center", padding: "0 4px",
-              borderBottom: activeSection === "work" ? "1px solid rgba(184,240,255,0.35)" : "1px solid transparent",
-              marginBottom: activeSection === "work" ? "-1px" : 0,
-              transition: "color 0.25s ease, border-color 0.25s ease",
+              borderBottom: linkActive("work") ? "1px solid rgba(255,160,60,0.45)" : "1px solid transparent",
+              marginBottom: linkActive("work") ? "-1px" : "0",
+              transition: "color 0.25s ease, border-color 0.25s ease, text-shadow 0.25s ease",
             }}
           >
             Work
+            {/* Dropdown chevron */}
+            <span style={{
+              fontSize: "0.4rem",
+              transition: "transform 0.2s ease",
+              transform: workOpen ? "rotate(180deg)" : "rotate(0deg)",
+              opacity: 0.5,
+            }}>
+              &#9660;
+            </span>
           </a>
 
-          {/* Dropdown */}
+          {/* ── Dropdown: console-styled panel ── */}
           <ul style={{
             position:   "absolute",
-            top:        "calc(100% + 8px)",
+            top:        "calc(100% + 4px)",
             right:      0,
             transform:  workOpen
               ? "translateY(0) scale(1)"
-              : "translateY(-5px) scale(0.96)",
-            background:   "rgba(5,7,15,0.96)",
-            borderTop:    "1px solid rgba(184,240,255,0.22)",
-            borderRadius: "2px",
+              : "translateY(-4px) scale(0.97)",
+            background: "linear-gradient(145deg, rgba(8,14,32,0.92) 0%, rgba(4,8,20,0.96) 100%)",
+            backdropFilter: "blur(24px) saturate(1.6)",
+            WebkitBackdropFilter: "blur(24px) saturate(1.6)",
+            border:       "1px solid rgba(184,240,255,0.06)",
+            borderRadius: "3px",
             padding:      "4px 0",
             listStyle:    "none",
             margin:       0,
-            minWidth:     "148px",
+            minWidth:     "168px",
             opacity:      workOpen ? 1 : 0,
             pointerEvents: workOpen ? "auto" : "none",
-            transition:   "opacity 0.15s ease, transform 0.15s cubic-bezier(0.22,1,0.36,1)",
-            boxShadow:    "0 16px 40px rgba(0,0,12,0.70)",
+            transition:   "opacity 0.18s ease, transform 0.18s cubic-bezier(0.22,1,0.36,1)",
+            boxShadow:    "inset 0 1px 0 rgba(255,255,255,0.04), 0 16px 40px rgba(0,0,12,0.7), 0 0 1px rgba(184,240,255,0.06)",
+            overflow:     "hidden",
           }}>
-            {WORK_SUBS.map(({ label, tab }) => (
+            {/* Dropdown header */}
+            <li style={{
+              padding: "6px 14px 4px",
+              borderBottom: "1px solid rgba(184,240,255,0.05)",
+            }}>
+              <span style={{
+                fontFamily: "var(--font-geist-mono), monospace",
+                fontSize: "0.42rem",
+                letterSpacing: "0.24em",
+                textTransform: "uppercase",
+                color: "rgba(255,160,60,0.4)",
+              }}>
+                RECOVERED DATA
+              </span>
+            </li>
+            {WORK_SUBS.map(({ icon, label, tab }) => (
               <li key={tab}>
                 <a
                   href="#work"
                   onClick={(e) => { workModels.setPendingTab(tab); scrollTo(e, "#work"); setWorkOpen(false); }}
                   style={{
-                    display:       "block",
-                    padding:       "8px 16px",
-                    minHeight:     "44px",
+                    display:       "flex",
+                    alignItems:    "center",
+                    gap:           "0.5rem",
+                    padding:       "8px 14px",
+                    minHeight:     "40px",
                     boxSizing:     "border-box",
-                    color:         "rgba(184,240,255,0.75)",
+                    color:         "rgba(184,240,255,0.6)",
                     textDecoration: "none",
                     fontFamily:    "var(--font-geist-mono), monospace",
-                    fontSize:       "0.65rem",
-                    letterSpacing:  "0.12em",
+                    fontSize:       "0.6rem",
+                    letterSpacing:  "0.1em",
                     textTransform:  "uppercase",
                     whiteSpace:    "nowrap",
                     transition:    "color 0.15s ease, background 0.15s ease",
                   }}
                   onMouseEnter={e => {
                     const el = e.currentTarget as HTMLElement;
-                    el.style.color      = "rgba(220,248,255,0.95)";
-                    el.style.background = "rgba(184,240,255,0.06)";
-                    el.style.textShadow = "0 0 12px rgba(184,240,255,0.40)";
+                    el.style.color      = "rgba(255,160,60,0.9)";
+                    el.style.background = "rgba(255,160,60,0.04)";
+                    el.style.textShadow = "0 0 10px rgba(255,160,60,0.2)";
                   }}
                   onMouseLeave={e => {
                     const el = e.currentTarget as HTMLElement;
-                    el.style.color      = "rgba(184,240,255,0.75)";
+                    el.style.color      = "rgba(184,240,255,0.6)";
                     el.style.background = "";
                     el.style.textShadow = "";
                   }}
                 >
+                  <span style={{ fontSize: "0.5rem", opacity: 0.7 }}>{icon}</span>
                   {label}
                 </a>
               </li>
@@ -226,18 +259,18 @@ export default function Nav() {
         </li>
 
         {LINKS.map(({ label, href }) => (
-          <li key={href} style={{ minWidth: "3.2rem", textAlign: "center" }}>
+          <li key={href} style={{ minWidth: "3rem", textAlign: "center" }}>
             <a
               href={href}
               className="frost-link nav-link"
               onClick={(e) => { scrollTo(e, href); setWorkOpen(false); }}
               style={{
-                color: activeSection === "contact" ? "rgba(220,248,255,0.92)" : linkColor,
-                textShadow: activeSection === "contact" ? "0 0 14px rgba(184,240,255,0.25)" : linkShadow,
+                color: linkActive("contact") ? "rgba(255,160,60,0.85)" : scrolled ? "rgba(184,240,255,0.48)" : "rgba(184,240,255,0.72)",
+                textShadow: linkActive("contact") ? "0 0 12px rgba(255,160,60,0.25)" : "none",
                 minHeight: "44px", display: "flex", alignItems: "center", padding: "0 4px",
-                borderBottom: activeSection === "contact" ? "1px solid rgba(184,240,255,0.35)" : "1px solid transparent",
-                marginBottom: activeSection === "contact" ? "-1px" : 0,
-                transition: "color 0.25s ease, border-color 0.25s ease",
+                borderBottom: linkActive("contact") ? "1px solid rgba(255,160,60,0.45)" : "1px solid transparent",
+                marginBottom: linkActive("contact") ? "-1px" : "0",
+                transition: "color 0.25s ease, border-color 0.25s ease, text-shadow 0.25s ease",
               }}
             >
               {label}

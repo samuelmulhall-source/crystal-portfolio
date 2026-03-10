@@ -18,6 +18,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { voidState } from "../lib/voidState";
 import { STATIONS, TOTAL_SCROLL_VH } from "../lib/journeyConfig";
+import { trackStationVisit, trackKeyboardNav } from "../lib/analytics";
 
 export default function WeaponHUD() {
   const [activeIdx, setActiveIdx] = useState(-1);
@@ -32,7 +33,10 @@ export default function WeaponHUD() {
     const tick = () => {
       rafRef.current = requestAnimationFrame(tick);
       const newIdx = voidState.activeStationIndex;
-      if (newIdx !== activeIdx) setActiveIdx(newIdx);
+      if (newIdx !== activeIdx) {
+        setActiveIdx(newIdx);
+        if (newIdx >= 0) trackStationVisit(newIdx, STATIONS[newIdx].loreName);
+      }
       // Show HUD once scrolled past hero
       setVisible(voidState.scrollProgress > 0.05);
       // Update URL hash for deep-linking
@@ -81,6 +85,7 @@ export default function WeaponHUD() {
       const num = parseInt(e.key);
       if (num >= 1 && num <= STATIONS.length) {
         jumpTo(num - 1);
+        trackKeyboardNav(e.key, `station_${num}`);
       }
     };
     window.addEventListener("keydown", onKeyDown);

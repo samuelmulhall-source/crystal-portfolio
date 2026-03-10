@@ -13,11 +13,15 @@ import AboutContact    from "./components/AboutContact";
 import Nav             from "./components/Nav";
 import WeaponHUD       from "./components/WeaponHUD";
 import AudioController from "./components/AudioController";
+import ScrollTracker   from "./components/ScrollTracker";
 import { STATIONS, TOTAL_SCROLL_VH } from "./lib/journeyConfig";
 
 export default function Home() {
   return (
     <>
+      {/* Skip link for keyboard users */}
+      <a href="#work" className="skip-link">Skip to content</a>
+
       <LoadingTerminal />
       <AudioController />
       <CursorFollower />
@@ -31,9 +35,10 @@ export default function Home() {
 
       {/* Weapon navigation HUD (fixed overlay) */}
       <WeaponHUD />
+      <ScrollTracker />
 
       {/* ── Scrollable page content ── */}
-      <main>
+      <main role="main" aria-label="Portfolio content">
         <Nav />
         <Hero />
 

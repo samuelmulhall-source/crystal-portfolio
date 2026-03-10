@@ -6,10 +6,14 @@
  * PS2/GameCube system aesthetic: bottom-left shows live cursor coordinates,
  * bottom-right shows render mode. Top-left has the console system identifier
  * with active station readout. All low-opacity monospace with phosphor tint.
+ *
+ * Hidden on mobile — cursor coords are meaningless on touch, and the HUD
+ * elements overlap with the Nav bar on narrow screens.
  */
 
 import { useEffect, useRef } from "react";
 import { voidState } from "../lib/voidState";
+import { useIsDesktop } from "../lib/useMediaQuery";
 
 const MON: React.CSSProperties = {
   fontFamily: "var(--font-geist-mono), monospace",
@@ -24,8 +28,10 @@ const MON: React.CSSProperties = {
 export default function HUDCorners() {
   const coordRef = useRef<HTMLSpanElement>(null);
   const stationRef = useRef<HTMLSpanElement>(null);
+  const isDesktop = useIsDesktop();
 
   useEffect(() => {
+    if (!isDesktop) return;
     const onMove = (e: MouseEvent) => {
       if (!coordRef.current) return;
       const x = String(Math.round(e.clientX)).padStart(4, "0");
@@ -34,10 +40,11 @@ export default function HUDCorners() {
     };
     window.addEventListener("mousemove", onMove, { passive: true });
     return () => window.removeEventListener("mousemove", onMove);
-  }, []);
+  }, [isDesktop]);
 
   // Station readout — updates via rAF (no re-renders)
   useEffect(() => {
+    if (!isDesktop) return;
     let raf = 0;
     const tick = () => {
       raf = requestAnimationFrame(tick);
@@ -47,7 +54,10 @@ export default function HUDCorners() {
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, []);
+  }, [isDesktop]);
+
+  // Don't render on mobile
+  if (!isDesktop) return null;
 
   return (
     <>
@@ -62,9 +72,9 @@ export default function HUDCorners() {
         }}
       >
         <span style={{ fontSize: "0.44rem", letterSpacing: "0.3em" }}>
-          ε-9 RECOVERY CONSOLE
+          {"\u03B5"}-9 RECOVERY CONSOLE
         </span>
-        <span style={{ color: "rgba(184,240,255,0.12)" }}>│</span>
+        <span style={{ color: "rgba(184,240,255,0.12)" }}>{"\u2502"}</span>
         <span ref={stationRef} style={{ color: "rgba(184,240,255,0.18)" }}>
           STN:--
         </span>
@@ -91,7 +101,7 @@ export default function HUDCorners() {
           color: "rgba(184,240,255,0.18)",
         }}
       >
-        PBR · IBL · WEBGL
+        PBR {"\u00B7"} IBL {"\u00B7"} WEBGL
       </div>
     </>
   );

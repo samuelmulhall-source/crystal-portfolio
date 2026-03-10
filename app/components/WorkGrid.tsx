@@ -15,6 +15,8 @@ import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { workModels, TextureSet, subscribePendingTab } from "../lib/workModels";
 import { voidState } from "../lib/voidState";
+import { trackModelView, trackVideoPlay, trackImageView, trackTabSwitch, trackWireframeToggle } from "../lib/analytics";
+import { useIsMobile } from "../lib/useMediaQuery";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 type WorkTab = 'models' | 'videos' | 'images';
@@ -75,6 +77,7 @@ function ViewerControls({ mobile }: { mobile: boolean }) {
   const toggleWireframe = useCallback(() => {
     voidState.showWireframe = !voidState.showWireframe;
     setWireframe(voidState.showWireframe);
+    trackWireframeToggle(voidState.showWireframe);
   }, []);
 
   const toggleAutoRotate = useCallback(() => {
@@ -194,7 +197,7 @@ function FullscreenViewer({
 }) {
   const overlayRef  = useRef<HTMLDivElement>(null);
   const contentRef  = useRef<HTMLDivElement>(null);
-  const [mobile, setMobile] = useState(false);
+  const mobile = useIsMobile();
 
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -229,14 +232,6 @@ function FullscreenViewer({
     window.addEventListener("keydown", fn);
     return () => window.removeEventListener("keydown", fn);
   }, [close]);
-
-  useEffect(() => {
-    const mq = window.matchMedia("(max-width: 768px)");
-    const on = () => setMobile(mq.matches);
-    on();
-    mq.addEventListener("change", on);
-    return () => mq.removeEventListener("change", on);
-  }, []);
 
   const SPECS = [
     ["Format",    "FBX / GLB"],
@@ -443,6 +438,7 @@ function VideosContent({ visible, isNarrow }: { visible: boolean; isNarrow?: boo
             key={v.id}
             onClick={() => {
               setActiveId(v.id);
+              trackVideoPlay(v.id, v.title);
               setTimeout(() => videoRef.current?.play().catch(() => {}), 80);
             }}
             style={{
@@ -590,7 +586,8 @@ function ImagesContent() {
   const openLightbox = useCallback((idx: number) => {
     setLightboxIdx(idx);
     setZoomed(false);
-  }, []);
+    if (images[idx]) trackImageView(images[idx].id, images[idx].title);
+  }, [images]);
 
   const closeLightbox = useCallback(() => {
     setLightboxIdx(-1);
@@ -619,13 +616,41 @@ function ImagesContent() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [lightboxIdx, closeLightbox, nextImage, prevImage]);
 
+  // Touch swipe: left/right to navigate images on mobile
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  useEffect(() => {
+    if (lightboxIdx < 0) return;
+    const onStart = (e: TouchEvent) => {
+      const t = e.touches[0];
+      touchStartRef.current = { x: t.clientX, y: t.clientY };
+    };
+    const onEnd = (e: TouchEvent) => {
+      if (!touchStartRef.current) return;
+      const t = e.changedTouches[0];
+      const dx = t.clientX - touchStartRef.current.x;
+      const dy = t.clientY - touchStartRef.current.y;
+      touchStartRef.current = null;
+      // Only horizontal swipe, threshold 50px, ignore vertical
+      if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+        if (dx < 0) nextImage();
+        else prevImage();
+      }
+    };
+    window.addEventListener("touchstart", onStart, { passive: true });
+    window.addEventListener("touchend", onEnd, { passive: true });
+    return () => {
+      window.removeEventListener("touchstart", onStart);
+      window.removeEventListener("touchend", onEnd);
+    };
+  }, [lightboxIdx, nextImage, prevImage]);
+
   const lightboxImage = lightboxIdx >= 0 && lightboxIdx < images.length ? images[lightboxIdx] : null;
 
   return (
     <div style={{
       width: "100%",
       display: "flex", flexDirection: "column",
-      padding: "0.5rem 2.5rem 2.5rem",
+      padding: "0.5rem clamp(1rem, 4vw, 2.5rem) 2.5rem",
     }}>
       {images.length === 0 ? (
         <div style={{
@@ -723,7 +748,7 @@ function ImagesContent() {
           }}
             onClick={(e) => { e.stopPropagation(); closeLightbox(); }}
           >
-            [ESC] CLOSE &nbsp;·&nbsp; [←→] NAVIGATE
+            CLOSE
           </span>
 
           {/* Image title — bottom center */}
@@ -875,7 +900,7 @@ function WorkGridContent() {
   const [viewer,     setViewer]     = useState<{ project: Project } | null>(null);
   const [loading,    setLoading]    = useState(true);
   const [activeTab,  setActiveTab]  = useState<WorkTab>('models');
-  const [isNarrow,   setIsNarrow]   = useState(false);
+  const isNarrow = useIsMobile();
   // Anchor: when work section fills the viewport, fix UI elements to screen
   const [inWorkView, setInWorkView] = useState(false);
 
@@ -885,14 +910,6 @@ function WorkGridContent() {
   // always read the current tab without needing to re-register.
   const activeTabRef = useRef<WorkTab>(activeTab);
   useEffect(() => { activeTabRef.current = activeTab; }, [activeTab]);
-
-  useEffect(() => {
-    const mq = window.matchMedia("(max-width: 768px)");
-    const on = () => setIsNarrow(mq.matches);
-    on();
-    mq.addEventListener("change", on);
-    return () => mq.removeEventListener("change", on);
-  }, []);
 
   // ── Camera-reference parallax on work header ──────────────────────────────
   useEffect(() => {
@@ -1077,6 +1094,7 @@ function WorkGridContent() {
     workModels.setExpandedModelId(p.id);
     workModels.version++;
     setViewer({ project: p });
+    trackModelView(p.id, p.title);
   }, [activeId, projects, loading, router]);
 
   // ── Drag-zone interactions ────────────────────────────────────────────────
@@ -1185,7 +1203,7 @@ function WorkGridContent() {
 
         {/* Tab strip: desktop only here; mobile shows tabs at bottom */}
         {!isNarrow && (
-          <WorkTabButtons activeTab={activeTab} onTabChange={setActiveTab} />
+          <WorkTabButtons activeTab={activeTab} onTabChange={(t) => { setActiveTab(t); trackTabSwitch(t); }} />
         )}
       </div>
 
@@ -1202,7 +1220,7 @@ function WorkGridContent() {
           transform:     inWorkView ? "translateY(0)" : "translateY(18px)",
           transition:    "opacity 0.45s cubic-bezier(0.22,1,0.36,1), transform 0.45s cubic-bezier(0.22,1,0.36,1)",
         }}>
-          <WorkTabButtons activeTab={activeTab} onTabChange={setActiveTab} />
+          <WorkTabButtons activeTab={activeTab} onTabChange={(t) => { setActiveTab(t); trackTabSwitch(t); }} />
         </div>
       )}
 
