@@ -1,7 +1,8 @@
 import { Suspense } from "react";
 import VoidBackground  from "./components/VoidBackground";
 import EffectsOverlay  from "./components/EffectsOverlay";
-// LensOverlay removed — grain now handled by TSL PostPipeline
+import LensOverlay     from "./components/LensOverlay";
+import CRTOverlay      from "./components/CRTOverlay";
 import LoadingTerminal from "./components/LoadingTerminal";
 import CosmicLoader    from "./components/CosmicLoader";
 import CursorFollower  from "./components/CursorFollower";
@@ -21,7 +22,8 @@ export default function Home() {
       <AudioController />
       <CursorFollower />
       <HUDCorners />
-      {/* Film grain now in PostPipeline (TSL) */}
+      <LensOverlay />
+      <CRTOverlay />
       <Suspense fallback={<CosmicLoader />}>
         <VoidBackground />
       </Suspense>

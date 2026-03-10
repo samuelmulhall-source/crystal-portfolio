@@ -70,4 +70,10 @@ export const voidState = {
   // Current opacity of the active model (0→1). Used by EffectsOverlay for
   // loading progress percentage.
   modelOpacity: 0,
+
+  // ── Model controls ─────────────────────────────────────────────────────
+  // Written by FullscreenViewer controls. Read by WeaponStation for
+  // wireframe edge overlay opacity.
+  showWireframe: false,
+  autoRotate: true,
 };

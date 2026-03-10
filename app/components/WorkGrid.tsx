@@ -67,6 +67,123 @@ const MON: React.CSSProperties = {
   textTransform: "uppercase",
 };
 
+// ─── Viewer controls — wireframe, auto-rotate, reset ──────────────────────
+function ViewerControls({ mobile }: { mobile: boolean }) {
+  const [wireframe, setWireframe] = useState(voidState.showWireframe);
+  const [autoRot, setAutoRot] = useState(voidState.autoRotate);
+
+  const toggleWireframe = useCallback(() => {
+    voidState.showWireframe = !voidState.showWireframe;
+    setWireframe(voidState.showWireframe);
+  }, []);
+
+  const toggleAutoRotate = useCallback(() => {
+    voidState.autoRotate = !voidState.autoRotate;
+    setAutoRot(voidState.autoRotate);
+  }, []);
+
+  const resetView = useCallback(() => {
+    // Reset rotation on all entries
+    workModels.entries.forEach(e => {
+      e.rotX = 0;
+      e.rotY = 0;
+      e.velX = 0;
+      e.velY = 0;
+    });
+  }, []);
+
+  // Keyboard shortcuts: W=wireframe, R=auto-rotate
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.key === "w" || e.key === "W") toggleWireframe();
+      if (e.key === "r" || e.key === "R") toggleAutoRotate();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [toggleWireframe, toggleAutoRotate]);
+
+  const btnStyle: React.CSSProperties = {
+    background: "rgba(4,8,20,0.75)",
+    border: "1px solid rgba(184,240,255,0.1)",
+    borderRadius: "3px",
+    color: "rgba(184,240,255,0.5)",
+    cursor: "pointer",
+    padding: "0.35rem 0.6rem",
+    fontFamily: "var(--font-geist-mono), monospace",
+    fontSize: "0.5rem",
+    letterSpacing: "0.14em",
+    textTransform: "uppercase" as const,
+    transition: "all 0.25s ease",
+    display: "flex",
+    alignItems: "center",
+    gap: "0.35rem",
+    backdropFilter: "blur(12px)",
+    WebkitBackdropFilter: "blur(12px)",
+  };
+
+  const activeStyle: React.CSSProperties = {
+    ...btnStyle,
+    borderColor: "rgba(255,160,60,0.3)",
+    color: "rgba(255,160,60,0.8)",
+    boxShadow: "0 0 8px rgba(255,160,60,0.15)",
+  };
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        zIndex: 102,
+        pointerEvents: "auto",
+        display: "flex",
+        gap: "0.4rem",
+        ...(mobile
+          ? { bottom: "1.2rem", left: "50%", transform: "translateX(-50%)" }
+          : { bottom: "1.5rem", left: "50%", transform: "translateX(-50%)" }),
+      }}
+    >
+      <button
+        onClick={toggleWireframe}
+        style={wireframe ? activeStyle : btnStyle}
+        onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(184,240,255,0.35)"; e.currentTarget.style.color = "rgba(184,240,255,0.9)"; }}
+        onMouseLeave={e => {
+          if (!wireframe) { e.currentTarget.style.borderColor = "rgba(184,240,255,0.1)"; e.currentTarget.style.color = "rgba(184,240,255,0.5)"; }
+          else { e.currentTarget.style.borderColor = "rgba(255,160,60,0.3)"; e.currentTarget.style.color = "rgba(255,160,60,0.8)"; }
+        }}
+        title="Toggle wireframe [W]"
+      >
+        <span style={{ fontSize: "0.55rem" }}>◇</span>
+        WIRE {wireframe ? "ON" : "OFF"}
+      </button>
+
+      <button
+        onClick={toggleAutoRotate}
+        style={autoRot ? activeStyle : btnStyle}
+        onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(184,240,255,0.35)"; e.currentTarget.style.color = "rgba(184,240,255,0.9)"; }}
+        onMouseLeave={e => {
+          if (!autoRot) { e.currentTarget.style.borderColor = "rgba(184,240,255,0.1)"; e.currentTarget.style.color = "rgba(184,240,255,0.5)"; }
+          else { e.currentTarget.style.borderColor = "rgba(255,160,60,0.3)"; e.currentTarget.style.color = "rgba(255,160,60,0.8)"; }
+        }}
+        title="Toggle auto-rotate [R]"
+      >
+        <span style={{ fontSize: "0.55rem" }}>↻</span>
+        SPIN {autoRot ? "ON" : "OFF"}
+      </button>
+
+      <button
+        onClick={resetView}
+        style={btnStyle}
+        onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(184,240,255,0.35)"; e.currentTarget.style.color = "rgba(184,240,255,0.9)"; }}
+        onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(184,240,255,0.1)"; e.currentTarget.style.color = "rgba(184,240,255,0.5)"; }}
+        title="Reset rotation"
+      >
+        <span style={{ fontSize: "0.55rem" }}>⟲</span>
+        RESET
+      </button>
+    </div>
+  );
+}
+
 // ─── Full-screen in-place viewer — igloo-style, model shows through ────────
 function FullscreenViewer({
   project,
@@ -164,6 +281,9 @@ function FullscreenViewer({
         <span style={{ margin: "0 0.2em" }}>esc</span>
         <span style={{ opacity: 0.50 }}>]</span>
       </button>
+
+      {/* ── Model controls bar — console-styled ── */}
+      <ViewerControls mobile={mobile} />
 
       {/* Content column — floats over the scene on the left (desktop) or anchored bottom (mobile) */}
       <div
@@ -450,10 +570,11 @@ function VideosContent({ visible, isNarrow }: { visible: boolean; isNarrow?: boo
   );
 }
 
-// ─── Images / gallery tab ───────────────────────────────────────────────────
+// ─── Images / gallery tab — enhanced lightbox with keyboard nav + zoom ─────
 function ImagesContent() {
-  const [images, setImages]     = useState<ImageEntry[]>([]);
-  const [lightbox, setLightbox] = useState<string | null>(null);
+  const [images, setImages]           = useState<ImageEntry[]>([]);
+  const [lightboxIdx, setLightboxIdx] = useState<number>(-1);
+  const [zoomed, setZoomed]           = useState(false);
 
   useEffect(() => {
     fetch("/data.json")
@@ -465,6 +586,40 @@ function ImagesContent() {
       })
       .catch(() => {});
   }, []);
+
+  const openLightbox = useCallback((idx: number) => {
+    setLightboxIdx(idx);
+    setZoomed(false);
+  }, []);
+
+  const closeLightbox = useCallback(() => {
+    setLightboxIdx(-1);
+    setZoomed(false);
+  }, []);
+
+  const nextImage = useCallback(() => {
+    setLightboxIdx(prev => prev < images.length - 1 ? prev + 1 : 0);
+    setZoomed(false);
+  }, [images.length]);
+
+  const prevImage = useCallback(() => {
+    setLightboxIdx(prev => prev > 0 ? prev - 1 : images.length - 1);
+    setZoomed(false);
+  }, [images.length]);
+
+  // Keyboard nav: ←/→ cycle, Escape close
+  useEffect(() => {
+    if (lightboxIdx < 0) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeLightbox();
+      else if (e.key === "ArrowRight") nextImage();
+      else if (e.key === "ArrowLeft") prevImage();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [lightboxIdx, closeLightbox, nextImage, prevImage]);
+
+  const lightboxImage = lightboxIdx >= 0 && lightboxIdx < images.length ? images[lightboxIdx] : null;
 
   return (
     <div style={{
@@ -488,19 +643,30 @@ function ImagesContent() {
           gap: "1rem",
           paddingBottom: "2rem",
         }}>
-          {images.map(img => (
+          {images.map((img, idx) => (
             <div
               key={img.id}
-              onClick={() => setLightbox(encodeURI(img.path))}
+              onClick={() => openLightbox(idx)}
+              className="image-grid-card"
               style={{
                 cursor: "pointer",
                 border: "1px solid rgba(184,240,255,0.08)",
                 borderRadius: "2px",
                 overflow: "hidden",
-                transition: "border-color 0.2s",
+                transition: "border-color 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease",
               }}
-              onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(184,240,255,0.25)"}
-              onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(184,240,255,0.08)"}
+              onMouseEnter={e => {
+                const el = e.currentTarget as HTMLDivElement;
+                el.style.borderColor = "rgba(184,240,255,0.25)";
+                el.style.transform = "scale(1.02)";
+                el.style.boxShadow = "0 0 20px rgba(184,240,255,0.08)";
+              }}
+              onMouseLeave={e => {
+                const el = e.currentTarget as HTMLDivElement;
+                el.style.borderColor = "rgba(184,240,255,0.08)";
+                el.style.transform = "scale(1)";
+                el.style.boxShadow = "none";
+              }}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={encodeURI(img.path)} alt={img.title} loading="lazy" style={{ width: "100%", aspectRatio: "16/9", objectFit: "cover", display: "block" }} />
@@ -512,27 +678,99 @@ function ImagesContent() {
         </div>
       )}
 
-      {/* Lightbox — rendered via portal to escape any stacking-context trap */}
-      {lightbox && typeof document !== "undefined" && createPortal(
+      {/* Lightbox — full keyboard nav, zoom toggle, counter */}
+      {lightboxImage && typeof document !== "undefined" && createPortal(
         <div
-          onClick={() => setLightbox(null)}
+          onClick={(e) => {
+            // Only close if clicking backdrop, not nav buttons
+            if (e.target === e.currentTarget) closeLightbox();
+          }}
           style={{
             position: "fixed", inset: 0, zIndex: 9999,
-            background: "rgba(0,0,5,0.94)",
+            background: "rgba(0,0,5,0.95)",
             display: "flex", alignItems: "center", justifyContent: "center",
-            cursor: "zoom-out",
+            cursor: zoomed ? "zoom-out" : "zoom-in",
           }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={lightbox} alt="" style={{ maxWidth: "90vw", maxHeight: "90vh", objectFit: "contain" }} />
+          <img
+            src={encodeURI(lightboxImage.path)}
+            alt={lightboxImage.title}
+            onClick={(e) => { e.stopPropagation(); setZoomed(z => !z); }}
+            style={{
+              maxWidth: zoomed ? "100vw" : "90vw",
+              maxHeight: zoomed ? "100vh" : "88vh",
+              objectFit: "contain",
+              transition: "transform 0.35s ease, max-width 0.35s ease, max-height 0.35s ease",
+              transform: zoomed ? "scale(1)" : "scale(0.98)",
+            }}
+          />
+
+          {/* Image counter — top left */}
+          <span style={{
+            position: "absolute", top: "1.4rem", left: "1.8rem",
+            ...MON, fontSize: "0.55rem", letterSpacing: "0.22em",
+            color: "rgba(184,240,255,0.4)",
+          }}>
+            {String(lightboxIdx + 1).padStart(2, "0")} / {String(images.length).padStart(2, "0")}
+          </span>
+
+          {/* Close + nav hint — top right */}
           <span style={{
             position: "absolute", top: "1.4rem", right: "1.8rem",
-            fontFamily: "var(--font-geist-mono), monospace",
-            fontSize: "0.6rem", letterSpacing: "0.22em",
-            color: "rgba(184,240,255,0.45)", cursor: "pointer",
-          }}>
-            ESC / CLICK TO CLOSE
+            ...MON, fontSize: "0.5rem", letterSpacing: "0.18em",
+            color: "rgba(184,240,255,0.35)", cursor: "pointer",
+          }}
+            onClick={(e) => { e.stopPropagation(); closeLightbox(); }}
+          >
+            [ESC] CLOSE &nbsp;·&nbsp; [←→] NAVIGATE
           </span>
+
+          {/* Image title — bottom center */}
+          <div style={{
+            position: "absolute", bottom: "1.5rem", left: "50%", transform: "translateX(-50%)",
+            ...MON, fontSize: "0.6rem", letterSpacing: "0.16em",
+            color: "rgba(184,240,255,0.5)",
+            textAlign: "center",
+          }}>
+            {lightboxImage.title}
+          </div>
+
+          {/* Prev/Next arrows */}
+          {images.length > 1 && (
+            <>
+              <button
+                onClick={(e) => { e.stopPropagation(); prevImage(); }}
+                style={{
+                  position: "absolute", left: "1rem", top: "50%", transform: "translateY(-50%)",
+                  background: "rgba(4,8,20,0.6)", border: "1px solid rgba(184,240,255,0.1)",
+                  borderRadius: "3px", color: "rgba(184,240,255,0.5)", cursor: "pointer",
+                  padding: "0.6rem 0.5rem", fontSize: "1rem",
+                  backdropFilter: "blur(8px)", transition: "all 0.2s ease",
+                }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(184,240,255,0.35)"; e.currentTarget.style.color = "rgba(184,240,255,0.9)"; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(184,240,255,0.1)"; e.currentTarget.style.color = "rgba(184,240,255,0.5)"; }}
+                aria-label="Previous image"
+              >
+                ‹
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); nextImage(); }}
+                style={{
+                  position: "absolute", right: "1rem", top: "50%", transform: "translateY(-50%)",
+                  background: "rgba(4,8,20,0.6)", border: "1px solid rgba(184,240,255,0.1)",
+                  borderRadius: "3px", color: "rgba(184,240,255,0.5)", cursor: "pointer",
+                  padding: "0.6rem 0.5rem", fontSize: "1rem",
+                  backdropFilter: "blur(8px)", transition: "all 0.2s ease",
+                }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(184,240,255,0.35)"; e.currentTarget.style.color = "rgba(184,240,255,0.9)"; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(184,240,255,0.1)"; e.currentTarget.style.color = "rgba(184,240,255,0.5)"; }}
+                aria-label="Next image"
+              >
+                ›
+              </button>
+            </>
+          )}
         </div>,
         document.body
       )}
@@ -543,13 +781,13 @@ function ImagesContent() {
 // ─── Module-level constants ──────────────────────────────────────────────────
 const DEFAULT_TITLE = "Multiscatter";
 
-const TAB_LABELS: Record<WorkTab, string> = {
-  models: '3D Models',
-  videos: 'Video Renders',
-  images: 'Image Renders',
+const TAB_LABELS: Record<WorkTab, { label: string; icon: string }> = {
+  models: { label: 'ARTIFACTS',     icon: '◇' },
+  videos: { label: 'DATA LOGS',     icon: '▶' },
+  images: { label: 'MEMORY CARDS',  icon: '▪' },
 };
 
-// ─── Shared tab strip ────────────────────────────────────────────────────────
+// ─── Shared tab strip — console styled ──────────────────────────────────────
 function WorkTabButtons({
   activeTab,
   onTabChange,
@@ -558,42 +796,58 @@ function WorkTabButtons({
   onTabChange: (tab: WorkTab) => void;
 }) {
   return (
-    <div style={{ display: "flex", gap: 0, borderBottom: "1px solid rgba(184,240,255,0.10)" }}>
-      {(Object.keys(TAB_LABELS) as WorkTab[]).map((tab) => (
-        <button
-          key={tab}
-          onClick={() => onTabChange(tab)}
-          className="work-tab holo-btn"
-          style={{
-            background:   "none",
-            border:       "none",
-            borderBottom: activeTab === tab
-              ? "1px solid rgba(184,240,255,0.72)"
-              : "1px solid transparent",
-            marginBottom: "-1px",
-            padding:      "0.5rem 1.0rem 0.55rem",
-            cursor:       "pointer",
-            ...MON,
-            fontSize:     "clamp(0.58rem, 1.5vw, 0.68rem)",
-            letterSpacing: "0.18em",
-            color: activeTab === tab ? "rgba(220,248,255,0.95)" : "rgba(184,240,255,0.72)",
-            transition:   "color 0.25s, border-color 0.25s, box-shadow 0.25s",
-            whiteSpace:   "nowrap",
-          }}
-          onMouseEnter={(e) => {
-            const el = e.currentTarget as HTMLButtonElement;
-            if (activeTab !== tab) el.style.color = "rgba(220,248,255,0.95)";
-            el.style.boxShadow = "0 0 20px rgba(184,240,255,0.08)";
-          }}
-          onMouseLeave={(e) => {
-            const el = e.currentTarget as HTMLButtonElement;
-            if (activeTab !== tab) el.style.color = "rgba(184,240,255,0.72)";
-            el.style.boxShadow = "none";
-          }}
-        >
-          {TAB_LABELS[tab]}
-        </button>
-      ))}
+    <div style={{
+      display: "flex",
+      gap: 0,
+      borderBottom: "1px solid rgba(184,240,255,0.08)",
+      background: "linear-gradient(180deg, rgba(8,14,28,0.4) 0%, transparent 100%)",
+    }}>
+      {(Object.keys(TAB_LABELS) as WorkTab[]).map((tab) => {
+        const isActive = activeTab === tab;
+        return (
+          <button
+            key={tab}
+            onClick={() => onTabChange(tab)}
+            className="work-tab holo-btn"
+            style={{
+              background:   isActive ? "rgba(184,240,255,0.03)" : "none",
+              border:       "none",
+              borderBottom: isActive
+                ? "2px solid rgba(255,160,60,0.6)"
+                : "2px solid transparent",
+              marginBottom: "-1px",
+              padding:      "0.55rem 1.1rem 0.55rem",
+              cursor:       "pointer",
+              ...MON,
+              fontSize:     "clamp(0.55rem, 1.4vw, 0.64rem)",
+              letterSpacing: "0.16em",
+              color: isActive ? "rgba(255,160,60,0.85)" : "rgba(184,240,255,0.5)",
+              transition:   "color 0.25s, border-color 0.25s, background 0.25s",
+              whiteSpace:   "nowrap",
+              display: "flex",
+              alignItems: "center",
+              gap: "0.4rem",
+            }}
+            onMouseEnter={(e) => {
+              const el = e.currentTarget as HTMLButtonElement;
+              if (!isActive) {
+                el.style.color = "rgba(184,240,255,0.85)";
+                el.style.background = "rgba(184,240,255,0.02)";
+              }
+            }}
+            onMouseLeave={(e) => {
+              const el = e.currentTarget as HTMLButtonElement;
+              if (!isActive) {
+                el.style.color = "rgba(184,240,255,0.5)";
+                el.style.background = "none";
+              }
+            }}
+          >
+            <span style={{ fontSize: "0.5rem", opacity: 0.7 }}>{TAB_LABELS[tab].icon}</span>
+            {TAB_LABELS[tab].label}
+          </button>
+        );
+      })}
     </div>
   );
 }

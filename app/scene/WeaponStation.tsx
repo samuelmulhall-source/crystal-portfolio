@@ -240,7 +240,7 @@ export default function WeaponStation({ station, entry }: Props) {
         e.velY *= decay;
         e.rotX += e.velX;
         e.rotY += e.velY;
-        e.rotY += dt * 0.45;
+        if (voidState.autoRotate) e.rotY += dt * 0.45;
       }
 
       const entranceSpin = (1 - op) * Math.PI * 0.15;
@@ -257,10 +257,11 @@ export default function WeaponStation({ station, entry }: Props) {
       }
     }
 
-    // Wireframe: keep hidden for now
+    // Wireframe: show when toggled on, fade when off
+    const wireTarget = voidState.showWireframe && op > 0.1 ? 0.35 : 0;
     wireMatRefs.current.forEach((m) => {
       if (!m) return;
-      m.uniforms.uOpacity.value += (0 - m.uniforms.uOpacity.value) * 0.12;
+      m.uniforms.uOpacity.value += (wireTarget - m.uniforms.uOpacity.value) * 0.12;
     });
 
     // Write model screen region for hover suppression
