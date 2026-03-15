@@ -15,10 +15,8 @@ const MILESTONES = [25, 50, 75, 100];
 export default function ScrollTracker() {
   useEffect(() => {
     const reached = new Set<number>();
-    let raf = 0;
 
-    const tick = () => {
-      raf = requestAnimationFrame(tick);
+    const id = setInterval(() => {
       const pct = voidState.scrollProgress * 100;
       for (const m of MILESTONES) {
         if (pct >= m && !reached.has(m)) {
@@ -26,10 +24,9 @@ export default function ScrollTracker() {
           trackScrollMilestone(m);
         }
       }
-    };
+    }, 500);
 
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    return () => clearInterval(id);
   }, []);
 
   return null;

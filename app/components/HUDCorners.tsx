@@ -42,18 +42,15 @@ export default function HUDCorners() {
     return () => window.removeEventListener("mousemove", onMove);
   }, [isDesktop]);
 
-  // Station readout — updates via rAF (no re-renders)
+  // Station readout — polls at 250ms (station changes are infrequent)
   useEffect(() => {
     if (!isDesktop) return;
-    let raf = 0;
-    const tick = () => {
-      raf = requestAnimationFrame(tick);
+    const id = setInterval(() => {
       if (!stationRef.current) return;
       const idx = voidState.activeStationIndex;
       stationRef.current.textContent = idx >= 0 ? `STN:${String(idx + 1).padStart(2, "0")}` : "STN:--";
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    }, 250);
+    return () => clearInterval(id);
   }, [isDesktop]);
 
   // Don't render on mobile

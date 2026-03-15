@@ -82,6 +82,7 @@ export default function Hero() {
       id="hero"
       style={{
         position:       "relative",
+        zIndex:         3,
         height:         "100vh",
         display:        "flex",
         flexDirection:  "column",

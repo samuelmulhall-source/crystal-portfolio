@@ -9,7 +9,7 @@
  * writes to voidState.meteorSlots.
  */
 
-import React, { useRef, useMemo, useEffect, useState, useContext } from "react";
+import React, { useRef, useMemo, useEffect, useContext } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { voidState } from "../lib/voidState";
@@ -56,10 +56,7 @@ export default function ShootingStars({
   );
 
   const tmpV  = useMemo(() => new THREE.Vector3(), []);
-  const tmpV2 = useMemo(() => new THREE.Vector3(), []);
   const tmpM  = useMemo(() => new THREE.Matrix4(), []);
-  const camR  = useMemo(() => new THREE.Vector3(), []);
-  const camU  = useMemo(() => new THREE.Vector3(), []);
 
   const { isMobile, layers } = useContext(VoidContext);
   const disruption = useMemo(() => [
@@ -282,138 +279,78 @@ export default function ShootingStars({
     const loadPhase = loadPhaseRef.current;
     voidState.loadPhase = loadPhase;
 
-    const SPRING_K_VAL = loadPhase > 0.2 ? 4.5 * (1 - loadPhase * 0.85) : 4.5;
-    const dampFac  = Math.pow(0.90, Math.min(dt * 60, 6));
+    // Check if any velocity buffers have active movement
+    const hasAnyMeteorActive = meteors.some(m => m.active);
+    const hasAnyDisruption = disruption[0].some(d => d > 0.005) || disruption[1].some(d => d > 0.005);
+    const needsPhysics = hasAnyMeteorActive || hasAnyDisruption || loadPhase > 0.01;
 
-    for (let li = 0; li < 2; li++) {
-      const pObj   = pts[li].current;
-      if (!pObj) continue;
-      const posArr  = pObj.geometry.attributes.position.array as Float32Array;
-      const origPos = origPosBufs[li];
-      const vel     = velBufs[li];
-      const cnt     = layers[li].count;
-      let posChanged = false;
+    // Skip expensive physics loop when nothing is moving
+    if (needsPhysics) {
+      const SPRING_K_VAL = loadPhase > 0.2 ? 4.5 * (1 - loadPhase * 0.85) : 4.5;
+      const dampFac  = Math.pow(0.90, Math.min(dt * 60, 6));
 
-      const modelWorldY = lockedLoadY.current ?? (-voidState.scrollProgress * 7.5);
-      let modelLX = 0, modelLY = modelWorldY, modelLZ = 2;
-      if (loadPhase > 0.01) {
-        tmpV.set(0, modelWorldY, 2).applyMatrix4(tmpM.copy(pObj.matrixWorld).invert());
-        modelLX = tmpV.x; modelLY = tmpV.y; modelLZ = tmpV.z;
-      }
+      for (let li = 0; li < 2; li++) {
+        const pObj   = pts[li].current;
+        if (!pObj) continue;
+        const posArr  = pObj.geometry.attributes.position.array as Float32Array;
+        const origPos = origPosBufs[li];
+        const vel     = velBufs[li];
+        const cnt     = layers[li].count;
+        let posChanged = false;
 
-      for (let i = 0; i < cnt; i++) {
-        const b = i * 3;
-        let hasOrbit = false;
-
+        const modelWorldY = lockedLoadY.current ?? (-voidState.scrollProgress * 7.5);
+        let modelLX = 0, modelLY = modelWorldY, modelLZ = 2;
         if (loadPhase > 0.01) {
-          const sx = posArr[b], sy = posArr[b + 1], sz = posArr[b + 2];
-          const toX = modelLX - sx, toY = modelLY - sy, toZ = modelLZ - sz;
-          const dist = Math.sqrt(toX * toX + toY * toY + toZ * toZ);
-          if (dist > 2 && dist < 40) {
-            hasOrbit = true;
-            const invD = 1 / dist;
-            const ph   = loadPhase;
-            const aStr = 0.85 * ph;
-            vel[b]     += toX * invD * aStr * dt;
-            vel[b + 1] += toY * invD * aStr * dt;
-            vel[b + 2] += toZ * invD * aStr * dt;
-            const tStr = 1.6 * ph;
-            vel[b]     += (-toZ * invD) * tStr * dt;
-            vel[b + 2] += ( toX * invD) * tStr * dt;
-          }
+          tmpV.set(0, modelWorldY, 2).applyMatrix4(tmpM.copy(pObj.matrixWorld).invert());
+          modelLX = tmpV.x; modelLY = tmpV.y; modelLZ = tmpV.z;
         }
 
-        const v0 = vel[b], v1 = vel[b + 1], v2 = vel[b + 2];
-        if (!hasOrbit && v0 * v0 + v1 * v1 + v2 * v2 < 0.0002) continue;
-        posChanged = true;
+        for (let i = 0; i < cnt; i++) {
+          const b = i * 3;
+          let hasOrbit = false;
 
-        vel[b]     += (origPos[b]     - posArr[b])     * SPRING_K_VAL * dt;
-        vel[b + 1] += (origPos[b + 1] - posArr[b + 1]) * SPRING_K_VAL * dt;
-        vel[b + 2] += (origPos[b + 2] - posArr[b + 2]) * SPRING_K_VAL * dt;
-
-        vel[b]     *= dampFac;
-        vel[b + 1] *= dampFac;
-        vel[b + 2] *= dampFac;
-
-        posArr[b]     += vel[b]     * dt;
-        posArr[b + 1] += vel[b + 1] * dt;
-        posArr[b + 2] += vel[b + 2] * dt;
-      }
-
-      if (posChanged) pObj.geometry.attributes.position.needsUpdate = true;
-      const velAttr = pObj.geometry.attributes.aVelocity;
-      if (velAttr) {
-        (velAttr as THREE.BufferAttribute).array = vel;
-        velAttr.needsUpdate = true;
-      }
-    }
-
-    // Camera axes for repulsion
-    camR.setFromMatrixColumn(camera.matrixWorld, 0);
-    camU.setFromMatrixColumn(camera.matrixWorld, 1);
-
-    // Model star repulsion
-    if (workModels.activeModelId && workModels.entries.length > 0) {
-      const NDC_R      = 0.14;
-      const NDC_R2     = NDC_R * NDC_R;
-      const NDC_PUSH   = 0.04;
-      const W3D        = 2.2;
-      const W3D2       = W3D * W3D;
-      const W3D_PUSH   = 0.06;
-
-      workModels.entries.forEach((entry) => {
-        if (workModels.activeModelId !== entry.id) return;
-        const proximity = 1;
-
-        const mwX    = 0;
-        const mwY    = lockedLoadY.current ?? (-voidState.scrollProgress * 7.5);
-        const mwZ    = 2.0;
-
-        tmpV.set(mwX, mwY, mwZ).project(camera);
-        const screenValid = tmpV.z <= 1;
-        const cx = screenValid ? tmpV.x : 0;
-        const cy = screenValid ? tmpV.y : 0;
-
-        for (let li = 0; li < 2; li++) {
-          const pObj = pts[li]?.current;
-          if (!pObj) continue;
-          const posArr = pObj.geometry.attributes.position.array as Float32Array;
-          const cnt    = layers[li].count;
-          const vel    = velBufs[li];
-
-          for (let i = 0; i < cnt; i++) {
-            const sx = posArr[i * 3], sy = posArr[i * 3 + 1], sz = posArr[i * 3 + 2];
-
-            if (vel) {
-              const dx3 = sx - mwX, dy3 = sy - mwY, dz3 = sz - mwZ;
-              const d2_3 = dx3 * dx3 + dy3 * dy3 + dz3 * dz3;
-              if (d2_3 < W3D2 && d2_3 > 0.001) {
-                const d3  = Math.sqrt(d2_3);
-                const str = (1 - d3 / W3D) * W3D_PUSH * proximity;
-                vel[i * 3]     += (dx3 / d3) * str;
-                vel[i * 3 + 1] += (dy3 / d3) * str;
-                vel[i * 3 + 2] += (dz3 / d3) * str;
-              }
+          if (loadPhase > 0.01) {
+            const sx = posArr[b], sy = posArr[b + 1], sz = posArr[b + 2];
+            const toX = modelLX - sx, toY = modelLY - sy, toZ = modelLZ - sz;
+            const dist = Math.sqrt(toX * toX + toY * toY + toZ * toZ);
+            if (dist > 2 && dist < 40) {
+              hasOrbit = true;
+              const invD = 1 / dist;
+              const ph   = loadPhase;
+              const aStr = 0.85 * ph;
+              vel[b]     += toX * invD * aStr * dt;
+              vel[b + 1] += toY * invD * aStr * dt;
+              vel[b + 2] += toZ * invD * aStr * dt;
+              const tStr = 1.6 * ph;
+              vel[b]     += (-toZ * invD) * tStr * dt;
+              vel[b + 2] += ( toX * invD) * tStr * dt;
             }
-
-            if (!screenValid) continue;
-            tmpV2.set(sx, sy, sz).applyMatrix4(pObj.matrixWorld).project(camera);
-            if (tmpV2.z > 1) continue;
-            const ndx = tmpV2.x - cx, ndy = tmpV2.y - cy;
-            const nd2 = ndx * ndx + ndy * ndy;
-            if (nd2 > NDC_R2 || nd2 < 0.000001) continue;
-
-            const ndDist = Math.sqrt(nd2);
-            const approxDist = Math.sqrt(sx * sx + sy * sy + sz * sz);
-            const depthScale = Math.max(1, approxDist / 14);
-            const str        = (1 - ndDist / NDC_R) * NDC_PUSH * proximity * depthScale;
-            const nx2 = ndx / ndDist, ny2 = ndy / ndDist;
-            vel[i * 3]     += (camR.x * nx2 + camU.x * ny2) * str;
-            vel[i * 3 + 1] += (camR.y * nx2 + camU.y * ny2) * str;
-            vel[i * 3 + 2] += (camR.z * nx2 + camU.z * ny2) * str;
           }
+
+          const v0 = vel[b], v1 = vel[b + 1], v2 = vel[b + 2];
+          if (!hasOrbit && v0 * v0 + v1 * v1 + v2 * v2 < 0.0002) continue;
+          posChanged = true;
+
+          vel[b]     += (origPos[b]     - posArr[b])     * SPRING_K_VAL * dt;
+          vel[b + 1] += (origPos[b + 1] - posArr[b + 1]) * SPRING_K_VAL * dt;
+          vel[b + 2] += (origPos[b + 2] - posArr[b + 2]) * SPRING_K_VAL * dt;
+
+          vel[b]     *= dampFac;
+          vel[b + 1] *= dampFac;
+          vel[b + 2] *= dampFac;
+
+          posArr[b]     += vel[b]     * dt;
+          posArr[b + 1] += vel[b + 1] * dt;
+          posArr[b + 2] += vel[b + 2] * dt;
         }
-      });
+
+        if (posChanged) pObj.geometry.attributes.position.needsUpdate = true;
+        const velAttr = pObj.geometry.attributes.aVelocity;
+        if (velAttr) {
+          (velAttr as THREE.BufferAttribute).array = vel;
+          velAttr.needsUpdate = true;
+        }
+      }
     }
   });
 

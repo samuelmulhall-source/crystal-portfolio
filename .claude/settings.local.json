@@ -1,0 +1,34 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc:*)",
+      "Bash(npx eslint:*)",
+      "WebFetch(domain:localhost)",
+      "Bash(curl:*)",
+      "Bash(cmd.exe:*)",
+      "Bash(pwsh:*)",
+      "Bash(npx next:*)",
+      "Bash(cwebp:*)",
+      "Bash(do:*)",
+      "Bash(find . -name \"*.png\" -exec du -k {} +)",
+      "WebFetch(domain:www.awwwards.com)",
+      "WebFetch(domain:www.igloo.inc)",
+      "Bash(npm run:*)",
+      "Bash(python:*)",
+      "WebFetch(domain:igloo.inc)",
+      "WebSearch",
+      "WebFetch(domain:basement.studio)",
+      "WebFetch(domain:linear.app)",
+      "WebFetch(domain:medium.com)",
+      "WebFetch(domain:blog.olivierlarose.com)",
+      "WebFetch(domain:raghavvelan.medium.com)",
+      "WebFetch(domain:www.subframe.com)",
+      "WebFetch(domain:tympanus.net)",
+      "WebFetch(domain:prismic.io)",
+      "WebFetch(domain:magicui.design)",
+      "WebFetch(domain:css-irl.info)",
+      "WebFetch(domain:www.joshwcomeau.com)",
+      "WebFetch(domain:lusion.co)"
+    ]
+  }
+}

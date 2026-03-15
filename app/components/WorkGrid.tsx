@@ -1164,8 +1164,9 @@ function WorkGridContent() {
         height: "100vh",
         overflow: "hidden",
         background: "transparent",
-        // Subtle inset frame reinforces the "anchored HUD viewport" feel
-        boxShadow: "inset 0 0 0 1px rgba(184,240,255,0.04)",
+        // Hidden: data source for WeaponStations, UI not needed
+        opacity: 0,
+        pointerEvents: "none",
       }}
     >
       {/* ── Drag zone (only active on models tab) ── */}

@@ -17,7 +17,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { voidState } from "../lib/voidState";
-import { STATIONS, TOTAL_SCROLL_VH } from "../lib/journeyConfig";
+import { STATIONS } from "../lib/journeyConfig";
 import { trackStationVisit, trackKeyboardNav } from "../lib/analytics";
 
 export default function WeaponHUD() {
@@ -27,19 +27,30 @@ export default function WeaponHUD() {
   const rafRef = useRef<number>(0);
   const progressRef = useRef<HTMLDivElement>(null);
 
-  // Poll voidState.activeStationIndex via rAF + update URL hash
+  // Poll voidState via rAF — refs for previous values to avoid unnecessary setState
   const lastHashRef = useRef("");
+  const prevIdxRef = useRef(-1);
+  const prevVisibleRef = useRef(false);
   useEffect(() => {
     const tick = () => {
       rafRef.current = requestAnimationFrame(tick);
       const newIdx = voidState.activeStationIndex;
-      if (newIdx !== activeIdx) {
+
+      // Only setState when index actually changes
+      if (newIdx !== prevIdxRef.current) {
+        prevIdxRef.current = newIdx;
         setActiveIdx(newIdx);
         if (newIdx >= 0) trackStationVisit(newIdx, STATIONS[newIdx].loreName);
       }
-      // Show HUD during weapon journey (after hero, before Work section)
+
+      // Only setState when visibility actually changes
       const sp = voidState.scrollProgress;
-      setVisible(sp > 0.05 && sp < 0.88);
+      const nowVisible = sp > 0.05 && sp < 0.88;
+      if (nowVisible !== prevVisibleRef.current) {
+        prevVisibleRef.current = nowVisible;
+        setVisible(nowVisible);
+      }
+
       // Update URL hash for deep-linking
       const hash = newIdx >= 0 ? `#${STATIONS[newIdx].id}` : "";
       if (hash !== lastHashRef.current) {
@@ -50,14 +61,14 @@ export default function WeaponHUD() {
           window.history.replaceState(null, "", window.location.pathname);
         }
       }
-      // Scroll progress indicator
+      // Scroll progress indicator (direct DOM, no setState)
       if (progressRef.current) {
         progressRef.current.style.transform = `scaleY(${voidState.scrollProgress})`;
       }
     };
     rafRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafRef.current);
-  });
+  }, []);
 
   // On mount: if URL has a station hash, scroll to it
   useEffect(() => {

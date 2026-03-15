@@ -1,19 +1,21 @@
 import { Suspense } from "react";
-import VoidBackground  from "./components/VoidBackground";
-import EffectsOverlay  from "./components/EffectsOverlay";
-import LensOverlay     from "./components/LensOverlay";
-import CRTOverlay      from "./components/CRTOverlay";
-import LoadingTerminal from "./components/LoadingTerminal";
-import CosmicLoader    from "./components/CosmicLoader";
-import CursorFollower  from "./components/CursorFollower";
-import HUDCorners      from "./components/HUDCorners";
-import Hero            from "./components/Hero";
-import WorkGrid        from "./components/WorkGrid";
-import AboutContact    from "./components/AboutContact";
-import Nav             from "./components/Nav";
-import WeaponHUD       from "./components/WeaponHUD";
-import AudioController from "./components/AudioController";
-import ScrollTracker   from "./components/ScrollTracker";
+import VoidBackground    from "./components/VoidBackground";
+import CrystalCorridor   from "./components/CrystalCorridor";
+import EffectsOverlay    from "./components/EffectsOverlay";
+import LensOverlay       from "./components/LensOverlay";
+import CRTOverlay        from "./components/CRTOverlay";
+import LoadingTerminal   from "./components/LoadingTerminal";
+import CosmicLoader      from "./components/CosmicLoader";
+import CursorFollower    from "./components/CursorFollower";
+import HUDCorners        from "./components/HUDCorners";
+import Hero              from "./components/Hero";
+import WorkGrid          from "./components/WorkGrid";
+import AboutContact      from "./components/AboutContact";
+import Nav               from "./components/Nav";
+import WeaponHUD         from "./components/WeaponHUD";
+import AudioController   from "./components/AudioController";
+import ScrollTracker     from "./components/ScrollTracker";
+import FPSCounter        from "./components/FPSCounter";
 import { STATIONS, TOTAL_SCROLL_VH } from "./lib/journeyConfig";
 
 export default function Home() {
@@ -26,14 +28,14 @@ export default function Home() {
       <AudioController />
       <CursorFollower />
       <HUDCorners />
+      <FPSCounter />
       <LensOverlay />
       <CRTOverlay />
-      {/* Traveling scan line — premium CRT monitor sweep */}
-      <div className="scan-line" aria-hidden="true" />
       <Suspense fallback={<CosmicLoader />}>
         <VoidBackground />
       </Suspense>
       <EffectsOverlay />
+      <CrystalCorridor />
 
       {/* Weapon navigation HUD (fixed overlay) */}
       <WeaponHUD />
@@ -44,7 +46,10 @@ export default function Home() {
         <Nav />
         <Hero />
 
-        {/* Weapon station scroll anchors — invisible, provide scroll height for camera journey */}
+        {/* Corridor transit space — camera pushes through crystal stairway */}
+        <div style={{ height: "18vh", background: "transparent", pointerEvents: "none" }} />
+
+        {/* Weapon station scroll anchors — provide scroll height for camera journey */}
         {STATIONS.map((station) => (
           <section
             key={station.id}
@@ -58,10 +63,10 @@ export default function Home() {
           />
         ))}
 
-        {/* Transit space between last weapon and content sections */}
-        <div style={{ height: "80vh", background: "transparent", pointerEvents: "none" }} />
+        {/* Transit space between last station and about/contact */}
+        <div style={{ height: "60vh", background: "transparent", pointerEvents: "none" }} />
 
-        {/* Work section preserved for video/image tabs */}
+        {/* Work section — data source for model entries (needed for WeaponStations) */}
         <Suspense fallback={<CosmicLoader />}>
           <WorkGrid />
         </Suspense>

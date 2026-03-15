@@ -28,7 +28,7 @@ export default function DustParticles() {
     for (let i = 0; i < count; i++) {
       const theta = sr(seed + i * 5 + 0) * Math.PI * 2;
       const phi   = Math.acos(2 * sr(seed + i * 5 + 1) - 1);
-      const r     = 8 + sr(seed + i * 5 + 2) * 30;
+      const r     = 12 + sr(seed + i * 5 + 2) * 68;
       pos[i * 3]     = r * Math.sin(phi) * Math.cos(theta);
       pos[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
       pos[i * 3 + 2] = r * Math.cos(phi);

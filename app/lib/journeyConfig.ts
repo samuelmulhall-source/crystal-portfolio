@@ -1,9 +1,9 @@
 /**
  * Journey configuration: weapon station definitions and camera spline control points.
  *
- * Each weapon is placed at a fixed world position along the camera's scroll path.
- * The camera visits stations in sequence as the user scrolls. Scroll ranges define
- * when each weapon is "active" (camera orbiting nearby).
+ * Z-Forward Journey: camera starts at the crystal corridor entrance (z=14),
+ * flies forward through the corridor into the starfield, visiting weapon
+ * stations placed along the -Z axis. Ends with a downward drop to About/Contact.
  */
 
 export interface WeaponStation {
@@ -30,179 +30,186 @@ export interface WeaponStation {
 }
 
 /**
- * Five weapon stations placed in a descending spiral through the void.
- * Alternating left/right creates a dramatic camera weave.
+ * Five weapon stations placed along the Z-forward corridor.
+ * Alternating slight X offsets create a gentle weave as the camera travels.
  */
 export const STATIONS: WeaponStation[] = [
   {
     id: "torch",
     modelId: "proj-0",
     modelIndex: 0,
-    worldPosition: [8, -8, 0],
+    worldPosition: [3, 0, -20],
     loreName: "THE IGNIS CORE",
     loreTag: "Deep-space navigation vessel",
     loreSpec: "THERMAL OUTPUT: 4.2 × 10⁷ K",
     designation: "STATION 01",
-    scrollStart: 0.12,
-    scrollEnd: 0.24,
+    scrollStart: 0.18,
+    scrollEnd: 0.30,
   },
   {
     id: "ornate-dagger",
     modelId: "proj-2",
     modelIndex: 2,
-    worldPosition: [-7, -20, 0],
+    worldPosition: [-3, 0, -45],
     loreName: "VOID-SLIVER",
     loreTag: "Collapsed star matter blade",
     loreSpec: "DENSITY: 2.8 × 10¹⁴ kg/m³",
     designation: "STATION 02",
-    scrollStart: 0.26,
-    scrollEnd: 0.38,
+    scrollStart: 0.32,
+    scrollEnd: 0.44,
   },
   {
     id: "shield",
     modelId: "proj-3",
     modelIndex: 3,
-    worldPosition: [6, -32, 0],
+    worldPosition: [2, 0, -70],
     loreName: "NEBULA AEGIS",
     loreTag: "Reactive starfield mirror",
     loreSpec: "REFLECTIVITY: 99.97% λ 380-780nm",
     designation: "STATION 03",
-    scrollStart: 0.40,
-    scrollEnd: 0.52,
+    scrollStart: 0.46,
+    scrollEnd: 0.58,
   },
   {
     id: "sword",
     modelId: "proj-4",
     modelIndex: 4,
-    worldPosition: [-8, -44, 0],
+    worldPosition: [-2, 0, -95],
     loreName: "EVENT HORIZON",
     loreTag: "Gravitational-lensing edge",
     loreSpec: "CURVATURE: Δg 10⁶ m/s² ACROSS EDGE",
     designation: "STATION 04",
-    scrollStart: 0.54,
-    scrollEnd: 0.66,
+    scrollStart: 0.60,
+    scrollEnd: 0.72,
   },
   {
     id: "bow",
     modelId: "proj-1",
     modelIndex: 1,
-    worldPosition: [0, -56, 0],
+    worldPosition: [0, 0, -120],
     loreName: "PHOTON STRINGER",
     loreTag: "Concentrated light launcher",
     loreSpec: "YIELD: 3.1 × 10²⁶ W FOCUSED BEAM",
     designation: "STATION 05",
-    scrollStart: 0.68,
-    scrollEnd: 0.80,
+    scrollStart: 0.74,
+    scrollEnd: 0.86,
   },
 ];
 
 /** Total page height in viewport units to accommodate the full journey */
-export const TOTAL_SCROLL_VH = 800;
+export const TOTAL_SCROLL_VH = 900;
 
 /**
  * Camera position spline control points.
  * Centripetal CatmullRom — naturally smooth through all points.
- * The camera starts at hero position and weaves between weapon stations.
+ *
+ * Z-forward journey: camera starts at z=14 (corridor entrance),
+ * pushes through to z=-130, then drops Y for the about/contact zone.
  */
 export const CAMERA_POSITION_POINTS: [number, number, number][] = [
-  // Hero region (scroll 0-0.10)
+  // ── Corridor Hero (scroll 0.00-0.12) ──────────────────────────────────
   [0, 0, 14],
-  [0, -2, 12],
+  [0, 0, 10],
 
-  // Approach Torch (scroll ~0.12)
-  [4, -5, 8],
-  // Orbit Torch at (8, -8, 0)
-  [6, -7, 5],
-  [10, -9, 4],
-  [6, -8, 6],
+  // ── Corridor Transit (scroll 0.12-0.18): push through corridor ────────
+  [0, 0, 4],
+  [0, 0, -5],
 
-  // Transit to Dagger
-  [0, -14, 8],
+  // ── Station 1: Torch at [3, 0, -20] (scroll 0.18-0.30) ───────────────
+  [1, 0, -12],       // approach
+  [7, 1.5, -19],      // orbit offset right-up
+  [0, -0.8, -23],     // orbit offset left-down
 
-  // Orbit Dagger at (-7, -20, 0)
-  [-4, -18, 5],
-  [-9, -21, 4],
-  [-5, -20, 6],
+  // ── Transit to Station 2 ──────────────────────────────────────────────
+  [0, 0, -32],
 
-  // Transit to Shield
-  [0, -26, 8],
+  // ── Station 2: Dagger at [-3, 0, -45] (scroll 0.32-0.44) ─────────────
+  [-1, 0, -38],       // approach
+  [-7, 1.5, -44],      // orbit offset left-up
+  [0, -0.8, -48],      // orbit offset right-down
 
-  // Orbit Shield at (6, -32, 0)
-  [3, -30, 5],
-  [8, -33, 4],
-  [4, -32, 6],
+  // ── Transit to Station 3 ──────────────────────────────────────────────
+  [0, 0, -57],
 
-  // Transit to Sword
-  [0, -38, 8],
+  // ── Station 3: Shield at [2, 0, -70] (scroll 0.46-0.58) ──────────────
+  [1, 0, -63],        // approach
+  [6, 1.5, -69],       // orbit offset right-up
+  [-1, -0.8, -73],     // orbit offset left-down
 
-  // Orbit Sword at (-8, -44, 0)
-  [-5, -42, 5],
-  [-10, -45, 4],
-  [-6, -44, 6],
+  // ── Transit to Station 4 ──────────────────────────────────────────────
+  [0, 0, -82],
 
-  // Transit to Bow
-  [0, -50, 8],
+  // ── Station 4: Sword at [-2, 0, -95] (scroll 0.60-0.72) ──────────────
+  [-1, 0, -88],       // approach
+  [-6, 1.5, -94],      // orbit offset left-up
+  [1, -0.8, -98],      // orbit offset right-down
 
-  // Orbit Bow at (0, -56, 0)
-  [-2, -54, 5],
-  [2, -57, 4],
-  [0, -56, 6],
+  // ── Transit to Station 5 ──────────────────────────────────────────────
+  [0, 0, -107],
 
-  // End / About section
-  [0, -60, 10],
+  // ── Station 5: Bow at [0, 0, -120] (scroll 0.74-0.86) ────────────────
+  [0, 0, -113],       // approach
+  [5, 1.5, -119],      // orbit offset right-up
+  [-3, -0.8, -123],    // orbit offset left-down
+
+  // ── About / Contact zone (scroll 0.86-1.0) ───────────────────────────
+  [0, -4, -126],       // start descending
+  [0, -10, -130],      // about zone — camera looking down into void
 ];
 
 /**
  * Camera lookAt spline control points.
- * Parallels the position spline but targets weapon world positions during stations
- * and void center during transits.
+ * Targets weapon world positions during stations, forward horizon during transits.
  */
 export const CAMERA_LOOKAT_POINTS: [number, number, number][] = [
-  // Hero — looking at origin
+  // ── Corridor Hero — looking forward into the corridor ─────────────────
   [0, 0, 0],
-  [0, -2, 0],
+  [0, 0, -4],
 
-  // Approaching Torch — start turning toward it
-  [6, -7, 0],
-  // At Torch
-  [8, -8, 0],
-  [8, -8, 0],
-  [8, -8, 0],
+  // ── Corridor Transit — looking forward ────────────────────────────────
+  [0, 0, -10],
+  [0, 0, -15],
 
-  // Transit — look ahead
-  [0, -16, 0],
+  // ── Station 1: Torch at [3, 0, -20] ──────────────────────────────────
+  [3, 0, -20],
+  [3, 0, -20],
+  [3, 0, -20],
 
-  // At Dagger
-  [-7, -20, 0],
-  [-7, -20, 0],
-  [-7, -20, 0],
+  // ── Transit — look ahead ──────────────────────────────────────────────
+  [0, 0, -40],
 
-  // Transit
-  [0, -28, 0],
+  // ── Station 2: Dagger at [-3, 0, -45] ────────────────────────────────
+  [-3, 0, -45],
+  [-3, 0, -45],
+  [-3, 0, -45],
 
-  // At Shield
-  [6, -32, 0],
-  [6, -32, 0],
-  [6, -32, 0],
+  // ── Transit ───────────────────────────────────────────────────────────
+  [0, 0, -65],
 
-  // Transit
-  [0, -40, 0],
+  // ── Station 3: Shield at [2, 0, -70] ─────────────────────────────────
+  [2, 0, -70],
+  [2, 0, -70],
+  [2, 0, -70],
 
-  // At Sword
-  [-8, -44, 0],
-  [-8, -44, 0],
-  [-8, -44, 0],
+  // ── Transit ───────────────────────────────────────────────────────────
+  [0, 0, -90],
 
-  // Transit
-  [0, -52, 0],
+  // ── Station 4: Sword at [-2, 0, -95] ─────────────────────────────────
+  [-2, 0, -95],
+  [-2, 0, -95],
+  [-2, 0, -95],
 
-  // At Bow
-  [0, -56, 0],
-  [0, -56, 0],
-  [0, -56, 0],
+  // ── Transit ───────────────────────────────────────────────────────────
+  [0, 0, -115],
 
-  // End
-  [0, -60, 0],
+  // ── Station 5: Bow at [0, 0, -120] ───────────────────────────────────
+  [0, 0, -120],
+  [0, 0, -120],
+  [0, 0, -120],
+
+  // ── About zone — looking down into void ──────────────────────────────
+  [0, -6, -128],
+  [0, -12, -132],
 ];
 
 /**

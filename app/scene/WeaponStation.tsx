@@ -62,9 +62,6 @@ export default function WeaponStation({ station, entry }: Props) {
           opacity:            0,
           depthWrite:         true,
           envMapIntensity:    2.4,
-          iridescence:        0.4,
-          iridescenceIOR:     1.8,
-          iridescenceThicknessRange: [200, 600],
           clearcoat:          0.18,
           clearcoatRoughness: 0.08,
           side:               THREE.FrontSide,
@@ -79,7 +76,7 @@ export default function WeaponStation({ station, entry }: Props) {
     box.getSize(size);
     box.getCenter(center);
     const maxDim = Math.max(size.x, size.y, size.z);
-    const ns     = maxDim > 0 ? 4.5 / maxDim : 1;
+    const ns     = maxDim > 0 ? 3.2 / maxDim : 1;
     return { normScale: ns, centreOffset: center.clone().negate().multiplyScalar(ns) };
   }, [scene]);
 
@@ -89,11 +86,14 @@ export default function WeaponStation({ station, entry }: Props) {
     entry.textures.roughnessMap, entry.textures.metalnessMap,
   ].filter(Boolean).join("|");
 
+  const loadedTextures = useRef<THREE.Texture[]>([]);
+
   useEffect(() => {
     if (!texSig) return;
     const loader = new THREE.TextureLoader();
     const t      = entry.textures;
     let cancelled = false;
+    const textures: THREE.Texture[] = [];
 
     const applyAll = (update: (m: THREE.MeshPhysicalMaterial) => void) => {
       allMats.current.forEach(m => { if (m) { update(m); m.needsUpdate = true; } });
@@ -123,15 +123,21 @@ export default function WeaponStation({ station, entry }: Props) {
         if (cancelled) return;
         try {
           const tex = await loader.loadAsync(item.url);
-          if (cancelled) return;
+          if (cancelled) { tex.dispose(); return; }
+          textures.push(tex);
           item.apply(tex);
           await new Promise(r => setTimeout(r, 80));
         } catch { /* texture missing — skip */ }
       }
+      loadedTextures.current = textures;
     };
     processQueue();
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      loadedTextures.current.forEach(tex => tex.dispose());
+      loadedTextures.current = [];
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [texSig]);
 
@@ -140,22 +146,39 @@ export default function WeaponStation({ station, entry }: Props) {
     if (scaleGroupRef.current) scaleGroupRef.current.scale.setScalar(0.001);
   }, []);
 
-  // Wireframe edges (GLSL ShaderMaterial)
+  // Wireframe edges (GLSL ShaderMaterial) — deferred to avoid blocking main thread on mount
   useEffect(() => {
     wireMatRefs.current = [];
-    scene.traverse((o) => {
-      if ((o as THREE.Mesh).isMesh) {
-        const mesh = o as THREE.Mesh;
+    let cancelled = false;
+
+    // Defer EdgesGeometry computation (expensive) until after model renders
+    const timer = setTimeout(() => {
+      if (cancelled) return;
+      const meshes: THREE.Mesh[] = [];
+      scene.traverse((o) => {
+        if ((o as THREE.Mesh).isMesh) meshes.push(o as THREE.Mesh);
+      });
+
+      // Process one mesh per frame to avoid blocking
+      let idx = 0;
+      const processNext = () => {
+        if (cancelled || idx >= meshes.length) return;
+        const mesh = meshes[idx++];
         try {
           const edgeGeo = new THREE.EdgesGeometry(mesh.geometry, 15);
           const mat = makeWireframeMat();
-          const lines   = new THREE.LineSegments(edgeGeo, mat);
+          const lines = new THREE.LineSegments(edgeGeo, mat);
           mesh.add(lines);
           wireMatRefs.current.push(mat);
         } catch { /* skip */ }
-      }
-    });
+        if (idx < meshes.length) requestAnimationFrame(processNext);
+      };
+      requestAnimationFrame(processNext);
+    }, 600);
+
     return () => {
+      cancelled = true;
+      clearTimeout(timer);
       scene.traverse((o) => {
         if ((o as THREE.Mesh).isMesh) {
           const mesh = o as THREE.Mesh;
@@ -202,12 +225,11 @@ export default function WeaponStation({ station, entry }: Props) {
       scaleGroupRef.current.scale.setScalar(0.94 + ease * 0.06);
     }
 
-    // Apply opacity + iridescence modulated by proximity
+    // Apply opacity
     const op = opacityRef.current;
     allMats.current.forEach((m) => {
       if (m) {
         m.opacity = op;
-        m.iridescence = 0.2 + proximity * 0.6;
       }
     });
 

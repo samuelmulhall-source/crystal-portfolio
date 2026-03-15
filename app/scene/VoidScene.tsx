@@ -23,18 +23,23 @@ import StationInfo from "./hud/StationInfo";
 import { STATIONS } from "../lib/journeyConfig";
 
 // ─── Star layer config ─────────────────────────────────────────────────────
+// Radii enlarged + stars offset to Z=-55 to cover the full Z-forward corridor
+// (camera travels z=14 to z=-130). Rotation speeds kept subtle.
 type LayerConfig = readonly { count: number; rMin: number; rMax: number; rotSpd: number; size: number; seed: number }[];
 
 const LAYERS_DESKTOP = [
-  { count: 1800, rMin: 14, rMax: 30, rotSpd: 0.007, size: 0.22, seed: 11111 },
-  { count: 1400, rMin: 26, rMax: 44, rotSpd: 0.011, size: 0.28, seed: 22222 },
-  { count:  900, rMin: 36, rMax: 58, rotSpd: 0.017, size: 0.36, seed: 33333 },
+  { count: 2200, rMin: 20, rMax: 55, rotSpd: 0.005, size: 0.22, seed: 11111 },
+  { count: 1600, rMin: 40, rMax: 75, rotSpd: 0.008, size: 0.28, seed: 22222 },
+  { count: 1000, rMin: 55, rMax: 95, rotSpd: 0.012, size: 0.36, seed: 33333 },
 ] as const;
 const LAYERS_MOBILE = [
-  { count: 600, rMin: 14, rMax: 30, rotSpd: 0.008, size: 0.24, seed: 11111 },
-  { count: 500, rMin: 26, rMax: 44, rotSpd: 0.012, size: 0.30, seed: 22222 },
-  { count: 350, rMin: 36, rMax: 58, rotSpd: 0.018, size: 0.36, seed: 33333 },
+  { count: 800, rMin: 20, rMax: 55, rotSpd: 0.006, size: 0.24, seed: 11111 },
+  { count: 600, rMin: 40, rMax: 75, rotSpd: 0.009, size: 0.30, seed: 22222 },
+  { count: 400, rMin: 55, rMax: 95, rotSpd: 0.013, size: 0.36, seed: 33333 },
 ] as const;
+
+/** Center offset for star shells — midpoint of the Z-forward journey */
+const STAR_CENTER_Z = -55;
 
 export const VoidContext = createContext<{ isMobile: boolean; layers: LayerConfig }>({
   isMobile: false,
@@ -72,10 +77,12 @@ export default function VoidScene({ isMobile }: { isMobile: boolean }) {
       <SceneReady />
       <Lighting />
 
-      <StarLayer li={0} pointsRef={pts0} />
-      <StarLayer li={1} pointsRef={pts1} />
-      <StarLayer li={2} pointsRef={pts2} />
-      <DustParticles />
+      <group position={[0, 0, STAR_CENTER_Z]}>
+        <StarLayer li={0} pointsRef={pts0} />
+        <StarLayer li={1} pointsRef={pts1} />
+        <StarLayer li={2} pointsRef={pts2} />
+        <DustParticles />
+      </group>
 
       <CameraRig />
       <ExpandedViewer />

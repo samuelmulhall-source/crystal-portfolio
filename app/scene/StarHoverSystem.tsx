@@ -39,6 +39,9 @@ export default function StarHoverSystem({
     }))
   );
   const tmpV = useMemo(() => new THREE.Vector3(), []);
+  const frameCount = useRef(0);
+  const lastMouseNX = useRef(0);
+  const lastMouseNY = useRef(0);
 
   useFrame((state, dt) => {
     const t     = state.clock.elapsedTime;
@@ -58,81 +61,93 @@ export default function StarHoverSystem({
 
     const curNX = voidState.mouseNX;
     const curNY = -voidState.mouseNY;
-    const NDC_GLOW  = 0.060;
-    const NDC_LINE  = 0.120;
+
+    // Frame-skip: only run full star scan every 3rd frame (20fps hover is plenty)
+    frameCount.current++;
+    const mouseMoved = Math.abs(curNX - lastMouseNX.current) > 0.001 ||
+                       Math.abs(curNY - lastMouseNY.current) > 0.001;
+    const skipScan = !mouseMoved && frameCount.current % 3 !== 0;
+    lastMouseNX.current = curNX;
+    lastMouseNY.current = curNY;
     const GLOW_POOL = 8;
-    const camX  = camera.position.x, camY = camera.position.y, camZ = camera.position.z;
-    const MIN_D2 = 5 * 5;
 
-    type Cand = { dist: number; layerIdx: number; starIdx: number; wx: number; wy: number; wz: number; };
-    const glowCands: Cand[] = [];
-    const lineCands: Cand[] = [];
+    // Expensive star scan — skip when mouse idle and not on scan frame
+    if (!skipScan) {
+      const NDC_GLOW  = 0.060;
+      const NDC_LINE  = 0.120;
+      const camX  = camera.position.x, camY = camera.position.y, camZ = camera.position.z;
+      const MIN_D2 = 5 * 5;
 
-    for (let li = 0; li < 3; li++) {
-      const pObj  = pts[li].current;
-      if (!pObj) continue;
-      const arr   = pObj.geometry.attributes.position.array as Float32Array;
-      const matW  = pObj.matrixWorld;
-      const count = arr.length / 3;
-      for (let i = 0; i < count; i++) {
-        tmpV.set(arr[i * 3], arr[i * 3 + 1], arr[i * 3 + 2]).applyMatrix4(matW);
-        const wx = tmpV.x, wy = tmpV.y, wz = tmpV.z;
-        const cdx = wx - camX, cdy = wy - camY, cdz = wz - camZ;
-        if (cdx * cdx + cdy * cdy + cdz * cdz < MIN_D2) continue;
-        tmpV.project(camera);
-        if (tmpV.z > 1) continue;
-        const dist = Math.sqrt((tmpV.x - curNX) ** 2 + (tmpV.y - curNY) ** 2);
-        if (dist < NDC_GLOW) {
-          glowCands.push({ dist, layerIdx: li, starIdx: i, wx, wy, wz });
-        } else if (dist < NDC_LINE) {
-          lineCands.push({ dist, layerIdx: li, starIdx: i, wx, wy, wz });
+      type Cand = { dist: number; layerIdx: number; starIdx: number; wx: number; wy: number; wz: number; };
+      const glowCands: Cand[] = [];
+      const lineCands: Cand[] = [];
+
+      for (let li = 0; li < 3; li++) {
+        const pObj  = pts[li].current;
+        if (!pObj) continue;
+        const arr   = pObj.geometry.attributes.position.array as Float32Array;
+        const matW  = pObj.matrixWorld;
+        const count = arr.length / 3;
+        for (let i = 0; i < count; i++) {
+          tmpV.set(arr[i * 3], arr[i * 3 + 1], arr[i * 3 + 2]).applyMatrix4(matW);
+          const wx = tmpV.x, wy = tmpV.y, wz = tmpV.z;
+          const cdx = wx - camX, cdy = wy - camY, cdz = wz - camZ;
+          if (cdx * cdx + cdy * cdy + cdz * cdz < MIN_D2) continue;
+          tmpV.project(camera);
+          if (tmpV.z > 1) continue;
+          const dist = Math.sqrt((tmpV.x - curNX) ** 2 + (tmpV.y - curNY) ** 2);
+          if (dist < NDC_GLOW) {
+            glowCands.push({ dist, layerIdx: li, starIdx: i, wx, wy, wz });
+          } else if (dist < NDC_LINE) {
+            lineCands.push({ dist, layerIdx: li, starIdx: i, wx, wy, wz });
+          }
+          if (glowCands.length + lineCands.length >= HOVER_POOL * 3) break;
         }
         if (glowCands.length + lineCands.length >= HOVER_POOL * 3) break;
       }
-      if (glowCands.length + lineCands.length >= HOVER_POOL * 3) break;
-    }
 
-    glowCands.sort((a, b) => a.dist - b.dist);
-    lineCands.sort((a, b) => a.dist - b.dist);
+      glowCands.sort((a, b) => a.dist - b.dist);
+      lineCands.sort((a, b) => a.dist - b.dist);
 
-    const assignSlots = (cands: Cand[], slotStart: number, slotEnd: number) => {
-      const poolSize = slotEnd - slotStart;
-      const topCands = cands.slice(0, poolSize);
-      const existing = new Map<string, number>();
-      for (let si = slotStart; si < slotEnd; si++) {
-        const s = slots[si];
-        if (s.active || s.ease > 0) existing.set(`${s.layerIdx}-${s.starIdx}`, si);
-      }
-      const used = new Set<number>();
-      topCands.forEach((c) => {
-        const si = existing.get(`${c.layerIdx}-${c.starIdx}`);
-        if (si !== undefined) {
-          slots[si].active = true;
-          slots[si].wx = c.wx; slots[si].wy = c.wy; slots[si].wz = c.wz;
-          used.add(si);
+      const assignSlots = (cands: Cand[], slotStart: number, slotEnd: number) => {
+        const poolSize = slotEnd - slotStart;
+        const topCands = cands.slice(0, poolSize);
+        const existing = new Map<string, number>();
+        for (let si = slotStart; si < slotEnd; si++) {
+          const s = slots[si];
+          if (s.active || s.ease > 0) existing.set(`${s.layerIdx}-${s.starIdx}`, si);
         }
-      });
-      topCands.forEach((c) => {
-        if (existing.has(`${c.layerIdx}-${c.starIdx}`)) return;
+        const used = new Set<number>();
+        topCands.forEach((c) => {
+          const si = existing.get(`${c.layerIdx}-${c.starIdx}`);
+          if (si !== undefined) {
+            slots[si].active = true;
+            slots[si].wx = c.wx; slots[si].wy = c.wy; slots[si].wz = c.wz;
+            used.add(si);
+          }
+        });
+        topCands.forEach((c) => {
+          if (existing.has(`${c.layerIdx}-${c.starIdx}`)) return;
+          for (let si = slotStart; si < slotEnd; si++) {
+            if (!used.has(si)) {
+              const variant = (c.starIdx * 7 + c.layerIdx * 317) % 6;
+              slots[si] = { active: true, ease: slots[si].ease, layerIdx: c.layerIdx, starIdx: c.starIdx, variant, wx: c.wx, wy: c.wy, wz: c.wz };
+              used.add(si);
+              break;
+            }
+          }
+        });
         for (let si = slotStart; si < slotEnd; si++) {
           if (!used.has(si)) {
-            const variant = (c.starIdx * 7 + c.layerIdx * 317) % 6;
-            slots[si] = { active: true, ease: slots[si].ease, layerIdx: c.layerIdx, starIdx: c.starIdx, variant, wx: c.wx, wy: c.wy, wz: c.wz };
-            used.add(si);
-            break;
+            slots[si].active = false;
+            if (slots[si].ease < 0.01) { slots[si].layerIdx = -1; slots[si].starIdx = -1; }
           }
         }
-      });
-      for (let si = slotStart; si < slotEnd; si++) {
-        if (!used.has(si)) {
-          slots[si].active = false;
-          if (slots[si].ease < 0.01) { slots[si].layerIdx = -1; slots[si].starIdx = -1; }
-        }
-      }
-    };
+      };
 
-    assignSlots(glowCands, 0,         GLOW_POOL);
-    assignSlots(lineCands, GLOW_POOL, HOVER_POOL);
+      assignSlots(glowCands, 0,         GLOW_POOL);
+      assignSlots(lineCands, GLOW_POOL, HOVER_POOL);
+    }
 
     slots.forEach((s, i) => {
       const maxEase = i < GLOW_POOL ? 1.0 : 0.28;

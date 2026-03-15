@@ -3,9 +3,13 @@
 /**
  * WeaponStations — orchestrator that lazy-loads weapon models
  * based on camera proximity. Pre-loads 1 station ahead.
+ *
+ * Loading decisions are tracked in a ref (not state) to avoid
+ * re-renders on every animation frame. A state bump is scheduled
+ * only when the loaded set actually grows.
  */
 
-import { useState, useRef, Suspense } from "react";
+import { useState, useRef, useCallback, Suspense } from "react";
 import { useFrame } from "@react-three/fiber";
 import { voidState } from "../lib/voidState";
 import { workModels, type WorkModelEntry } from "../lib/workModels";
@@ -13,46 +17,66 @@ import { STATIONS } from "../lib/journeyConfig";
 import WeaponStation from "./WeaponStation";
 
 export default function WeaponStations() {
-  const [loadedStations, setLoadedStations] = useState<Set<string>>(new Set());
-  const [entries, setEntries] = useState<WorkModelEntry[]>([]);
+  const [, setTick] = useState(0);
+  const entriesRef = useRef<WorkModelEntry[]>([]);
   const versionRef = useRef(-1);
+  const loadedRef = useRef<Set<string>>(new Set());
+  const pendingUpdate = useRef(false);
+
+  const bump = useCallback(() => {
+    if (!pendingUpdate.current) {
+      pendingUpdate.current = true;
+      // Schedule a single React re-render outside the rAF loop
+      queueMicrotask(() => {
+        pendingUpdate.current = false;
+        setTick(t => t + 1);
+      });
+    }
+  }, []);
 
   useFrame(() => {
-    // Sync entries from workModels
+    // Sync entries from workModels (only when version changes)
     if (workModels.version !== versionRef.current) {
       versionRef.current = workModels.version;
-      setEntries([...workModels.entries]);
+      entriesRef.current = [...workModels.entries];
+      bump();
     }
 
     // Determine which stations to load
     const current = voidState.activeStationIndex;
     const expanded = workModels.expandedModelId;
-    const toLoad = new Set(loadedStations);
+    const loaded = loadedRef.current;
+    let changed = false;
 
     // Always load first station
-    toLoad.add(STATIONS[0].id);
+    if (!loaded.has(STATIONS[0].id)) { loaded.add(STATIONS[0].id); changed = true; }
 
-    // Load current station
-    if (current >= 0) toLoad.add(STATIONS[current].id);
-
-    // Pre-load adjacent stations
-    if (current >= 0 && current + 1 < STATIONS.length) toLoad.add(STATIONS[current + 1].id);
-    if (current > 0) toLoad.add(STATIONS[current - 1].id);
+    // Load current + adjacent stations
+    if (current >= 0) {
+      if (!loaded.has(STATIONS[current].id)) { loaded.add(STATIONS[current].id); changed = true; }
+      if (current + 1 < STATIONS.length && !loaded.has(STATIONS[current + 1].id)) {
+        loaded.add(STATIONS[current + 1].id); changed = true;
+      }
+      if (current > 0 && !loaded.has(STATIONS[current - 1].id)) {
+        loaded.add(STATIONS[current - 1].id); changed = true;
+      }
+    }
 
     // Load expanded station
     if (expanded) {
-      const expandedStation = STATIONS.find(s => s.modelId === expanded || s.id === expanded);
-      if (expandedStation) toLoad.add(expandedStation.id);
+      const es = STATIONS.find(s => s.modelId === expanded || s.id === expanded);
+      if (es && !loaded.has(es.id)) { loaded.add(es.id); changed = true; }
     }
 
-    if (toLoad.size !== loadedStations.size) setLoadedStations(toLoad);
+    if (changed) bump();
   });
 
+  const entries = entriesRef.current;
   if (entries.length === 0) return null;
 
   return (
     <Suspense fallback={null}>
-      {STATIONS.filter(s => loadedStations.has(s.id)).map(station => {
+      {STATIONS.filter(s => loadedRef.current.has(s.id)).map(station => {
         const entry = entries[station.modelIndex];
         if (!entry) return null;
         return (

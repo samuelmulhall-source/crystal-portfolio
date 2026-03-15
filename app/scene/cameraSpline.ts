@@ -79,11 +79,3 @@ export function getCamera(progress: number): CameraState {
 
   return { position: _pos, lookAt: _look, fov };
 }
-
-/**
- * Dispose cached splines (for hot-reload cleanup).
- */
-export function disposeCameraSplines(): void {
-  _posSpline = null;
-  _lookSpline = null;
-}

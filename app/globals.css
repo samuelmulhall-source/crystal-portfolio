@@ -110,14 +110,20 @@ main {
     text-shadow:
       0 0 1px  rgba(255,255,255,0.88),
       0 0 7px  rgba(210,246,255,0.52),
-      0 0 22px rgba(184,240,255,0.14);
+      0 0 22px rgba(184,240,255,0.14),
+      0 0 20px rgba(0,0,0,0.95),
+      0 0 50px rgba(0,0,0,0.85),
+      0 0 90px rgba(0,0,0,0.6);
   }
   50% {
     text-shadow:
       0 0 1px  rgba(255,255,255,0.98),
       0 0 9px  rgba(220,250,255,0.78),
       0 0 28px rgba(184,240,255,0.32),
-      0 0 70px rgba(184,240,255,0.06);
+      0 0 70px rgba(184,240,255,0.06),
+      0 0 20px rgba(0,0,0,0.95),
+      0 0 50px rgba(0,0,0,0.85),
+      0 0 90px rgba(0,0,0,0.6);
   }
 }
 
@@ -133,23 +139,19 @@ main {
   animation: hero-glow-pulse 8s ease-in-out infinite;
 }
 
+/* Dark backing glow on hero labels for readability over crystal corridor */
+#hero .label {
+  text-shadow:
+    0 0 12px rgba(184, 240, 255, 0.22),
+    0 0 16px rgba(0, 0, 0, 0.95),
+    0 0 40px rgba(0, 0, 0, 0.8),
+    0 0 70px rgba(0, 0, 0, 0.5);
+}
+
 /* Headings: ice gradient (studio-light-from-above) + slow glow bloom */
 @keyframes heading-glow-pulse {
   0%, 100% { filter: drop-shadow(0 0 18px rgba(184,240,255,0.18)) drop-shadow(0 0 55px rgba(184,240,255,0.08)); }
   50%       { filter: drop-shadow(0 0 28px rgba(184,240,255,0.42)) drop-shadow(0 0 90px rgba(184,240,255,0.18)); }
-}
-
-.heading-xl {
-  font-size: clamp(2.6rem, 7vw, 6.2rem);
-  font-weight: 300;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  line-height: 0.95;
-  background: linear-gradient(170deg, #f0f8ff 0%, #cce6ff 45%, #9ec8f0 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  animation: heading-glow-pulse 6s ease-in-out infinite;
 }
 
 .heading-lg {
@@ -163,29 +165,6 @@ main {
   background-clip: text;
   color: transparent;
   animation: heading-glow-pulse 6s ease-in-out infinite;
-}
-
-/* ─── Liquid glass panel — premium frosted glass material ─────────────────── */
-/* Specular gradient simulates overhead light catching the glass surface.      */
-/* Bright top-edge inset = glass slab rim highlight (thick glass illusion).    */
-.glass-panel {
-  background: linear-gradient(
-    145deg,
-    rgba(255, 255, 255, 0.11) 0%,
-    rgba(255, 255, 255, 0.04) 45%,
-    rgba(184, 240, 255, 0.05) 100%
-  );
-  backdrop-filter:    blur(40px) saturate(2.0) brightness(1.08);
-  -webkit-backdrop-filter: blur(40px) saturate(2.0) brightness(1.08);
-  border:             1px solid rgba(255, 255, 255, 0.16);
-  border-radius:      8px;
-  box-shadow:
-    inset 0  1px 0  rgba(255, 255, 255, 0.20),  /* top rim highlight     */
-    inset 0 -1px 0  rgba(0,   0,  16, 0.22),    /* bottom inner shadow   */
-    inset 1px 0  0  rgba(255, 255, 255, 0.07),  /* left edge highlight   */
-    0 8px 40px rgba(0, 0, 18, 0.55),            /* depth shadow          */
-    0 0 0 1px  rgba(255, 255, 255, 0.06),       /* outer edge glow       */
-    0 0 24px   rgba(184, 240, 255, 0.07);       /* ice ambient float     */
 }
 
 /* ─── Section panel (About backdrop) ──────────────────────────────────────── */
@@ -307,40 +286,6 @@ main {
   text-shadow: 0 0 10px rgba(184,240,255,0.35);
 }
 
-/* ─── Work showcase items ─────────────────────────────────────────────────── */
-@keyframes holo-hue-cycle {
-  0%,  100% { --holo-hue: 215; }
-  50%        { --holo-hue: 255; }
-}
-
-.work-item-halo {
-  animation: holo-hue-cycle 6s ease-in-out infinite;
-  background: radial-gradient(
-    ellipse 65% 65% at 50% 50%,
-    hsla(var(--holo-hue), 88%, 68%, 0.10) 0%,
-    hsla(calc(var(--holo-hue) + 38), 80%, 58%, 0.05) 45%,
-    transparent 70%
-  );
-  mix-blend-mode: screen;
-}
-
-.work-showcase-item {
-  position: relative;
-  margin-bottom: 7rem;
-  cursor: pointer;
-}
-
-.work-showcase-border {
-  width: 100%;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(184,240,255,0.06), transparent);
-  transition: background 0.45s ease, box-shadow 0.45s ease;
-}
-.work-showcase-item:hover .work-showcase-border {
-  background: linear-gradient(90deg, transparent, rgba(184,240,255,0.24), transparent);
-  box-shadow: 0 0 12px rgba(184,240,255,0.08);
-}
-
 /* ─── Form inputs ─────────────────────────────────────────────────────────── */
 .void-input {
   width: 100%;
@@ -388,29 +333,6 @@ main {
   color: var(--ice-bright);
   box-shadow: 0 0 22px rgba(184,240,255,0.14), 0 0 50px rgba(184,240,255,0.06);
   text-shadow: 0 0 12px rgba(184,240,255,0.45);
-}
-
-/* ─── Viewer close button ─────────────────────────────────────────────────── */
-.viewer-close-btn {
-  background: rgba(184,240,255,0.03);
-  border: 1px solid rgba(184,240,255,0.14);
-  border-radius: 3px;
-  color: rgba(184,240,255,0.50);
-  cursor: pointer;
-  padding: 0.28rem 0.8rem;
-  font-family: var(--font-geist-mono), monospace;
-  font-size: 0.595rem;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  transition: all 0.28s ease;
-  display: flex; align-items: center; gap: 0.35rem;
-}
-.viewer-close-btn:hover {
-  background: rgba(184,240,255,0.07);
-  border-color: rgba(184,240,255,0.45);
-  color: var(--ice);
-  box-shadow: 0 0 16px rgba(184,240,255,0.16);
-  text-shadow: 0 0 10px rgba(184,240,255,0.40);
 }
 
 /* ─── Cursor holo-ring color cycle ───────────────────────────────────────── */
@@ -499,37 +421,11 @@ body.viewer-open main {
   }
 
   .scroll-indicator { animation: none; }
-  .hero-title { animation: none; text-shadow: 0 0 7px rgba(210,246,255,0.52); }
+  .hero-title { animation: none; text-shadow: 0 0 7px rgba(210,246,255,0.52), 0 0 20px rgba(0,0,0,0.95), 0 0 50px rgba(0,0,0,0.85), 0 0 90px rgba(0,0,0,0.6); }
   .heading-xl, .heading-lg { animation: none; filter: none; }
   .label { animation: none; }
   .glitch::before, .glitch::after { animation: none; display: none; }
-  .scan-line { animation: none; display: none; }
   .status-led { animation: none; }
-}
-
-/* ─── Traveling scan line — premium CRT monitor feel ─────────────────────── */
-@keyframes scan-travel {
-  0%   { top: -2px; opacity: 0; }
-  3%   { opacity: 1; }
-  97%  { opacity: 1; }
-  100% { top: 100%; opacity: 0; }
-}
-
-.scan-line {
-  position: fixed;
-  left: 0; right: 0;
-  height: 1px;
-  z-index: 44;
-  pointer-events: none;
-  background: linear-gradient(90deg,
-    transparent 0%,
-    rgba(184, 240, 255, 0.06) 20%,
-    rgba(184, 240, 255, 0.10) 50%,
-    rgba(184, 240, 255, 0.06) 80%,
-    transparent 100%
-  );
-  animation: scan-travel 8s linear infinite;
-  mix-blend-mode: screen;
 }
 
 /* ─── Status LED — PS2-style power indicator ─────────────────────────────── */
