@@ -18,8 +18,8 @@ import { workModels } from "../lib/workModels";
 import { getCamera } from "./cameraSpline";
 import { STATIONS, findActiveStation, getStationProximity } from "../lib/journeyConfig";
 
-const SPRING_K    = 5.0;
-const SPRING_DAMP = 4.2;
+const SPRING_K    = 8.0;
+const SPRING_DAMP = 5.5;
 const MAX_PARALLAX_X = 1.5;
 const MAX_PARALLAX_Y = 0.8;
 
@@ -98,16 +98,23 @@ export default function CameraRig() {
     springPos.current.y += springVel.current.y * cdt;
     springPos.current.z += springVel.current.z * cdt;
 
-    // Spring physics on lookAt (slightly softer for smooth tracking)
-    const lookAccelX = (_targetLook.x - springLook.current.x) * SPRING_K * 0.8 - springLookVel.current.x * SPRING_DAMP;
-    const lookAccelY = (_targetLook.y - springLook.current.y) * SPRING_K * 0.8 - springLookVel.current.y * SPRING_DAMP;
-    const lookAccelZ = (_targetLook.z - springLook.current.z) * SPRING_K * 0.8 - springLookVel.current.z * SPRING_DAMP;
+    // Spring physics on lookAt (matched to position for no decoupling)
+    const lookAccelX = (_targetLook.x - springLook.current.x) * SPRING_K - springLookVel.current.x * SPRING_DAMP;
+    const lookAccelY = (_targetLook.y - springLook.current.y) * SPRING_K - springLookVel.current.y * SPRING_DAMP;
+    const lookAccelZ = (_targetLook.z - springLook.current.z) * SPRING_K - springLookVel.current.z * SPRING_DAMP;
     springLookVel.current.x += lookAccelX * cdt;
     springLookVel.current.y += lookAccelY * cdt;
     springLookVel.current.z += lookAccelZ * cdt;
     springLook.current.x += springLookVel.current.x * cdt;
     springLook.current.y += springLookVel.current.y * cdt;
     springLook.current.z += springLookVel.current.z * cdt;
+
+    // Near a station → kill spring velocity for stable viewing
+    if (maxProx > 0.5) {
+      const dampFactor = Math.pow(1 - maxProx, 2); // 0.5→0.25, 0.8→0.04, 1.0→0
+      springVel.current.multiplyScalar(dampFactor);
+      springLookVel.current.multiplyScalar(dampFactor);
+    }
 
     // Warp-speed distortion: FOV stretch during fast scrolling
     const scrollSpeed = Math.abs(voidState.scrollVel);

@@ -19,6 +19,7 @@ import ExpandedViewer from "./ExpandedViewer";
 import StarHoverSystem from "./StarHoverSystem";
 import ShootingStars from "./ShootingStars";
 import WeaponStations from "./WeaponStations";
+import MediaPanels from "./MediaPanels";
 import StationInfo from "./hud/StationInfo";
 import { STATIONS } from "../lib/journeyConfig";
 
@@ -27,19 +28,17 @@ import { STATIONS } from "../lib/journeyConfig";
 // (camera travels z=14 to z=-130). Rotation speeds kept subtle.
 type LayerConfig = readonly { count: number; rMin: number; rMax: number; rotSpd: number; size: number; seed: number }[];
 
+// Spherical shell radii — stars distributed around origin, dynamically recycled to follow camera
 const LAYERS_DESKTOP = [
   { count: 2200, rMin: 20, rMax: 55, rotSpd: 0.005, size: 0.22, seed: 11111 },
   { count: 1600, rMin: 40, rMax: 75, rotSpd: 0.008, size: 0.28, seed: 22222 },
   { count: 1000, rMin: 55, rMax: 95, rotSpd: 0.012, size: 0.36, seed: 33333 },
 ] as const;
 const LAYERS_MOBILE = [
-  { count: 800, rMin: 20, rMax: 55, rotSpd: 0.006, size: 0.24, seed: 11111 },
-  { count: 600, rMin: 40, rMax: 75, rotSpd: 0.009, size: 0.30, seed: 22222 },
-  { count: 400, rMin: 55, rMax: 95, rotSpd: 0.013, size: 0.36, seed: 33333 },
+  { count: 500, rMin: 20, rMax: 55, rotSpd: 0.006, size: 0.24, seed: 11111 },
+  { count: 400, rMin: 40, rMax: 75, rotSpd: 0.009, size: 0.30, seed: 22222 },
+  { count: 250, rMin: 55, rMax: 95, rotSpd: 0.013, size: 0.36, seed: 33333 },
 ] as const;
-
-/** Center offset for star shells — midpoint of the Z-forward journey */
-const STAR_CENTER_Z = -55;
 
 export const VoidContext = createContext<{ isMobile: boolean; layers: LayerConfig }>({
   isMobile: false,
@@ -77,12 +76,11 @@ export default function VoidScene({ isMobile }: { isMobile: boolean }) {
       <SceneReady />
       <Lighting />
 
-      <group position={[0, 0, STAR_CENTER_Z]}>
-        <StarLayer li={0} pointsRef={pts0} />
-        <StarLayer li={1} pointsRef={pts1} />
-        <StarLayer li={2} pointsRef={pts2} />
-        <DustParticles />
-      </group>
+      <StarLayer li={0} pointsRef={pts0} />
+      <StarLayer li={1} pointsRef={pts1} />
+      <StarLayer li={2} pointsRef={pts2} />
+      {/* Skip dust + shooting stars on mobile for performance */}
+      {!isMobile && <DustParticles />}
 
       <CameraRig />
       <ExpandedViewer />
@@ -90,9 +88,12 @@ export default function VoidScene({ isMobile }: { isMobile: boolean }) {
 
       {/* Skip hover system on mobile — no mouse cursor */}
       {!isMobile && <StarHoverSystem pts={[pts0, pts1, pts2]} />}
-      <ShootingStars pts={[pts0, pts1, pts2]} />
+      {!isMobile && <ShootingStars pts={[pts0, pts1, pts2]} />}
 
       <WeaponStations />
+
+      {/* Floating media panels alongside weapons — desktop only */}
+      {!isMobile && <MediaPanels />}
 
       {/* In-world HUD: floating labels + scan lines per station (Suspense for font loading) */}
       {!isMobile && (

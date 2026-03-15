@@ -146,8 +146,9 @@ export default function WeaponStation({ station, entry }: Props) {
     if (scaleGroupRef.current) scaleGroupRef.current.scale.setScalar(0.001);
   }, []);
 
-  // Wireframe edges (GLSL ShaderMaterial) — deferred to avoid blocking main thread on mount
+  // Wireframe edges (GLSL ShaderMaterial) — skip on mobile for performance
   useEffect(() => {
+    if (isMobile) return; // isMobile is stable (never changes after mount)
     wireMatRefs.current = [];
     let cancelled = false;
 
@@ -193,6 +194,7 @@ export default function WeaponStation({ station, entry }: Props) {
       });
       wireMatRefs.current = [];
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scene]);
 
   useFrame((s, dt) => {

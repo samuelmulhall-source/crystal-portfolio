@@ -50,27 +50,28 @@ export function buildStarPositions(count: number, rMin: number, rMax: number, se
     const rng  = sr(seed + i * 7 + 0);
     const isMW = rng < 0.38;
 
-    let x, y, z;
+    // Spherical shell distribution (uniform volume)
+    const rFrac = sr(seed + i * 7 + 3);
+    const r = Math.cbrt(rMin * rMin * rMin + rFrac * (rMax * rMax * rMax - rMin * rMin * rMin));
+    const theta = sr(seed + i * 7 + 2) * Math.PI * 2;
+    const phi   = Math.acos(2 * sr(seed + i * 7 + 1) - 1);
+
+    let x = r * Math.sin(phi) * Math.cos(theta);
+    let y = r * Math.sin(phi) * Math.sin(theta);
+    let z = r * Math.cos(phi);
+
     if (isMW) {
-      const theta = sr(seed + i * 7 + 1) * Math.PI * 2;
-      const rawPhi = 0.5 + (sr(seed + i * 7 + 2) - 0.5) * 0.42;
-      const phi    = rawPhi * Math.PI;
-      const r      = rMin + sr(seed + i * 7 + 3) * (rMax - rMin);
-      const ex = r * Math.sin(phi) * Math.cos(theta);
-      const ey = r * Math.sin(phi) * Math.sin(theta);
-      const ez = r * Math.cos(phi);
-      x = ex * cosT - ey * sinT;
-      y = ex * sinT + ey * cosT;
-      z = ez;
-    } else {
-      const theta = sr(seed + i * 7 + 1) * Math.PI * 2;
-      const phi   = Math.acos(2 * sr(seed + i * 7 + 2) - 1);
-      const r     = rMin + sr(seed + i * 7 + 3) * (rMax - rMin);
-      x = r * Math.sin(phi) * Math.cos(theta);
-      y = r * Math.sin(phi) * Math.sin(theta);
-      z = r * Math.cos(phi);
+      // Milky Way band: compress Y toward galactic plane, then tilt
+      y *= 0.35;
+      const rx = x * cosT - y * sinT;
+      const ry = x * sinT + y * cosT;
+      x = rx;
+      y = ry;
     }
-    pos[i * 3] = x; pos[i * 3 + 1] = y; pos[i * 3 + 2] = z;
+
+    pos[i * 3] = x;
+    pos[i * 3 + 1] = y;
+    pos[i * 3 + 2] = z;
   }
   return pos;
 }
@@ -92,6 +93,10 @@ function buildStarGeo(count: number, rMin: number, rMax: number, seed: number, h
   return g;
 }
 
+// Scratch objects for star recycling (avoid per-frame allocation)
+const _invMat = new THREE.Matrix4();
+const _localCam = new THREE.Vector3();
+
 // ─── Star layer component ─────────────────────────────────────────────────
 export function StarLayer({
   li,
@@ -100,7 +105,8 @@ export function StarLayer({
   li: 0 | 1 | 2;
   pointsRef: React.RefObject<THREE.Points | null>;
 }) {
-  const { layers } = useContext(VoidContext);
+  const ctx = useContext(VoidContext);
+  const { layers } = ctx;
   const cfg    = layers[li];
   const hasVel = li < 2;
   const geo    = useMemo(() => buildStarGeo(cfg.count, cfg.rMin, cfg.rMax, cfg.seed, hasVel), [cfg, hasVel]);
@@ -109,6 +115,9 @@ export function StarLayer({
   const mat = useMemo(() => makeHoloStarMat(hasVel), [hasVel]);
 
   useEffect(() => () => mat.dispose(), [mat]);
+
+  // Frame counter for mobile throttling
+  const frameCount = useRef(0);
 
   useFrame((s) => {
     if (!pointsRef.current) return;
@@ -122,6 +131,45 @@ export function StarLayer({
     mat.uniforms.uSize.value    = cfg.size;
     mat.uniforms.uVH.value = (s.gl.domElement).height * 0.5;
     mat.uniforms.uTime.value = s.clock.elapsedTime;
+
+    // Dynamic star recycling: maintain star density around camera
+    frameCount.current++;
+    const { isMobile } = ctx;
+    // Throttle on mobile: only recycle every 3rd frame
+    if (isMobile && frameCount.current % 3 !== 0) return;
+
+    const cam = s.camera.position;
+    const posAttr = pointsRef.current.geometry.getAttribute("position") as THREE.BufferAttribute;
+    const posArr = posAttr.array as Float32Array;
+    const maxDist = cfg.rMax * 1.3;
+    const maxDist2 = maxDist * maxDist;
+    let dirty = false;
+
+    // We need world-space positions — account for group rotation
+    const worldMat = pointsRef.current.matrixWorld;
+    const invMat = _invMat.copy(worldMat).invert();
+    // Camera position in local space of the points group
+    const localCam = _localCam.copy(cam).applyMatrix4(invMat);
+
+    for (let i = 0; i < cfg.count; i++) {
+      const ix = i * 3, iy = i * 3 + 1, iz = i * 3 + 2;
+      const dx = posArr[ix] - localCam.x;
+      const dy = posArr[iy] - localCam.y;
+      const dz = posArr[iz] - localCam.z;
+      const dist2 = dx * dx + dy * dy + dz * dz;
+
+      if (dist2 > maxDist2) {
+        // Recycle: place randomly in shell around camera (in local space)
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos(2 * Math.random() - 1);
+        const r = cfg.rMin + Math.random() * (cfg.rMax - cfg.rMin);
+        posArr[ix] = localCam.x + r * Math.sin(phi) * Math.cos(theta);
+        posArr[iy] = localCam.y + r * Math.sin(phi) * Math.sin(theta);
+        posArr[iz] = localCam.z + r * Math.cos(phi);
+        dirty = true;
+      }
+    }
+    if (dirty) posAttr.needsUpdate = true;
   });
 
   return (

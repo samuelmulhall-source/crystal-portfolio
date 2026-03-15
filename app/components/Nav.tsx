@@ -21,6 +21,7 @@ const WORK_SUBS: { icon: string; label: string; tab: WorkTab }[] = [
   { icon: "\u25AA", label: "Memory Cards", tab: "images" },
 ];
 const LINKS = [
+  { label: "Gallery", href: "#work" },
   { label: "Contact", href: "#contact" },
 ];
 
@@ -260,25 +261,29 @@ export default function Nav() {
           </ul>
         </li>
 
-        {LINKS.map(({ label, href }) => (
-          <li key={href} style={{ minWidth: "3rem", textAlign: "center" }}>
-            <a
-              href={href}
-              className="frost-link nav-link"
-              onClick={(e) => { scrollTo(e, href); setWorkOpen(false); }}
-              style={{
-                color: linkActive("contact") ? "rgba(255,160,60,0.85)" : scrolled ? "rgba(184,240,255,0.48)" : "rgba(184,240,255,0.72)",
-                textShadow: linkActive("contact") ? "0 0 12px rgba(255,160,60,0.25)" : "none",
-                minHeight: "44px", display: "flex", alignItems: "center", padding: "0 4px",
-                borderBottom: linkActive("contact") ? "1px solid rgba(255,160,60,0.45)" : "1px solid transparent",
-                marginBottom: linkActive("contact") ? "-1px" : "0",
-                transition: "color 0.25s ease, border-color 0.25s ease, text-shadow 0.25s ease",
-              }}
-            >
-              {label}
-            </a>
-          </li>
-        ))}
+        {LINKS.map(({ label, href }) => {
+          const sectionId = href.replace("#", "") as SectionId;
+          const active = linkActive(sectionId);
+          return (
+            <li key={href} style={{ minWidth: "3rem", textAlign: "center" }}>
+              <a
+                href={href}
+                className="frost-link nav-link"
+                onClick={(e) => { scrollTo(e, href); setWorkOpen(false); }}
+                style={{
+                  color: active ? "rgba(255,160,60,0.85)" : scrolled ? "rgba(184,240,255,0.48)" : "rgba(184,240,255,0.72)",
+                  textShadow: active ? "0 0 12px rgba(255,160,60,0.25)" : "none",
+                  minHeight: "44px", display: "flex", alignItems: "center", padding: "0 4px",
+                  borderBottom: active ? "1px solid rgba(255,160,60,0.45)" : "1px solid transparent",
+                  marginBottom: active ? "-1px" : "0",
+                  transition: "color 0.25s ease, border-color 0.25s ease, text-shadow 0.25s ease",
+                }}
+              >
+                {label}
+              </a>
+            </li>
+          );
+        })}
       </ul>
     </nav>
   );

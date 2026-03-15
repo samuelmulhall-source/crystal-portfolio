@@ -27,6 +27,14 @@ export interface WeaponStation {
   scrollStart: number;
   /** Scroll fraction (0-1) where this station ends */
   scrollEnd: number;
+  /** Media panel config — floating alongside the weapon */
+  media?: {
+    type: "video" | "image";
+    path: string;
+    title: string;
+    /** X position for the media panel (opposite side from weapon) */
+    panelX: number;
+  };
 }
 
 /**
@@ -39,60 +47,90 @@ export const STATIONS: WeaponStation[] = [
     modelId: "proj-0",
     modelIndex: 0,
     worldPosition: [3, 0, -20],
-    loreName: "THE IGNIS CORE",
-    loreTag: "Deep-space navigation vessel",
-    loreSpec: "THERMAL OUTPUT: 4.2 × 10⁷ K",
+    loreName: "TORCH",
+    loreTag: "Hand-crafted fantasy torch — layered metal wrap",
+    loreSpec: "PBR PIPELINE: COLOUR · METALNESS · ROUGHNESS · NORMAL",
     designation: "STATION 01",
     scrollStart: 0.18,
     scrollEnd: 0.30,
+    media: {
+      type: "video",
+      path: "/Video renders/Evening Fishing.mp4",
+      title: "Evening Fishing",
+      panelX: -4,
+    },
   },
   {
     id: "ornate-dagger",
     modelId: "proj-2",
     modelIndex: 2,
     worldPosition: [-3, 0, -45],
-    loreName: "VOID-SLIVER",
-    loreTag: "Collapsed star matter blade",
-    loreSpec: "DENSITY: 2.8 × 10¹⁴ kg/m³",
+    loreName: "ORNATE DAGGER",
+    loreTag: "Ceremonial dagger — filigree crossguard, gemstone pommel",
+    loreSpec: "TEXTURE DENSITY: 4K MAPS · CHASED SURFACE DETAIL",
     designation: "STATION 02",
     scrollStart: 0.32,
     scrollEnd: 0.44,
+    media: {
+      type: "image",
+      path: "/Image renders/cam_icon_fullscale_medium-dark-lightrim.png",
+      title: "Camera Icon",
+      panelX: 4,
+    },
   },
   {
     id: "shield",
     modelId: "proj-3",
     modelIndex: 3,
     worldPosition: [2, 0, -70],
-    loreName: "NEBULA AEGIS",
-    loreTag: "Reactive starfield mirror",
-    loreSpec: "REFLECTIVITY: 99.97% λ 380-780nm",
+    loreName: "SHIELD",
+    loreTag: "Kite shield — riveted iron rim, aged leather facing",
+    loreSpec: "SURFACE: BAKED WEAR · NORMAL + ROUGHNESS CHANNELS",
     designation: "STATION 03",
     scrollStart: 0.46,
     scrollEnd: 0.58,
+    media: {
+      type: "video",
+      path: "/Video renders/Soulbound Lantern (multiple versions).mp4",
+      title: "Soulbound Lantern",
+      panelX: -4,
+    },
   },
   {
     id: "sword",
     modelId: "proj-4",
     modelIndex: 4,
     worldPosition: [-2, 0, -95],
-    loreName: "EVENT HORIZON",
-    loreTag: "Gravitational-lensing edge",
-    loreSpec: "CURVATURE: Δg 10⁶ m/s² ACROSS EDGE",
+    loreName: "SWORD",
+    loreTag: "Arming sword — glass-and-metal guard, translucent blade",
+    loreSpec: "MATERIAL: TRANSMISSION MAP · CRYSTAL FULLER REFRACTION",
     designation: "STATION 04",
     scrollStart: 0.60,
     scrollEnd: 0.72,
+    media: {
+      type: "image",
+      path: "/Image renders/fourteenth_image.png",
+      title: "Fourteenth Study",
+      panelX: 4,
+    },
   },
   {
     id: "bow",
     modelId: "proj-1",
     modelIndex: 1,
     worldPosition: [0, 0, -120],
-    loreName: "PHOTON STRINGER",
-    loreTag: "Concentrated light launcher",
-    loreSpec: "YIELD: 3.1 × 10²⁶ W FOCUSED BEAM",
+    loreName: "BOW",
+    loreTag: "Recurve longbow — laminated limbs, sinew wrapping",
+    loreSpec: "TOPOLOGY: GAME-READY · HERO-ASSET RESOLUTION",
     designation: "STATION 05",
     scrollStart: 0.74,
     scrollEnd: 0.86,
+    media: {
+      type: "image",
+      path: "/Image renders/holography_scaled.png",
+      title: "Holography Study",
+      panelX: 4,
+    },
   },
 ];
 
@@ -116,41 +154,41 @@ export const CAMERA_POSITION_POINTS: [number, number, number][] = [
   [0, 0, -5],
 
   // ── Station 1: Torch at [3, 0, -20] (scroll 0.18-0.30) ───────────────
-  [1, 0, -12],       // approach
-  [7, 1.5, -19],      // orbit offset right-up
-  [0, -0.8, -23],     // orbit offset left-down
+  [0.8, 0, -14],       // approach — gentle lean toward model
+  [1.2, 0.2, -20],     // viewing — nearly alongside
+  [0.2, 0, -26],       // exit — drift back to center
 
   // ── Transit to Station 2 ──────────────────────────────────────────────
-  [0, 0, -32],
+  [0, 0, -33],
 
   // ── Station 2: Dagger at [-3, 0, -45] (scroll 0.32-0.44) ─────────────
-  [-1, 0, -38],       // approach
-  [-7, 1.5, -44],      // orbit offset left-up
-  [0, -0.8, -48],      // orbit offset right-down
+  [-0.8, 0, -38],      // approach
+  [-1.2, 0.2, -45],    // viewing
+  [-0.2, 0, -51],      // exit
 
   // ── Transit to Station 3 ──────────────────────────────────────────────
-  [0, 0, -57],
+  [0, 0, -58],
 
   // ── Station 3: Shield at [2, 0, -70] (scroll 0.46-0.58) ──────────────
-  [1, 0, -63],        // approach
-  [6, 1.5, -69],       // orbit offset right-up
-  [-1, -0.8, -73],     // orbit offset left-down
+  [0.6, 0, -64],       // approach
+  [1.0, 0.2, -70],     // viewing
+  [0.2, 0, -76],       // exit
 
   // ── Transit to Station 4 ──────────────────────────────────────────────
-  [0, 0, -82],
+  [0, 0, -83],
 
   // ── Station 4: Sword at [-2, 0, -95] (scroll 0.60-0.72) ──────────────
-  [-1, 0, -88],       // approach
-  [-6, 1.5, -94],      // orbit offset left-up
-  [1, -0.8, -98],      // orbit offset right-down
+  [-0.6, 0, -89],      // approach
+  [-1.0, 0.2, -95],    // viewing
+  [-0.2, 0, -101],     // exit
 
   // ── Transit to Station 5 ──────────────────────────────────────────────
-  [0, 0, -107],
+  [0, 0, -108],
 
   // ── Station 5: Bow at [0, 0, -120] (scroll 0.74-0.86) ────────────────
-  [0, 0, -113],       // approach
-  [5, 1.5, -119],      // orbit offset right-up
-  [-3, -0.8, -123],    // orbit offset left-down
+  [0, 0, -114],        // approach
+  [0.5, 0.2, -120],    // viewing
+  [0, 0, -125],        // exit
 
   // ── About / Contact zone (scroll 0.86-1.0) ───────────────────────────
   [0, -4, -126],       // start descending
@@ -166,38 +204,38 @@ export const CAMERA_LOOKAT_POINTS: [number, number, number][] = [
   [0, 0, 0],
   [0, 0, -4],
 
-  // ── Corridor Transit — looking forward ────────────────────────────────
+  // ── Corridor Transit — looking forward toward first station ───────────
   [0, 0, -10],
-  [0, 0, -15],
+  [0, 0, -18],
 
   // ── Station 1: Torch at [3, 0, -20] ──────────────────────────────────
   [3, 0, -20],
   [3, 0, -20],
-  [3, 0, -20],
+  [1, 0, -30],        // blend toward next
 
   // ── Transit — look ahead ──────────────────────────────────────────────
-  [0, 0, -40],
+  [-1, 0, -42],
 
   // ── Station 2: Dagger at [-3, 0, -45] ────────────────────────────────
   [-3, 0, -45],
   [-3, 0, -45],
-  [-3, 0, -45],
+  [-1, 0, -55],
 
   // ── Transit ───────────────────────────────────────────────────────────
-  [0, 0, -65],
+  [1, 0, -66],
 
   // ── Station 3: Shield at [2, 0, -70] ─────────────────────────────────
   [2, 0, -70],
   [2, 0, -70],
-  [2, 0, -70],
+  [0, 0, -80],
 
   // ── Transit ───────────────────────────────────────────────────────────
-  [0, 0, -90],
+  [-1, 0, -90],
 
   // ── Station 4: Sword at [-2, 0, -95] ─────────────────────────────────
   [-2, 0, -95],
   [-2, 0, -95],
-  [-2, 0, -95],
+  [0, 0, -105],
 
   // ── Transit ───────────────────────────────────────────────────────────
   [0, 0, -115],
@@ -205,7 +243,7 @@ export const CAMERA_LOOKAT_POINTS: [number, number, number][] = [
   // ── Station 5: Bow at [0, 0, -120] ───────────────────────────────────
   [0, 0, -120],
   [0, 0, -120],
-  [0, 0, -120],
+  [0, -1, -125],
 
   // ── About zone — looking down into void ──────────────────────────────
   [0, -6, -128],
