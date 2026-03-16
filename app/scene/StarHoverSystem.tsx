@@ -86,10 +86,23 @@ export default function StarHoverSystem({
         const pObj  = pts[li].current;
         if (!pObj) continue;
         const arr   = pObj.geometry.attributes.position.array as Float32Array;
-        const matW  = pObj.matrixWorld;
         const count = arr.length / 3;
+        // Apply shader rotation (Y then X) to match visual star positions
+        const ry = voidState.starRotY[li] || 0;
+        const rx = voidState.starRotX[li] || 0;
+        const cy = Math.cos(ry), sy = Math.sin(ry);
+        const cxr = Math.cos(rx), sxr = Math.sin(rx);
         for (let i = 0; i < count; i++) {
-          tmpV.set(arr[i * 3], arr[i * 3 + 1], arr[i * 3 + 2]).applyMatrix4(matW);
+          let px = arr[i * 3], py = arr[i * 3 + 1], pz = arr[i * 3 + 2];
+          // Y rotation
+          const rx2 = cy * px + sy * pz;
+          const rz2 = -sy * px + cy * pz;
+          px = rx2; pz = rz2;
+          // X rotation
+          const ry2 = cxr * py - sxr * pz;
+          const rz3 = sxr * py + cxr * pz;
+          py = ry2; pz = rz3;
+          tmpV.set(px, py, pz);
           const wx = tmpV.x, wy = tmpV.y, wz = tmpV.z;
           const cdx = wx - camX, cdy = wy - camY, cdz = wz - camZ;
           if (cdx * cdx + cdy * cdy + cdz * cdz < MIN_D2) continue;

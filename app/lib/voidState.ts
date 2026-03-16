@@ -81,4 +81,11 @@ export const voidState = {
   // Controls mutual exclusion between weapon models and media panels.
   // "models" = show weapons, hide media. "videos"/"images" = show that media, dim weapons.
   mediaMode: "models" as "models" | "videos" | "images",
+
+  // ── Star layer rotation angles ────────────────────────────────────────
+  // Accumulated rotation applied in the star vertex shader (not on the group
+  // transform). Exposed here so StarHoverSystem and ShootingStars can apply
+  // the same rotation when projecting buffer positions to screen space.
+  starRotY: [0, 0, 0] as number[],
+  starRotX: [0, 0, 0] as number[],
 };

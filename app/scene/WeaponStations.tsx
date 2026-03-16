@@ -4,6 +4,9 @@
  * WeaponStations — orchestrator that lazy-loads weapon models
  * based on camera proximity. Pre-loads 1 station ahead.
  *
+ * Each station is wrapped in its own Suspense boundary so that
+ * loading one model does not unmount/suspend already-visible siblings.
+ *
  * Loading decisions are tracked in a ref (not state) to avoid
  * re-renders on every animation frame. A state bump is scheduled
  * only when the loaded set actually grows.
@@ -11,10 +14,31 @@
 
 import { useState, useRef, useCallback, Suspense } from "react";
 import { useFrame } from "@react-three/fiber";
+import { useFBX } from "@react-three/drei";
 import { voidState } from "../lib/voidState";
 import { workModels, type WorkModelEntry } from "../lib/workModels";
 import { STATIONS } from "../lib/journeyConfig";
 import WeaponStation from "./WeaponStation";
+
+// Module-level FBX preloading — starts immediately when this module is imported.
+// Staggered to avoid concurrent FBX parses blocking the main thread.
+// The first model (torch, station 0) loads immediately since it's visible first.
+// The dagger (20MB) loads last to avoid blocking other loads.
+const PRELOAD_PATHS = [
+  "/models/Torch/torch.fbx",           // 103KB - Station 0, visible first
+  "/models/Weapons/bow/Bow.fbx",        // 579KB - Station 4
+  "/models/Weapons/Shield/Shield.fbx",  // 89KB  - Station 2
+  "/models/Weapons/Sword/sword.fbx",    // 81KB  - Station 3
+  "/models/Weapons/Ornate Dagger/Ornate Dagger.fbx", // 20MB - Station 1, last!
+];
+
+// Start first preload immediately, rest staggered
+if (typeof window !== "undefined") {
+  useFBX.preload(PRELOAD_PATHS[0]);
+  PRELOAD_PATHS.slice(1).forEach((path, i) => {
+    setTimeout(() => useFBX.preload(path), (i + 1) * 2000);
+  });
+}
 
 export default function WeaponStations() {
   const [, setTick] = useState(0);
@@ -26,11 +50,13 @@ export default function WeaponStations() {
   const bump = useCallback(() => {
     if (!pendingUpdate.current) {
       pendingUpdate.current = true;
-      // Schedule a single React re-render outside the rAF loop
-      queueMicrotask(() => {
+      // Use setTimeout to yield to the browser between the decision to load
+      // and the actual React re-render. queueMicrotask runs before paint,
+      // which can stack FBX parse into an already-busy frame.
+      setTimeout(() => {
         pendingUpdate.current = false;
         setTick(t => t + 1);
-      });
+      }, 0);
     }
   }, []);
 
@@ -48,14 +74,15 @@ export default function WeaponStations() {
     const loaded = loadedRef.current;
     let changed = false;
 
-    // Always load first station
-    if (!loaded.has(STATIONS[0].id)) { loaded.add(STATIONS[0].id); changed = true; }
+    // Always load first two stations so station 1 is ready before user scrolls
+    for (let i = 0; i < Math.min(2, STATIONS.length); i++) {
+      if (!loaded.has(STATIONS[i].id)) { loaded.add(STATIONS[i].id); changed = true; }
+    }
 
-    // Load current + next station only (skip previous to reduce concurrent loads)
+    // Load current + next 2 stations (mount cost happens before user arrives)
     if (current >= 0) {
-      if (!loaded.has(STATIONS[current].id)) { loaded.add(STATIONS[current].id); changed = true; }
-      if (current + 1 < STATIONS.length && !loaded.has(STATIONS[current + 1].id)) {
-        loaded.add(STATIONS[current + 1].id); changed = true;
+      for (let i = current; i < Math.min(current + 3, STATIONS.length); i++) {
+        if (!loaded.has(STATIONS[i].id)) { loaded.add(STATIONS[i].id); changed = true; }
       }
     }
 
@@ -72,18 +99,19 @@ export default function WeaponStations() {
   if (entries.length === 0) return null;
 
   return (
-    <Suspense fallback={null}>
+    <>
       {STATIONS.filter(s => loadedRef.current.has(s.id)).map(station => {
         const entry = entries[station.modelIndex];
         if (!entry) return null;
         return (
-          <WeaponStation
-            key={station.id}
-            station={station}
-            entry={entry}
-          />
+          <Suspense key={station.id} fallback={null}>
+            <WeaponStation
+              station={station}
+              entry={entry}
+            />
+          </Suspense>
         );
       })}
-    </Suspense>
+    </>
   );
 }

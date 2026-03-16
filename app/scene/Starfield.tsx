@@ -4,7 +4,9 @@
  * Starfield — 3 layers of star points with motion blur, scroll-boost rotation,
  * and Milky Way band clustering.
  *
- * Uses GLSL ShaderMaterial for point sprites with velocity motion blur.
+ * Rotation is applied in the vertex shader (via uRotY/uRotX uniforms) so that
+ * geometry buffer positions remain stable in world space. This is critical for
+ * the recycling system which repositions stars near the camera.
  */
 
 import React, { useRef, useMemo, useEffect, useContext } from "react";
@@ -93,10 +95,6 @@ function buildStarGeo(count: number, rMin: number, rMax: number, seed: number, h
   return g;
 }
 
-// Scratch objects for star recycling (avoid per-frame allocation)
-const _invMat = new THREE.Matrix4();
-const _localCam = new THREE.Vector3();
-
 // ─── Star layer component ─────────────────────────────────────────────────
 export function StarLayer({
   li,
@@ -116,7 +114,11 @@ export function StarLayer({
 
   useEffect(() => () => mat.dispose(), [mat]);
 
-  // Budget-based recycling state
+  // Accumulated rotation angles (applied in shader, not on group)
+  const rotY = useRef(0);
+  const rotX = useRef(0);
+
+  // Recycling state
   const recycleOffset = useRef(0);
   const lastCamPos = useRef(new THREE.Vector3());
 
@@ -124,22 +126,25 @@ export function StarLayer({
     if (!pointsRef.current) return;
     const dt = s.clock.getDelta() || 0.016;
     const scrollBoost = 1 + Math.min(Math.abs(voidState.scrollVel) * 4, 3);
-    pointsRef.current.rotation.y += dt * cfg.rotSpd * scrollBoost;
-    pointsRef.current.rotation.x += dt * cfg.rotSpd * 0.32 * scrollBoost;
+
+    // Accumulate rotation — applied in shader, NOT on the group transform.
+    // This keeps geometry positions stable in world space for recycling.
+    rotY.current += dt * cfg.rotSpd * scrollBoost;
+    rotX.current += dt * cfg.rotSpd * 0.32 * scrollBoost;
 
     const dim = 1 - voidState.scrollProgress * 0.12;
     mat.uniforms.uOpacity.value = 0.90 * dim;
     mat.uniforms.uSize.value    = cfg.size;
     mat.uniforms.uVH.value = (s.gl.domElement).height * 0.5;
     mat.uniforms.uTime.value = s.clock.elapsedTime;
+    mat.uniforms.uRotY.value = rotY.current;
+    mat.uniforms.uRotX.value = rotX.current;
+    // Expose rotation angles for StarHoverSystem + ShootingStars
+    voidState.starRotY[li] = rotY.current;
+    voidState.starRotX[li] = rotX.current;
 
-    // Dynamic star recycling — budget-based to avoid frame drops
+    // Dynamic star recycling — world space (group has no rotation)
     const cam = s.camera.position;
-    // Skip recycling entirely if camera barely moved
-    const camDelta = lastCamPos.current.distanceToSquared(cam);
-    if (camDelta < 0.005) return;
-    lastCamPos.current.copy(cam);
-
     const { isMobile } = ctx;
     const posAttr = pointsRef.current.geometry.getAttribute("position") as THREE.BufferAttribute;
     const posArr = posAttr.array as Float32Array;
@@ -147,31 +152,39 @@ export function StarLayer({
     const maxDist2 = maxDist * maxDist;
     let dirty = false;
 
-    // Camera position in local space of the points group
-    const worldMat = pointsRef.current.matrixWorld;
-    const invMat = _invMat.copy(worldMat).invert();
-    const localCam = _localCam.copy(cam).applyMatrix4(invMat);
+    // Camera position — local = world since group has no transform
+    const cx = cam.x, cy2 = cam.y, cz = cam.z;
 
-    // Budget: check a window of stars per frame (rotating offset)
-    const BUDGET = isMobile ? 80 : 200;
+    // Adaptive budget: increase when many stars need recycling (fast scroll)
+    // Normal: 300/frame. After large camera jump: process all stars immediately.
+    const camDelta = lastCamPos.current.distanceToSquared(cam);
+    lastCamPos.current.copy(cam);
+    const bigJump = camDelta > 100; // camera moved >10 units since last frame
+    const BUDGET = bigJump ? cfg.count : (isMobile ? 150 : 300);
+
     const start = recycleOffset.current;
     const end = Math.min(start + BUDGET, cfg.count);
     recycleOffset.current = end >= cfg.count ? 0 : end;
 
+    // Pre-compute cube of radii for volume-corrected distribution
+    const rMin3 = cfg.rMin * cfg.rMin * cfg.rMin;
+    const rRange3 = cfg.rMax * cfg.rMax * cfg.rMax - rMin3;
+
     for (let i = start; i < end; i++) {
       const ix = i * 3, iy = i * 3 + 1, iz = i * 3 + 2;
-      const dx = posArr[ix] - localCam.x;
-      const dy = posArr[iy] - localCam.y;
-      const dz = posArr[iz] - localCam.z;
+      const dx = posArr[ix] - cx;
+      const dy = posArr[iy] - cy2;
+      const dz = posArr[iz] - cz;
       const dist2 = dx * dx + dy * dy + dz * dz;
 
       if (dist2 > maxDist2) {
         const theta = Math.random() * Math.PI * 2;
         const phi = Math.acos(2 * Math.random() - 1);
-        const r = cfg.rMin + Math.random() * (cfg.rMax - cfg.rMin);
-        posArr[ix] = localCam.x + r * Math.sin(phi) * Math.cos(theta);
-        posArr[iy] = localCam.y + r * Math.sin(phi) * Math.sin(theta);
-        posArr[iz] = localCam.z + r * Math.cos(phi);
+        // Volume-corrected radius: uniform density in spherical shell
+        const r = Math.cbrt(rMin3 + Math.random() * rRange3);
+        posArr[ix] = cx + r * Math.sin(phi) * Math.cos(theta);
+        posArr[iy] = cy2 + r * Math.sin(phi) * Math.sin(theta);
+        posArr[iz] = cz + r * Math.cos(phi);
         dirty = true;
       }
     }

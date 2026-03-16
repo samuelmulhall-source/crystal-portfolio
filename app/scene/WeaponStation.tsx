@@ -3,15 +3,15 @@
 /**
  * WeaponStation — single weapon model placed at a fixed world position.
  *
- * Key differences from the old VoidModel:
- *   - World position is static (from journeyConfig), not tracking scroll
- *   - Opacity driven by camera proximity to station, not activeModelId
- *   - Auto-rotation + camera-reactive tilt preserved
- *   - PBR texture loading + wireframe shader preserved
+ * Performance optimizations:
+ *   - Shader pre-compilation via renderer.compileAsync before first visible frame
+ *   - Parallel texture loading (all textures fetched concurrently, applied in one batch)
+ *   - EdgesGeometry deferred 3s after mount, processed 1 mesh per 150ms idle slot
+ *   - Model starts invisible (opacity=0) until shader compilation finishes
  */
 
-import { useRef, useMemo, useEffect, useContext } from "react";
-import { useFrame } from "@react-three/fiber";
+import { useRef, useMemo, useEffect, useContext, useState } from "react";
+import { useFrame, useThree } from "@react-three/fiber";
 import { useFBX } from "@react-three/drei";
 import * as THREE from "three";
 import { voidState } from "../lib/voidState";
@@ -28,6 +28,7 @@ interface Props {
 export default function WeaponStation({ station, entry }: Props) {
   const { isMobile }  = useContext(VoidContext);
   const scene         = useFBX(entry.modelPath);
+  const { gl, camera } = useThree();
   const posGroupRef   = useRef<THREE.Group>(null);
   const rotGroupRef   = useRef<THREE.Group>(null);
   const scaleGroupRef = useRef<THREE.Group>(null);
@@ -39,7 +40,10 @@ export default function WeaponStation({ station, entry }: Props) {
   const tiltY         = useRef(0);
   const tmpMp         = useMemo(() => new THREE.Vector3(), []);
 
-  // Replace FBX materials + compute normScale
+  // Shader compilation gate — model stays invisible until shaders are compiled
+  const [shaderReady, setShaderReady] = useState(false);
+
+  // Replace FBX materials + compute normScale (sync — must complete before render)
   const { normScale, centreOffset } = useMemo(() => {
     const labelLike = /(normal\s*map|tangent|tris|polygon|vertex|uv\s*map|specular|roughness\s*map|metalness|debug|label)/i;
     allMats.current = [];
@@ -80,7 +84,29 @@ export default function WeaponStation({ station, entry }: Props) {
     return { normScale: ns, centreOffset: center.clone().negate().multiplyScalar(ns) };
   }, [scene]);
 
-  // Async PBR texture loading
+  // Pre-compile shaders asynchronously to avoid GPU stall on first frame
+  useEffect(() => {
+    let cancelled = false;
+    // compileAsync is available in Three.js r164+
+    if (gl.compileAsync) {
+      gl.compileAsync(scene, camera).then(() => {
+        if (!cancelled) setShaderReady(true);
+      }).catch(() => {
+        // Fallback: allow rendering even if compile fails
+        if (!cancelled) setShaderReady(true);
+      });
+    } else {
+      // Fallback for older Three.js: just compile synchronously on next idle
+      setTimeout(() => {
+        gl.compile(scene, camera);
+        if (!cancelled) setShaderReady(true);
+      }, 0);
+    }
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scene]);
+
+  // Async PBR texture loading — parallel fetch, single batch apply
   const texSig = [
     entry.textures.map, entry.textures.normalMap,
     entry.textures.roughnessMap, entry.textures.metalnessMap,
@@ -95,53 +121,52 @@ export default function WeaponStation({ station, entry }: Props) {
     let cancelled = false;
     const textures: THREE.Texture[] = [];
 
-    const applyWhenIdle = (fn: () => void) => {
+    // Build load tasks
+    const tasks: Array<{ url: string; apply: (tex: THREE.Texture) => void }> = [];
+
+    if (t.map) tasks.push({
+      url: t.map,
+      apply: tex => { tex.colorSpace = THREE.SRGBColorSpace; allMats.current.forEach(m => { if (m) { m.map = tex; } }); },
+    });
+    if (t.normalMap) tasks.push({
+      url: t.normalMap,
+      apply: tex => { tex.colorSpace = THREE.NoColorSpace; allMats.current.forEach(m => { if (m) { m.normalMap = tex; m.normalMapType = THREE.TangentSpaceNormalMap; } }); },
+    });
+    if (t.roughnessMap) tasks.push({
+      url: t.roughnessMap,
+      apply: tex => { allMats.current.forEach(m => { if (m) { m.roughnessMap = tex; m.roughness = 0.88; } }); },
+    });
+    if (t.metalnessMap) tasks.push({
+      url: t.metalnessMap,
+      apply: tex => { allMats.current.forEach(m => { if (m) { m.metalnessMap = tex; m.metalness = 0.85; } }); },
+    });
+
+    // Parallel fetch all textures, then apply in a single idle callback batch
+    Promise.all(
+      tasks.map(async (task) => {
+        try {
+          const tex = await loader.loadAsync(task.url);
+          if (cancelled) { tex.dispose(); return null; }
+          textures.push(tex);
+          return task;
+        } catch { return null; }
+      })
+    ).then((results) => {
+      if (cancelled) return;
+      // Apply all textures in a single batch via requestIdleCallback
+      const applyBatch = () => {
+        results.forEach(task => { if (task) task.apply(textures[results.indexOf(task)]!); });
+        // Single needsUpdate call per material (triggers one shader recompile)
+        allMats.current.forEach(m => { if (m) m.needsUpdate = true; });
+      };
       if (typeof window !== "undefined" && "requestIdleCallback" in window) {
         (window as unknown as { requestIdleCallback: (cb: () => void, opts?: { timeout: number }) => void })
-          .requestIdleCallback(fn, { timeout: 500 });
+          .requestIdleCallback(applyBatch, { timeout: 1000 });
       } else {
-        setTimeout(fn, 16);
-      }
-    };
-    const applyAll = (update: (m: THREE.MeshPhysicalMaterial) => void) => {
-      applyWhenIdle(() => {
-        allMats.current.forEach(m => { if (m) { update(m); m.needsUpdate = true; } });
-      });
-    };
-
-    const loadQueue: Array<{ url: string; apply: (tex: THREE.Texture) => void }> = [];
-
-    if (t.map) loadQueue.push({
-      url: t.map,
-      apply: tex => { tex.colorSpace = THREE.SRGBColorSpace; applyAll(m => { m.map = tex; }); },
-    });
-    if (t.normalMap) loadQueue.push({
-      url: t.normalMap,
-      apply: tex => { tex.colorSpace = THREE.NoColorSpace; applyAll(m => { m.normalMap = tex; m.normalMapType = THREE.TangentSpaceNormalMap; }); },
-    });
-    if (t.roughnessMap) loadQueue.push({
-      url: t.roughnessMap,
-      apply: tex => { applyAll(m => { m.roughnessMap = tex; m.roughness = 0.88; }); },
-    });
-    if (t.metalnessMap) loadQueue.push({
-      url: t.metalnessMap,
-      apply: tex => { applyAll(m => { m.metalnessMap = tex; m.metalness = 0.85; }); },
-    });
-
-    const processQueue = async () => {
-      for (const item of loadQueue) {
-        if (cancelled) return;
-        try {
-          const tex = await loader.loadAsync(item.url);
-          if (cancelled) { tex.dispose(); return; }
-          textures.push(tex);
-          item.apply(tex);
-          await new Promise(r => setTimeout(r, 200));
-        } catch { /* texture missing — skip */ }
+        setTimeout(applyBatch, 16);
       }
       loadedTextures.current = textures;
-    };
-    processQueue();
+    });
 
     return () => {
       cancelled = true;
@@ -162,7 +187,7 @@ export default function WeaponStation({ station, entry }: Props) {
     wireMatRefs.current = [];
     let cancelled = false;
 
-    // Defer EdgesGeometry computation (expensive) well after model is visible
+    // Defer EdgesGeometry computation well after model is visible
     const timer = setTimeout(() => {
       if (cancelled) return;
       const meshes: THREE.Mesh[] = [];
@@ -170,7 +195,7 @@ export default function WeaponStation({ station, entry }: Props) {
         if ((o as THREE.Mesh).isMesh) meshes.push(o as THREE.Mesh);
       });
 
-      // Process one mesh per 100ms idle slot to avoid blocking frames
+      // Process one mesh per 150ms idle slot to avoid blocking frames
       let idx = 0;
       const processNext = () => {
         if (cancelled || idx >= meshes.length) return;
@@ -182,10 +207,10 @@ export default function WeaponStation({ station, entry }: Props) {
           mesh.add(lines);
           wireMatRefs.current.push(mat);
         } catch { /* skip */ }
-        if (idx < meshes.length) setTimeout(processNext, 100);
+        if (idx < meshes.length) setTimeout(processNext, 150);
       };
       setTimeout(processNext, 0);
-    }, 2000);
+    }, 3000);
 
     return () => {
       cancelled = true;
@@ -223,7 +248,8 @@ export default function WeaponStation({ station, entry }: Props) {
 
     // Dim weapons when in media mode (videos/images)
     const mediaDim = voidState.mediaMode !== "models" ? 0.12 : 1;
-    const opTarget = isNearCamera ? mediaDim : 0;
+    // Gate on shaderReady — don't show model until GPU shaders are compiled
+    const opTarget = (isNearCamera && shaderReady) ? mediaDim : 0;
     opacityRef.current += (opTarget - opacityRef.current) * Math.min(dt * 2.5, 1);
 
     // Reset entrance when fully faded
@@ -318,7 +344,9 @@ export default function WeaponStation({ station, entry }: Props) {
         <group ref={scaleGroupRef}>
           <group position={[centreOffset.x, centreOffset.y, centreOffset.z]}>
             <group scale={normScale}>
-              <primitive object={scene} />
+              {/* Hide from scene graph until shaders are compiled to prevent
+                  synchronous GPU shader compilation stall on first render */}
+              <primitive object={scene} visible={shaderReady} />
             </group>
           </group>
         </group>

@@ -26,15 +26,15 @@
     }
   },
   "images": {
-    "cam_icon_fullscale_medium-dark-lightrim.png": {
+    "cam_icon_fullscale_medium-dark-lightrim.webp": {
       "title": "Camera Icon",
       "description": "Clean icon render with rim lighting against a dark neutral ground. Focused on reading well at small sizes while holding detail at full resolution."
     },
-    "fourteenth_image.png": {
+    "fourteenth_image.webp": {
       "title": "Fourteenth Study",
       "description": "Personal study — experimental lighting and material composition. No brief, no constraints."
     },
-    "holography_scaled.png": {
+    "holography_scaled.webp": {
       "title": "Holography Study",
       "description": "Iridescent material exploration: layered thin-film interference, simulated with a custom holographic shader and Cycles caustics."
     }

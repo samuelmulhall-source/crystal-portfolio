@@ -73,7 +73,7 @@ export const STATIONS: WeaponStation[] = [
     scrollEnd: 0.44,
     media: {
       type: "image",
-      path: "/Image renders/cam_icon_fullscale_medium-dark-lightrim.png",
+      path: "/Image renders/cam_icon_fullscale_medium-dark-lightrim.webp",
       title: "Camera Icon",
       panelX: 4,
     },
@@ -109,7 +109,7 @@ export const STATIONS: WeaponStation[] = [
     scrollEnd: 0.72,
     media: {
       type: "image",
-      path: "/Image renders/fourteenth_image.png",
+      path: "/Image renders/fourteenth_image.webp",
       title: "Fourteenth Study",
       panelX: 4,
     },
@@ -127,7 +127,7 @@ export const STATIONS: WeaponStation[] = [
     scrollEnd: 0.86,
     media: {
       type: "image",
-      path: "/Image renders/holography_scaled.png",
+      path: "/Image renders/holography_scaled.webp",
       title: "Holography Study",
       panelX: 4,
     },
