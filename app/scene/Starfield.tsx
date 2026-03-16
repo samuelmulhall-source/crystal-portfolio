@@ -116,8 +116,9 @@ export function StarLayer({
 
   useEffect(() => () => mat.dispose(), [mat]);
 
-  // Frame counter for mobile throttling
-  const frameCount = useRef(0);
+  // Budget-based recycling state
+  const recycleOffset = useRef(0);
+  const lastCamPos = useRef(new THREE.Vector3());
 
   useFrame((s) => {
     if (!pointsRef.current) return;
@@ -132,26 +133,32 @@ export function StarLayer({
     mat.uniforms.uVH.value = (s.gl.domElement).height * 0.5;
     mat.uniforms.uTime.value = s.clock.elapsedTime;
 
-    // Dynamic star recycling: maintain star density around camera
-    frameCount.current++;
-    const { isMobile } = ctx;
-    // Throttle on mobile: only recycle every 3rd frame
-    if (isMobile && frameCount.current % 3 !== 0) return;
-
+    // Dynamic star recycling — budget-based to avoid frame drops
     const cam = s.camera.position;
+    // Skip recycling entirely if camera barely moved
+    const camDelta = lastCamPos.current.distanceToSquared(cam);
+    if (camDelta < 0.005) return;
+    lastCamPos.current.copy(cam);
+
+    const { isMobile } = ctx;
     const posAttr = pointsRef.current.geometry.getAttribute("position") as THREE.BufferAttribute;
     const posArr = posAttr.array as Float32Array;
     const maxDist = cfg.rMax * 1.3;
     const maxDist2 = maxDist * maxDist;
     let dirty = false;
 
-    // We need world-space positions — account for group rotation
+    // Camera position in local space of the points group
     const worldMat = pointsRef.current.matrixWorld;
     const invMat = _invMat.copy(worldMat).invert();
-    // Camera position in local space of the points group
     const localCam = _localCam.copy(cam).applyMatrix4(invMat);
 
-    for (let i = 0; i < cfg.count; i++) {
+    // Budget: check a window of stars per frame (rotating offset)
+    const BUDGET = isMobile ? 80 : 200;
+    const start = recycleOffset.current;
+    const end = Math.min(start + BUDGET, cfg.count);
+    recycleOffset.current = end >= cfg.count ? 0 : end;
+
+    for (let i = start; i < end; i++) {
       const ix = i * 3, iy = i * 3 + 1, iz = i * 3 + 2;
       const dx = posArr[ix] - localCam.x;
       const dy = posArr[iy] - localCam.y;
@@ -159,7 +166,6 @@ export function StarLayer({
       const dist2 = dx * dx + dy * dy + dz * dz;
 
       if (dist2 > maxDist2) {
-        // Recycle: place randomly in shell around camera (in local space)
         const theta = Math.random() * Math.PI * 2;
         const phi = Math.acos(2 * Math.random() - 1);
         const r = cfg.rMin + Math.random() * (cfg.rMax - cfg.rMin);

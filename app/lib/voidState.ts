@@ -76,4 +76,9 @@ export const voidState = {
   // wireframe edge overlay opacity.
   showWireframe: false,
   autoRotate: true,
+
+  // ── Media mode ──────────────────────────────────────────────────────────
+  // Controls mutual exclusion between weapon models and media panels.
+  // "models" = show weapons, hide media. "videos"/"images" = show that media, dim weapons.
+  mediaMode: "models" as "models" | "videos" | "images",
 };

@@ -95,8 +95,18 @@ export default function WeaponStation({ station, entry }: Props) {
     let cancelled = false;
     const textures: THREE.Texture[] = [];
 
+    const applyWhenIdle = (fn: () => void) => {
+      if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+        (window as unknown as { requestIdleCallback: (cb: () => void, opts?: { timeout: number }) => void })
+          .requestIdleCallback(fn, { timeout: 500 });
+      } else {
+        setTimeout(fn, 16);
+      }
+    };
     const applyAll = (update: (m: THREE.MeshPhysicalMaterial) => void) => {
-      allMats.current.forEach(m => { if (m) { update(m); m.needsUpdate = true; } });
+      applyWhenIdle(() => {
+        allMats.current.forEach(m => { if (m) { update(m); m.needsUpdate = true; } });
+      });
     };
 
     const loadQueue: Array<{ url: string; apply: (tex: THREE.Texture) => void }> = [];
@@ -126,7 +136,7 @@ export default function WeaponStation({ station, entry }: Props) {
           if (cancelled) { tex.dispose(); return; }
           textures.push(tex);
           item.apply(tex);
-          await new Promise(r => setTimeout(r, 80));
+          await new Promise(r => setTimeout(r, 200));
         } catch { /* texture missing — skip */ }
       }
       loadedTextures.current = textures;
@@ -152,7 +162,7 @@ export default function WeaponStation({ station, entry }: Props) {
     wireMatRefs.current = [];
     let cancelled = false;
 
-    // Defer EdgesGeometry computation (expensive) until after model renders
+    // Defer EdgesGeometry computation (expensive) well after model is visible
     const timer = setTimeout(() => {
       if (cancelled) return;
       const meshes: THREE.Mesh[] = [];
@@ -160,7 +170,7 @@ export default function WeaponStation({ station, entry }: Props) {
         if ((o as THREE.Mesh).isMesh) meshes.push(o as THREE.Mesh);
       });
 
-      // Process one mesh per frame to avoid blocking
+      // Process one mesh per 100ms idle slot to avoid blocking frames
       let idx = 0;
       const processNext = () => {
         if (cancelled || idx >= meshes.length) return;
@@ -172,10 +182,10 @@ export default function WeaponStation({ station, entry }: Props) {
           mesh.add(lines);
           wireMatRefs.current.push(mat);
         } catch { /* skip */ }
-        if (idx < meshes.length) requestAnimationFrame(processNext);
+        if (idx < meshes.length) setTimeout(processNext, 100);
       };
-      requestAnimationFrame(processNext);
-    }, 600);
+      setTimeout(processNext, 0);
+    }, 2000);
 
     return () => {
       cancelled = true;
@@ -211,7 +221,9 @@ export default function WeaponStation({ station, entry }: Props) {
                        workModels.expandedModelId === station.id;
     const isNearCamera = proximity > 0.1 || isExpanded;
 
-    const opTarget = isNearCamera ? 1 : 0;
+    // Dim weapons when in media mode (videos/images)
+    const mediaDim = voidState.mediaMode !== "models" ? 0.12 : 1;
+    const opTarget = isNearCamera ? mediaDim : 0;
     opacityRef.current += (opTarget - opacityRef.current) * Math.min(dt * 2.5, 1);
 
     // Reset entrance when fully faded

@@ -51,14 +51,11 @@ export default function WeaponStations() {
     // Always load first station
     if (!loaded.has(STATIONS[0].id)) { loaded.add(STATIONS[0].id); changed = true; }
 
-    // Load current + adjacent stations
+    // Load current + next station only (skip previous to reduce concurrent loads)
     if (current >= 0) {
       if (!loaded.has(STATIONS[current].id)) { loaded.add(STATIONS[current].id); changed = true; }
       if (current + 1 < STATIONS.length && !loaded.has(STATIONS[current + 1].id)) {
         loaded.add(STATIONS[current + 1].id); changed = true;
-      }
-      if (current > 0 && !loaded.has(STATIONS[current - 1].id)) {
-        loaded.add(STATIONS[current - 1].id); changed = true;
       }
     }
 

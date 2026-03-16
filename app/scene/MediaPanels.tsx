@@ -23,7 +23,9 @@ function MediaPanel({ station, stationIndex }: { station: WeaponStation; station
 
   useFrame((_, dt) => {
     const proximity = voidState.stationProximity[stationIndex] ?? 0;
-    const target = proximity > 0.15 ? proximity : 0;
+    // Only show if mediaMode matches this panel's type
+    const modeMatch = voidState.mediaMode === media!.type + "s"; // "videos" or "images"
+    const target = (proximity > 0.15 && modeMatch) ? proximity : 0;
     opRef.current += (target - opRef.current) * Math.min(dt * 2.5, 1);
 
     if (containerRef.current) {

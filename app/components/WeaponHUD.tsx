@@ -24,6 +24,7 @@ export default function WeaponHUD() {
   const [activeIdx, setActiveIdx] = useState(-1);
   const [visible, setVisible] = useState(false);
   const [hoverIdx, setHoverIdx] = useState(-1);
+  const [mediaMode, setMediaMode] = useState<"models" | "videos" | "images">("models");
   const rafRef = useRef<number>(0);
   const progressRef = useRef<HTMLDivElement>(null);
 
@@ -87,7 +88,16 @@ export default function WeaponHUD() {
     const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
     const scrollTarget = mid * maxScroll;
     window.scrollTo({ top: scrollTarget, behavior: "smooth" });
+    // Switch back to models mode when clicking a station
+    voidState.mediaMode = "models";
+    setMediaMode("models");
   }, []);
+
+  const toggleMediaMode = useCallback((mode: "models" | "videos" | "images") => {
+    const newMode = mediaMode === mode ? "models" : mode;
+    voidState.mediaMode = newMode;
+    setMediaMode(newMode);
+  }, [mediaMode]);
 
   // Keyboard navigation: number keys 1-5
   useEffect(() => {
@@ -126,7 +136,7 @@ export default function WeaponHUD() {
 
       {/* ── Console panel header ── */}
       <div className="weapon-hud-header" aria-hidden="true">
-        <span className="weapon-hud-header-label">STATION LOG</span>
+        <span className="weapon-hud-header-label">WORK</span>
         <span className="weapon-hud-header-divider" />
       </div>
 
@@ -167,6 +177,26 @@ export default function WeaponHUD() {
           </button>
         );
       })}
+
+      {/* ── Media mode divider + buttons ── */}
+      <div className="weapon-hud-media-divider" aria-hidden="true">
+        <span className="weapon-hud-media-divider-label">MEDIA</span>
+        <span className="weapon-hud-header-divider" />
+      </div>
+      <button
+        className={`weapon-hud-media-btn ${mediaMode === "videos" ? "active" : ""}`}
+        onClick={() => toggleMediaMode("videos")}
+      >
+        <span className="weapon-hud-media-icon">▶</span>
+        VIDEOS
+      </button>
+      <button
+        className={`weapon-hud-media-btn ${mediaMode === "images" ? "active" : ""}`}
+        onClick={() => toggleMediaMode("images")}
+      >
+        <span className="weapon-hud-media-icon">■</span>
+        IMAGES
+      </button>
 
       {/* ── Console panel footer ── */}
       <div className="weapon-hud-footer" aria-hidden="true">
@@ -329,6 +359,57 @@ export default function WeaponHUD() {
           padding-left: 0.5rem;
         }
 
+        /* ── Media mode section ── */
+        .weapon-hud-media-divider {
+          padding: 0.4rem 0.75rem 0.25rem 1rem;
+          display: flex;
+          flex-direction: column;
+          gap: 0.25rem;
+          border-top: 1px solid rgba(184, 240, 255, 0.05);
+        }
+
+        .weapon-hud-media-divider-label {
+          font-family: var(--font-geist-mono, monospace);
+          font-size: 0.42rem;
+          letter-spacing: 0.24em;
+          text-transform: uppercase;
+          color: rgba(255, 160, 60, 0.35);
+        }
+
+        .weapon-hud-media-btn {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 0.35rem 0.75rem 0.35rem 1rem;
+          border: none;
+          background: transparent;
+          color: rgba(184, 240, 255, 0.35);
+          cursor: pointer;
+          font-family: var(--font-geist-mono, monospace);
+          font-size: 0.58rem;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          transition: color 0.25s ease, background 0.2s ease;
+          white-space: nowrap;
+          text-align: left;
+        }
+
+        .weapon-hud-media-btn:hover {
+          color: rgba(184, 240, 255, 0.75);
+          background: rgba(184, 240, 255, 0.03);
+        }
+
+        .weapon-hud-media-btn.active {
+          color: rgba(255, 160, 60, 0.85);
+          background: rgba(255, 160, 60, 0.05);
+          text-shadow: 0 0 10px rgba(255, 160, 60, 0.25);
+        }
+
+        .weapon-hud-media-icon {
+          font-size: 0.45rem;
+          opacity: 0.6;
+        }
+
         /* ── Footer ── */
         .weapon-hud-footer {
           padding: 0.35rem 0.75rem 0.5rem 1rem;
@@ -375,7 +456,9 @@ export default function WeaponHUD() {
           .weapon-hud-header,
           .weapon-hud-footer,
           .weapon-hud-tag,
-          .weapon-hud-name {
+          .weapon-hud-name,
+          .weapon-hud-media-divider,
+          .weapon-hud-media-btn {
             display: none;
           }
 
