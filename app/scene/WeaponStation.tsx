@@ -107,9 +107,10 @@ export default function WeaponStation({ station, entry }: Props) {
   }, [scene]);
 
   // Async PBR texture loading — parallel fetch, single batch apply
+  const stTex = station.textures;
   const texSig = [
-    entry.textures.map, entry.textures.normalMap,
-    entry.textures.roughnessMap, entry.textures.metalnessMap,
+    stTex.map, stTex.normalMap,
+    stTex.roughnessMap, stTex.metalnessMap,
   ].filter(Boolean).join("|");
 
   const loadedTextures = useRef<THREE.Texture[]>([]);
@@ -117,7 +118,7 @@ export default function WeaponStation({ station, entry }: Props) {
   useEffect(() => {
     if (!texSig) return;
     const loader = new THREE.TextureLoader();
-    const t      = entry.textures;
+    const t      = stTex;
     let cancelled = false;
     const textures: THREE.Texture[] = [];
 
@@ -139,6 +140,10 @@ export default function WeaponStation({ station, entry }: Props) {
     if (t.metalnessMap) tasks.push({
       url: t.metalnessMap,
       apply: tex => { allMats.current.forEach(m => { if (m) { m.metalnessMap = tex; m.metalness = 0.85; } }); },
+    });
+    if (t.transmissionMap) tasks.push({
+      url: t.transmissionMap,
+      apply: tex => { allMats.current.forEach(m => { if (m) { m.transmissionMap = tex; m.transmission = 0.6; m.thickness = 0.5; m.ior = 1.5; } }); },
     });
 
     // Parallel fetch all textures, then apply in a single idle callback batch

@@ -15,6 +15,14 @@ export interface WeaponStation {
   modelIndex: number;
   /** Direct FBX path — authoritative, bypasses entries lookup */
   modelPath: string;
+  /** PBR texture paths — hardcoded from data.json, no entries dependency */
+  textures: {
+    map?: string;
+    normalMap?: string;
+    roughnessMap?: string;
+    metalnessMap?: string;
+    transmissionMap?: string;
+  };
   /** Fixed world position [x, y, z] */
   worldPosition: [number, number, number];
   /** Narrative name displayed in HUD */
@@ -44,6 +52,12 @@ export const STATIONS: WeaponStation[] = [
     modelId: "proj-0",
     modelIndex: 0,
     modelPath: "/models/Torch/torch.fbx",
+    textures: {
+      map: "/models/Torch/Torch_color.webp",
+      metalnessMap: "/models/Torch/torch_metallic.webp",
+      normalMap: "/models/Torch/torch_normal.webp",
+      roughnessMap: "/models/Torch/torch_roughness.webp",
+    },
     worldPosition: [5, 0, -20],
     loreName: "TORCH",
     loreTag: "Hand-crafted fantasy torch — layered metal wrap",
@@ -58,6 +72,12 @@ export const STATIONS: WeaponStation[] = [
     modelId: "proj-2",
     modelIndex: 2,
     modelPath: "/models/Weapons/Ornate Dagger/Ornate Dagger.fbx",
+    textures: {
+      map: "/models/Weapons/Ornate Dagger/ornate_dagger_color.webp",
+      metalnessMap: "/models/Weapons/Ornate Dagger/ornate_dagger_metallic.webp",
+      normalMap: "/models/Weapons/Ornate Dagger/ornate_dagger_normal.webp",
+      roughnessMap: "/models/Weapons/Ornate Dagger/ornate_dagger_roughness.webp",
+    },
     worldPosition: [-5, 0, -45],
     loreName: "ORNATE DAGGER",
     loreTag: "Ceremonial dagger — filigree crossguard, gemstone pommel",
@@ -72,6 +92,12 @@ export const STATIONS: WeaponStation[] = [
     modelId: "proj-3",
     modelIndex: 3,
     modelPath: "/models/Weapons/Shield/Shield.fbx",
+    textures: {
+      map: "/models/Weapons/Shield/Shield_color.webp",
+      metalnessMap: "/models/Weapons/Shield/Shield_metallic.webp",
+      normalMap: "/models/Weapons/Shield/Shield_normal.webp",
+      roughnessMap: "/models/Weapons/Shield/shield_roughness.webp",
+    },
     worldPosition: [4.5, 0, -70],
     loreName: "SHIELD",
     loreTag: "Kite shield — riveted iron rim, aged leather facing",
@@ -86,6 +112,13 @@ export const STATIONS: WeaponStation[] = [
     modelId: "proj-4",
     modelIndex: 4,
     modelPath: "/models/Weapons/Sword/sword.fbx",
+    textures: {
+      map: "/models/Weapons/Sword/sword_color.webp",
+      metalnessMap: "/models/Weapons/Sword/sword_metallic.webp",
+      normalMap: "/models/Weapons/Sword/sword_normal.webp",
+      roughnessMap: "/models/Weapons/Sword/sword_roughness.webp",
+      transmissionMap: "/models/Weapons/Sword/sword_transmission.webp",
+    },
     worldPosition: [-4.5, 0, -95],
     loreName: "SWORD",
     loreTag: "Arming sword — glass-and-metal guard, translucent blade",
@@ -100,6 +133,11 @@ export const STATIONS: WeaponStation[] = [
     modelId: "proj-1",
     modelIndex: 1,
     modelPath: "/models/Weapons/bow/Bow.fbx",
+    textures: {
+      map: "/models/Weapons/bow/bow_color.webp",
+      normalMap: "/models/Weapons/bow/bow_normal.webp",
+      roughnessMap: "/models/Weapons/bow/bow_roughness.webp",
+    },
     worldPosition: [4, 0, -120],
     loreName: "BOW",
     loreTag: "Recurve longbow — laminated limbs, sinew wrapping",
