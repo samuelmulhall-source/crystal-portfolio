@@ -101,7 +101,7 @@ export default function WeaponStations() {
   return (
     <>
       {STATIONS.filter(s => loadedRef.current.has(s.id)).map(station => {
-        const entry = entries[station.modelIndex];
+        const entry = entries.find(e => e.id === station.modelId);
         if (!entry) return null;
         return (
           <Suspense key={station.id} fallback={null}>
