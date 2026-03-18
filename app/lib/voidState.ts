@@ -43,17 +43,14 @@ export const voidState = {
     hsy:    0,    // head screen Y px
     tsx:    0,    // tail screen X px
     tsy:    0,    // tail screen Y px
+    trail:  Array.from({ length: 12 }, () => ({ sx: 0, sy: 0 })), // multi-segment trail
+    trailLen: 0,  // how many trail points are valid
   })),
 
   // ── Active model screen region ────────────────────────────────────────────
   // Written by the active VoidModel each frame. EffectsOverlay and
   // StarHoverSystem suppress hover effects inside this circle.
   modelRegion: { x: 0, y: 0, rPx: 0 },
-
-  // ── Model entrance progress ───────────────────────────────────────────────
-  // Written by VoidModel's useFrame as the model materialises (0=start, 1=done).
-  // Read by EffectsOverlay to draw the scan-line sweep.
-  modelEntranceProgress: 0,
 
   // ── Model loading state ───────────────────────────────────────────────────
   // True when the active model is loading / hasn't materialised yet.
@@ -77,10 +74,10 @@ export const voidState = {
   showWireframe: false,
   autoRotate: true,
 
-  // ── Media mode ──────────────────────────────────────────────────────────
-  // Controls mutual exclusion between weapon models and media panels.
-  // "models" = show weapons, hide media. "videos"/"images" = show that media, dim weapons.
-  mediaMode: "models" as "models" | "videos" | "images",
+  // ── Camera snap ──────────────────────────────────────────────────────
+  // Set true by jumpToStation / model selection to skip spring physics
+  // for one frame, teleporting the camera to the spline target instantly.
+  snapCamera: false,
 
   // ── Star layer rotation angles ────────────────────────────────────────
   // Accumulated rotation applied in the star vertex shader (not on the group

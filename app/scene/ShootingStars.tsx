@@ -15,11 +15,12 @@ import * as THREE from "three";
 import { voidState } from "../lib/voidState";
 import { workModels } from "../lib/workModels";
 import { VoidContext } from "./VoidScene";
-import { buildStarColors, buildStarPositions } from "./Starfield";
+import { buildStarColors } from "./Starfield";
 import { sr } from "../lib/seededRandom";
 
 const METEOR_COUNT  = 5;
-const TRAIL_LEN     = 4.0;
+const TRAIL_LEN     = 2.5;
+const TRAIL_POINTS  = 12;
 
 interface MeteorState {
   active:  boolean;
@@ -29,6 +30,8 @@ interface MeteorState {
   dx: number; dy: number; dz: number;
   speed:   number;
   phase:   number;
+  trail:   Array<{ x: number; y: number; z: number }>;
+  trailHead: number; // ring buffer write index
 }
 
 export default function ShootingStars({
@@ -52,6 +55,8 @@ export default function ShootingStars({
       px: 0, py: 0, pz: 0,
       dx: 1, dy: 0, dz: 0,
       speed: 14, phase: 0,
+      trail: Array.from({ length: TRAIL_POINTS }, () => ({ x: 0, y: 0, z: 0 })),
+      trailHead: 0,
     }))
   );
 
@@ -70,15 +75,6 @@ export default function ShootingStars({
     buildStarColors(layers[2].count, layers[2].seed),
   ], [layers]);
 
-  const origPosBufs = useMemo(() => [
-    buildStarPositions(layers[0].count, layers[0].rMin, layers[0].rMax, layers[0].seed),
-    buildStarPositions(layers[1].count, layers[1].rMin, layers[1].rMax, layers[1].seed),
-  ], [layers]);
-
-  const velBufs = useMemo(() => [
-    new Float32Array(layers[0].count * 3),
-    new Float32Array(layers[1].count * 3),
-  ], [layers]);
 
   const lights = useMemo(() =>
     Array.from({ length: METEOR_COUNT }, () => new THREE.PointLight("#4488ff", 0, 16)),
@@ -125,6 +121,13 @@ export default function ShootingStars({
           const len = Math.sqrt(sx * sx + sy * sy + sz * sz);
           met.dx = sx / len; met.dy = sy / len; met.dz = sz / len;
           met.speed = 8 + Math.random() * 5;
+          // Reset trail ring buffer — fill with spawn position
+          met.trailHead = 0;
+          for (let ti = 0; ti < TRAIL_POINTS; ti++) {
+            met.trail[ti].x = met.px;
+            met.trail[ti].y = met.py;
+            met.trail[ti].z = met.pz;
+          }
           spawned++;
         }
       }
@@ -155,6 +158,12 @@ export default function ShootingStars({
       met.py += met.dy * met.speed * dt;
       met.pz += met.dz * met.speed * dt;
 
+      // Push current position into trail ring buffer
+      met.trail[met.trailHead].x = met.px;
+      met.trail[met.trailHead].y = met.py;
+      met.trail[met.trailHead].z = met.pz;
+      met.trailHead = (met.trailHead + 1) % TRAIL_POINTS;
+
       tmpV.set(met.px, met.py, met.pz).project(camera);
       if (tmpV.z > 1) { vMet.env = 0; continue; }
       vMet.hsx = (tmpV.x + 1) / 2 * W;
@@ -168,16 +177,30 @@ export default function ShootingStars({
       vMet.tsx = (tmpV.x + 1) / 2 * W;
       vMet.tsy = (1 - tmpV.y) / 2 * H;
 
+      // Project trail points to screen space (newest first)
+      let trailCount = 0;
+      for (let ti = 0; ti < TRAIL_POINTS; ti++) {
+        // Read from ring buffer: newest → oldest
+        const idx = (met.trailHead - 1 - ti + TRAIL_POINTS * 2) % TRAIL_POINTS;
+        const tp = met.trail[idx];
+        tmpV.set(tp.x, tp.y, tp.z).project(camera);
+        if (tmpV.z > 1) break;
+        vMet.trail[ti].sx = (tmpV.x + 1) / 2 * W;
+        vMet.trail[ti].sy = (1 - tmpV.y) / 2 * H;
+        trailCount++;
+      }
+      vMet.trailLen = trailCount;
+
       vMet.active = true;
       vMet.env    = env;
 
       light.position.set(met.px, met.py, met.pz);
       light.intensity = env * 4.5;
 
-      // Starfield disruption
+      // Starfield disruption — color flash only, no position displacement.
+      // Stars maintain consistent density throughout the journey.
       const DR     = isMobile ? 6.0 : 9.0;
       const DR2    = DR * DR;
-      const WAKE_R = DR * 0.38;
       for (let li = 0; li < 2; li++) {
         const pObj = pts[li].current;
         if (!pObj) continue;
@@ -196,20 +219,6 @@ export default function ShootingStars({
             const d   = Math.sqrt(d2);
             const str = (1 - d / DR) * env;
             if (str > disp[i]) disp[i] = str;
-
-            if (d > 0.05) {
-              if (d < WAKE_R) {
-                const wakeStr = (1 - d / WAKE_R) * env * 0.65;
-                velBufs[li][i * 3]     += met.dx * wakeStr * 2.2;
-                velBufs[li][i * 3 + 1] += met.dy * wakeStr * 2.2;
-                velBufs[li][i * 3 + 2] += met.dz * wakeStr * 2.2;
-              } else {
-                const push = (str * 2.0) / d;
-                velBufs[li][i * 3]     += dx * push;
-                velBufs[li][i * 3 + 1] += dy * push;
-                velBufs[li][i * 3 + 2] += dz * push;
-              }
-            }
           }
         }
       }
@@ -274,84 +283,9 @@ export default function ShootingStars({
       voidState.modelRegion.rPx = Math.min(cW, cH) * 0.22;
     }
 
-    // Loading orbit: gravitational swirl
+    // Loading state
     loadPhaseRef.current += ((voidState.modelLoading ? 1 : 0) - loadPhaseRef.current) * Math.min(dt * 1.0, 1);
-    const loadPhase = loadPhaseRef.current;
-    voidState.loadPhase = loadPhase;
-
-    // Check if any velocity buffers have active movement
-    const hasAnyMeteorActive = meteors.some(m => m.active);
-    const hasAnyDisruption = disruption[0].some(d => d > 0.005) || disruption[1].some(d => d > 0.005);
-    const needsPhysics = hasAnyMeteorActive || hasAnyDisruption || loadPhase > 0.01;
-
-    // Skip expensive physics loop when nothing is moving
-    if (needsPhysics) {
-      const SPRING_K_VAL = loadPhase > 0.2 ? 4.5 * (1 - loadPhase * 0.85) : 4.5;
-      const dampFac  = Math.pow(0.90, Math.min(dt * 60, 6));
-
-      for (let li = 0; li < 2; li++) {
-        const pObj   = pts[li].current;
-        if (!pObj) continue;
-        const posArr  = pObj.geometry.attributes.position.array as Float32Array;
-        const origPos = origPosBufs[li];
-        const vel     = velBufs[li];
-        const cnt     = layers[li].count;
-        let posChanged = false;
-
-        const modelWorldY = lockedLoadY.current ?? (-voidState.scrollProgress * 7.5);
-        let modelLX = 0, modelLY = modelWorldY, modelLZ = 2;
-        if (loadPhase > 0.01) {
-          tmpV.set(0, modelWorldY, 2).applyMatrix4(tmpM.copy(pObj.matrixWorld).invert());
-          modelLX = tmpV.x; modelLY = tmpV.y; modelLZ = tmpV.z;
-        }
-
-        for (let i = 0; i < cnt; i++) {
-          const b = i * 3;
-          let hasOrbit = false;
-
-          if (loadPhase > 0.01) {
-            const sx = posArr[b], sy = posArr[b + 1], sz = posArr[b + 2];
-            const toX = modelLX - sx, toY = modelLY - sy, toZ = modelLZ - sz;
-            const dist = Math.sqrt(toX * toX + toY * toY + toZ * toZ);
-            if (dist > 2 && dist < 40) {
-              hasOrbit = true;
-              const invD = 1 / dist;
-              const ph   = loadPhase;
-              const aStr = 0.85 * ph;
-              vel[b]     += toX * invD * aStr * dt;
-              vel[b + 1] += toY * invD * aStr * dt;
-              vel[b + 2] += toZ * invD * aStr * dt;
-              const tStr = 1.6 * ph;
-              vel[b]     += (-toZ * invD) * tStr * dt;
-              vel[b + 2] += ( toX * invD) * tStr * dt;
-            }
-          }
-
-          const v0 = vel[b], v1 = vel[b + 1], v2 = vel[b + 2];
-          if (!hasOrbit && v0 * v0 + v1 * v1 + v2 * v2 < 0.0002) continue;
-          posChanged = true;
-
-          vel[b]     += (origPos[b]     - posArr[b])     * SPRING_K_VAL * dt;
-          vel[b + 1] += (origPos[b + 1] - posArr[b + 1]) * SPRING_K_VAL * dt;
-          vel[b + 2] += (origPos[b + 2] - posArr[b + 2]) * SPRING_K_VAL * dt;
-
-          vel[b]     *= dampFac;
-          vel[b + 1] *= dampFac;
-          vel[b + 2] *= dampFac;
-
-          posArr[b]     += vel[b]     * dt;
-          posArr[b + 1] += vel[b + 1] * dt;
-          posArr[b + 2] += vel[b + 2] * dt;
-        }
-
-        if (posChanged) pObj.geometry.attributes.position.needsUpdate = true;
-        const velAttr = pObj.geometry.attributes.aVelocity;
-        if (velAttr) {
-          (velAttr as THREE.BufferAttribute).array = vel;
-          velAttr.needsUpdate = true;
-        }
-      }
-    }
+    voidState.loadPhase = loadPhaseRef.current;
   });
 
   return <group ref={groupRef} />;

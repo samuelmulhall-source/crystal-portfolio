@@ -19,7 +19,6 @@ import ExpandedViewer from "./ExpandedViewer";
 import StarHoverSystem from "./StarHoverSystem";
 import ShootingStars from "./ShootingStars";
 import WeaponStations from "./WeaponStations";
-import MediaPanels from "./MediaPanels";
 import StationInfo from "./hud/StationInfo";
 import { STATIONS } from "../lib/journeyConfig";
 
@@ -91,9 +90,6 @@ export default function VoidScene({ isMobile }: { isMobile: boolean }) {
       {!isMobile && <ShootingStars pts={[pts0, pts1, pts2]} />}
 
       <WeaponStations />
-
-      {/* Floating media panels alongside weapons — desktop only */}
-      {!isMobile && <MediaPanels />}
 
       {/* In-world HUD: floating labels + scan lines per station (Suspense for font loading) */}
       {!isMobile && (

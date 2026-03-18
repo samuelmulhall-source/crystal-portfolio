@@ -25,8 +25,8 @@
   --glass-shadow:   0 8px 40px rgba(0, 0, 16, 0.55), 0 1px 0 var(--glass-hi) inset;
 
   --accent:         #4dffee;  /* neon cyan — interactive state accent */
-  --accent-warm:    rgba(255,160,60,1);  /* orange phosphor — active state, console accents */
-  --accent-warm-dim: rgba(255,160,60,0.45);  /* muted orange for subtle indicators */
+  --accent-warm:    rgba(184,240,255,0.9);  /* ice active — used for active states */
+  --accent-warm-dim: rgba(184,240,255,0.35);  /* muted ice for subtle indicators */
 
   --text-primary:   #f2faff;
   --text-secondary: #c4e0f4;  /* brighter ice-tinted — more luminous in the void */
@@ -247,11 +247,6 @@ main {
   94%            { transform: none; opacity: 0; }
 }
 
-/* ─── Work tabs ───────────────────────────────────────────────────────────── */
-.work-tab:hover {
-  box-shadow: 0 0 18px rgba(184, 240, 255, 0.10);
-  text-shadow: 0 0 10px rgba(184, 240, 255, 0.25);
-}
 
 /* ─── Scroll indicator ────────────────────────────────────────────────────── */
 @keyframes scroll-bounce {
@@ -344,30 +339,6 @@ main {
   100% { border-color: rgba(184,240,255,0.75); box-shadow: 0 0 8px rgba(184,240,255,0.35); }
 }
 
-/* ─── Holographic sheen sweep on tab buttons ──────────────────────────────── */
-@keyframes holo-sweep {
-  from { transform: translateX(-100%) skewX(-15deg); }
-  to   { transform: translateX(200%)  skewX(-15deg); }
-}
-
-.holo-btn {
-  position: relative;
-  overflow: hidden;
-}
-.holo-btn::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(90deg,
-    transparent 0%,
-    rgba(184,240,255,0.14) 50%,
-    transparent 100%);
-  transform: translateX(-100%) skewX(-15deg);
-  pointer-events: none;
-}
-.holo-btn:hover::after {
-  animation: holo-sweep 0.55s ease forwards;
-}
 
 /* ─── Fullscreen viewer: hide page DOM so 3D canvas shows through ─────────── */
 /* FullscreenViewer portals to document.body, outside <main>.                  */
@@ -422,7 +393,7 @@ body.viewer-open main {
 
   .scroll-indicator { animation: none; }
   .hero-title { animation: none; text-shadow: 0 0 7px rgba(210,246,255,0.52), 0 0 20px rgba(0,0,0,0.95), 0 0 50px rgba(0,0,0,0.85), 0 0 90px rgba(0,0,0,0.6); }
-  .heading-xl, .heading-lg { animation: none; filter: none; }
+  .heading-lg { animation: none; filter: none; }
   .label { animation: none; }
   .glitch::before, .glitch::after { animation: none; display: none; }
   .status-led { animation: none; }
@@ -446,8 +417,18 @@ body.viewer-open main {
 /* ─── Console data frame — wraps content sections with terminal border ──── */
 .data-frame {
   position: relative;
-  border: 1px solid rgba(184, 240, 255, 0.06);
-  border-radius: 2px;
+  border: 1px solid rgba(184, 240, 255, 0.12);
+  border-radius: 3px;
+  background: linear-gradient(
+    160deg,
+    rgba(12, 22, 45, 0.72) 0%,
+    rgba(6, 12, 28, 0.68) 100%
+  );
+  backdrop-filter: blur(16px) saturate(1.5);
+  -webkit-backdrop-filter: blur(16px) saturate(1.5);
+  box-shadow:
+    inset 0 1px 0 rgba(184, 240, 255, 0.04),
+    0 8px 40px rgba(0, 0, 8, 0.5);
 }
 .data-frame::before {
   content: attr(data-label);
@@ -455,16 +436,15 @@ body.viewer-open main {
   top: -0.45em;
   left: 1rem;
   padding: 0 0.5rem;
-  background: var(--void-mid, #05070f);
+  background: rgba(4, 8, 20, 0.90);
   font-family: var(--font-geist-mono, monospace);
   font-size: 0.42rem;
   letter-spacing: 0.24em;
   text-transform: uppercase;
-  color: rgba(255, 160, 60, 0.4);
+  color: rgba(184, 240, 255, 0.35);
 }
 
 /* ─── Responsive ──────────────────────────────────────────────────────────── */
 @media (max-width: 700px) {
   .hero-title { letter-spacing: 0.14em; }
-  .work-showcase-item { margin-bottom: 4.5rem; }
 }

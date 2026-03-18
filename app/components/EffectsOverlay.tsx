@@ -102,7 +102,7 @@ export default function EffectsOverlay() {
     let raf: number;
     const t0 = performance.now();
     let lastT = performance.now();
-    let loadFade = 0; // smoothed loading opacity for HUD text
+    let loadFade = 0; // smoothed opacity for black hole loading vortex
 
     const resize = () => {
       canvas.width  = window.innerWidth;
@@ -122,7 +122,7 @@ export default function EffectsOverlay() {
       lastT     = now;
       const t   = (now - t0) * 0.001;
 
-      // Smooth loading fade (used for HUD text below)
+      // Smooth loading fade (drives black hole vortex in section 5)
       loadFade += ((voidState.modelLoading ? 1 : 0) - loadFade) * Math.min(dt * 2.5, 1);
 
       const SPRING_K = 420;
@@ -283,99 +283,80 @@ export default function EffectsOverlay() {
         ctx!.restore();
       }
 
-      // ── 3. Model entrance scan-line sweep ────────────────────────────────
-      {
-        const ep = voidState.modelEntranceProgress;
-        const mr = voidState.modelRegion;
-        if (ep < 0.98 && mr.rPx > 30) {
-          const scanY = mr.y + mr.rPx * (1 - ep * 2);
-          const alpha = Math.sin(ep * Math.PI) * 0.55;
+      // (Section 3 removed: model entrance scan-line sweep)
 
-          const grad = ctx!.createLinearGradient(mr.x - mr.rPx, scanY, mr.x + mr.rPx, scanY);
-          grad.addColorStop(0,    "rgba(0,0,0,0)");
-          grad.addColorStop(0.25, `rgba(184,240,255,${(alpha * 0.6).toFixed(3)})`);
-          grad.addColorStop(0.5,  `rgba(220,255,255,${alpha.toFixed(3)})`);
-          grad.addColorStop(0.75, `rgba(184,240,255,${(alpha * 0.6).toFixed(3)})`);
-          grad.addColorStop(1,    "rgba(0,0,0,0)");
-
-          ctx!.beginPath();
-          ctx!.moveTo(mr.x - mr.rPx, scanY);
-          ctx!.lineTo(mr.x + mr.rPx, scanY);
-          ctx!.strokeStyle = grad;
-          ctx!.lineWidth = 1.5;
-          ctx!.stroke();
-
-          // Tiny vertical sparkle at midpoint
-          ctx!.beginPath();
-          ctx!.moveTo(mr.x, scanY - 3);
-          ctx!.lineTo(mr.x, scanY + 3);
-          ctx!.strokeStyle = `rgba(255,255,255,${(alpha * 0.8).toFixed(3)})`;
-          ctx!.lineWidth = 0.75;
-          ctx!.stroke();
-        }
-      }
-
-      // ── 4. Meteor trails ──────────────────────────────────────────────────
+      // ── 4. Meteor trails — multi-segment tapered polylines ──────────────
       for (let m = 0; m < voidState.meteorSlots.length; m++) {
         const met = voidState.meteorSlots[m];
         if (!met.active || met.env < 0.01) continue;
 
-        const { hsx, hsy, tsx, tsy, env } = met;
+        const { hsx, hsy, env, trail, trailLen } = met;
+        const segCount = Math.max(trailLen, 2);
 
         ctx!.save();
         ctx!.globalCompositeOperation = "lighter";
         ctx!.lineCap  = "round";
         ctx!.lineJoin = "round";
 
-        // Glow pass: blue/ice
-        const gGlow = ctx!.createLinearGradient(tsx, tsy, hsx, hsy);
-        gGlow.addColorStop(0.00, "rgba(0,0,0,0)");
-        gGlow.addColorStop(0.25, `rgba(20,  50, 180, ${env * 0.42})`);
-        gGlow.addColorStop(0.60, `rgba(70, 140, 255, ${env * 0.68})`);
-        gGlow.addColorStop(0.85, `rgba(180,220, 255, ${env * 0.84})`);
-        gGlow.addColorStop(1.00, `rgba(255,255, 255, ${env * 0.92})`);
+        // Draw tapered trail segments (head → tail, decreasing width + opacity)
+        for (let si = 0; si < segCount - 1; si++) {
+          const frac = si / (segCount - 1); // 0 at head, 1 at tail
+          const p0 = trail[si];
+          const p1 = trail[si + 1];
+          if (!p0 || !p1) break;
 
-        ctx!.filter      = "blur(0.8px)";
-        ctx!.strokeStyle = gGlow;
-        ctx!.lineWidth   = 1.3 * env;
-        ctx!.shadowColor = `rgba(80, 150, 255, ${env * 0.60})`;
-        ctx!.shadowBlur  = 3 * env;
-        ctx!.beginPath();
-        ctx!.moveTo(tsx, tsy);
-        ctx!.lineTo(hsx, hsy);
-        ctx!.stroke();
+          const segAlpha = env * (1 - frac * 0.92);
+          const segWidth = (1.2 - frac * 1.1) * env;
+          if (segAlpha < 0.005 || segWidth < 0.05) break;
 
-        // Core pass: ice-white
-        ctx!.filter = "none";
-        ctx!.shadowBlur = 0;
+          // Glow pass — use shadowBlur only (no ctx.filter which is 10x slower)
+          ctx!.strokeStyle = `rgba(${Math.round(80 + 175 * (1 - frac))}, ${Math.round(140 + 115 * (1 - frac))}, 255, ${(segAlpha * 0.55).toFixed(3)})`;
+          ctx!.lineWidth = segWidth + 1.2 * env * (1 - frac);
+          ctx!.shadowColor = `rgba(80, 150, 255, ${(segAlpha * 0.5).toFixed(3)})`;
+          ctx!.shadowBlur = 3 * env * (1 - frac);
+          ctx!.beginPath();
+          ctx!.moveTo(p0.sx, p0.sy);
+          ctx!.lineTo(p1.sx, p1.sy);
+          ctx!.stroke();
 
-        const gCore = ctx!.createLinearGradient(tsx, tsy, hsx, hsy);
-        gCore.addColorStop(0.00, "rgba(0,0,0,0)");
-        gCore.addColorStop(0.35, `rgba( 80, 140, 255, ${env * 0.65})`);
-        gCore.addColorStop(0.75, `rgba(210, 235, 255, ${env * 0.88})`);
-        gCore.addColorStop(1.00, `rgba(255, 255, 255, ${env})`);
+          // Core pass
+          ctx!.shadowBlur = 0;
+          ctx!.strokeStyle = `rgba(${Math.round(210 + 45 * (1 - frac))}, ${Math.round(235 + 20 * (1 - frac))}, 255, ${(segAlpha * 0.85).toFixed(3)})`;
+          ctx!.lineWidth = segWidth * 0.5;
+          ctx!.beginPath();
+          ctx!.moveTo(p0.sx, p0.sy);
+          ctx!.lineTo(p1.sx, p1.sy);
+          ctx!.stroke();
+        }
 
-        ctx!.strokeStyle = gCore;
-        ctx!.lineWidth   = 0.6 * env;
-        ctx!.beginPath();
-        ctx!.moveTo(tsx, tsy);
-        ctx!.lineTo(hsx, hsy);
-        ctx!.stroke();
-
-        // Head spark
+        // Head spark — bright radial burst
         const sparkR = 1.65 * env;
-        const spark  = ctx!.createRadialGradient(hsx, hsy, 0, hsx, hsy, sparkR * 2.5);
+        ctx!.shadowBlur = 0;
+        const spark = ctx!.createRadialGradient(hsx, hsy, 0, hsx, hsy, sparkR * 2.5);
         spark.addColorStop(0.00, `rgba(255, 255, 255, ${env})`);
         spark.addColorStop(0.30, `rgba(200, 230, 255, ${env * 0.80})`);
         spark.addColorStop(0.65, `rgba(100, 160, 255, ${env * 0.45})`);
         spark.addColorStop(1.00, "rgba(0,0,0,0)");
-
-        ctx!.fillStyle   = spark;
+        ctx!.fillStyle = spark;
         ctx!.shadowColor = "rgba(160, 210, 255, 0.72)";
-        ctx!.shadowBlur  = 2.5 * env;
+        ctx!.shadowBlur = 2.5 * env;
         ctx!.beginPath();
         ctx!.arc(hsx, hsy, sparkR * 2.5, 0, Math.PI * 2);
         ctx!.fill();
+
+        // Tiny scattered sparks near head
+        for (let sp = 0; sp < 3; sp++) {
+          const angle = (t * 3 + m * 2.1 + sp * 2.09) % (Math.PI * 2);
+          const dist = 1.5 + Math.sin(t * 5 + sp * 1.3) * 1.2;
+          const spx = hsx + Math.cos(angle) * dist * env;
+          const spy = hsy + Math.sin(angle) * dist * env;
+          const spAlpha = env * (0.4 + Math.sin(t * 8 + sp * 2.5) * 0.3);
+          ctx!.fillStyle = `rgba(220, 240, 255, ${spAlpha.toFixed(3)})`;
+          ctx!.shadowBlur = 0;
+          ctx!.beginPath();
+          ctx!.arc(spx, spy, 0.6 * env, 0, Math.PI * 2);
+          ctx!.fill();
+        }
 
         ctx!.restore();
       }

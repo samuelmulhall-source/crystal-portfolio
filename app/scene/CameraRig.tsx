@@ -18,8 +18,8 @@ import { workModels } from "../lib/workModels";
 import { getCamera } from "./cameraSpline";
 import { STATIONS, findActiveStation, getStationProximity } from "../lib/journeyConfig";
 
-const SPRING_K    = 8.0;
-const SPRING_DAMP = 5.5;
+const SPRING_K    = 10.0;
+const SPRING_DAMP = 7.0;
 const MAX_PARALLAX_X = 1.5;
 const MAX_PARALLAX_Y = 0.8;
 
@@ -86,6 +86,15 @@ export default function CameraRig() {
     // Target lookAt = spline lookAt
     _targetLook.copy(lookAt);
 
+    // Snap: teleport camera to target instantly (menu click jump)
+    if (voidState.snapCamera) {
+      voidState.snapCamera = false;
+      springPos.current.copy(_targetPos);
+      springVel.current.set(0, 0, 0);
+      springLook.current.copy(_targetLook);
+      springLookVel.current.set(0, 0, 0);
+    }
+
     // Spring physics on position
     const cdt = Math.min(dt, 0.05);
     const accelX = (_targetPos.x - springPos.current.x) * SPRING_K - springVel.current.x * SPRING_DAMP;
@@ -109,9 +118,9 @@ export default function CameraRig() {
     springLook.current.y += springLookVel.current.y * cdt;
     springLook.current.z += springLookVel.current.z * cdt;
 
-    // Near a station → kill spring velocity for stable viewing
-    if (maxProx > 0.5) {
-      const dampFactor = Math.pow(1 - maxProx, 2); // 0.5→0.25, 0.8→0.04, 1.0→0
+    // Near a station → aggressively kill spring velocity for locked presentation
+    if (maxProx > 0.3) {
+      const dampFactor = Math.pow(1 - maxProx, 3); // 0.3→0.34, 0.5→0.125, 0.8→0.008, 1.0→0
       springVel.current.multiplyScalar(dampFactor);
       springLookVel.current.multiplyScalar(dampFactor);
     }

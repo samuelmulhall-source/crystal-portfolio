@@ -95,10 +95,13 @@ export default function ScanLines({ station, stationIndex }: Props) {
     const op = opRef.current;
     groupRef.current.visible = op > 0.01;
 
-    // Animate dash offset (crawl effect)
+    // Animate dash offset (crawl effect) — wrap to prevent float overflow
+    const cycle = (DASH_SIZE + GAP_SIZE) * 100;
     matRefs.current.forEach((mat, i) => {
       mat.opacity = op * (i === 0 ? 1 : 0.6);
-      mat.dashOffset -= dt * 0.8;
+      const m = mat as unknown as { dashOffset: number };
+      m.dashOffset -= dt * 0.8;
+      if (m.dashOffset < -cycle) m.dashOffset += cycle;
     });
   });
 

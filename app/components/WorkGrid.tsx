@@ -16,8 +16,10 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { workModels, TextureSet, subscribePendingTab } from "../lib/workModels";
 import { voidState } from "../lib/voidState";
 import { STATIONS } from "../lib/journeyConfig";
+import { lenisInstance } from "./SmoothScroll";
 import { trackModelView, trackVideoPlay, trackImageView, trackTabSwitch, trackWireframeToggle } from "../lib/analytics";
 import { useIsMobile } from "../lib/useMediaQuery";
+import { usePortfolioData } from "../lib/usePortfolioData";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 type WorkTab = 'models' | 'videos' | 'images';
@@ -128,9 +130,9 @@ function ViewerControls({ mobile }: { mobile: boolean }) {
 
   const activeStyle: React.CSSProperties = {
     ...btnStyle,
-    borderColor: "rgba(255,160,60,0.3)",
-    color: "rgba(255,160,60,0.8)",
-    boxShadow: "0 0 8px rgba(255,160,60,0.15)",
+    borderColor: "rgba(184,240,255,0.3)",
+    color: "rgba(184,240,255,0.8)",
+    boxShadow: "0 0 8px rgba(184,240,255,0.15)",
   };
 
   return (
@@ -152,7 +154,7 @@ function ViewerControls({ mobile }: { mobile: boolean }) {
         onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(184,240,255,0.35)"; e.currentTarget.style.color = "rgba(184,240,255,0.9)"; }}
         onMouseLeave={e => {
           if (!wireframe) { e.currentTarget.style.borderColor = "rgba(184,240,255,0.1)"; e.currentTarget.style.color = "rgba(184,240,255,0.5)"; }
-          else { e.currentTarget.style.borderColor = "rgba(255,160,60,0.3)"; e.currentTarget.style.color = "rgba(255,160,60,0.8)"; }
+          else { e.currentTarget.style.borderColor = "rgba(184,240,255,0.3)"; e.currentTarget.style.color = "rgba(184,240,255,0.8)"; }
         }}
         title="Toggle wireframe [W]"
       >
@@ -166,7 +168,7 @@ function ViewerControls({ mobile }: { mobile: boolean }) {
         onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(184,240,255,0.35)"; e.currentTarget.style.color = "rgba(184,240,255,0.9)"; }}
         onMouseLeave={e => {
           if (!autoRot) { e.currentTarget.style.borderColor = "rgba(184,240,255,0.1)"; e.currentTarget.style.color = "rgba(184,240,255,0.5)"; }
-          else { e.currentTarget.style.borderColor = "rgba(255,160,60,0.3)"; e.currentTarget.style.color = "rgba(255,160,60,0.8)"; }
+          else { e.currentTarget.style.borderColor = "rgba(184,240,255,0.3)"; e.currentTarget.style.color = "rgba(184,240,255,0.8)"; }
         }}
         title="Toggle auto-rotate [R]"
       >
@@ -265,7 +267,7 @@ function FullscreenViewer({
         {/* Console label — top-left */}
         <span style={{
           ...MON, fontSize: "0.42rem", letterSpacing: "0.24em",
-          color: "rgba(255,160,60,0.4)", pointerEvents: "none",
+          color: "rgba(184,240,255,0.4)", pointerEvents: "none",
         }}>
           SPECIMEN ANALYSIS · {project.title.toUpperCase()}
         </span>
@@ -404,27 +406,39 @@ function FullscreenViewer({
 
 // ─── Video player tab ───────────────────────────────────────────────────────
 function VideosContent({ visible, isNarrow }: { visible: boolean; isNarrow?: boolean }) {
-  const [videos, setVideos]     = useState<VideoEntry[]>([]);
+  const { data: portfolioData } = usePortfolioData();
+  const videos = portfolioData.videos as VideoEntry[];
   const [activeId, setActiveId] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
+  // Set initial active video when data loads
   useEffect(() => {
-    fetch("/data.json")
-      .then(r => (r.ok ? r.json() : Promise.reject()))
-      .then((data: { videos?: VideoEntry[] }) => {
-        if (Array.isArray(data.videos) && data.videos.length > 0) {
-          setVideos(data.videos);
-          setActiveId(data.videos[0].id);
-        }
-      })
-      .catch(() => {});
-  }, []);
+    if (videos.length > 0 && activeId === null) {
+      setActiveId(videos[0].id);
+    }
+  }, [videos, activeId]);
 
   // Pause when tab is hidden; don't autoplay on tab switch
   useEffect(() => {
     if (!videoRef.current) return;
     if (!visible) videoRef.current.pause();
   }, [visible]);
+
+  // Consume pendingVideoId from HUD
+  useEffect(() => {
+    if (!visible) return;
+    const check = () => {
+      if (workModels.pendingVideoId && videos.length > 0) {
+        const id = workModels.pendingVideoId;
+        workModels.pendingVideoId = null;
+        setActiveId(id);
+        setTimeout(() => videoRef.current?.play().catch(() => {}), 80);
+      }
+    };
+    check();
+    const unsub = subscribePendingTab(check);
+    return () => { unsub(); };
+  }, [visible, videos]);
 
   const active = videos.find(v => v.id === activeId);
   const columnLayout = isNarrow;
@@ -438,12 +452,17 @@ function VideosContent({ visible, isNarrow }: { visible: boolean; isNarrow?: boo
       overflowY: columnLayout ? "hidden" : "visible",
       overflowX: columnLayout ? "auto" : "hidden",
       marginRight: columnLayout ? 0 : "2.5rem",
-      padding: columnLayout ? "0.5rem clamp(1rem, 4vw, 2rem) 0.5rem" : 0,
+      padding: columnLayout ? "0.5rem clamp(1rem, 4vw, 2rem) 0.5rem" : "0.75rem 0.5rem",
       display: "flex",
       flexDirection: columnLayout ? "row" : "column",
       gap: columnLayout ? "0.5rem" : "1.4rem",
       zIndex: 2,
       flexWrap: "nowrap",
+      ...(!columnLayout ? {
+        background: "rgba(8, 14, 32, 0.50)",
+        borderRight: "1px solid rgba(184,240,255,0.08)",
+        borderRadius: "2px",
+      } : {}),
     }}>
       {videos.map((v, i) => {
         const on = v.id === activeId;
@@ -582,20 +601,25 @@ function VideosContent({ visible, isNarrow }: { visible: boolean; isNarrow?: boo
 
 // ─── Images / gallery tab — enhanced lightbox with keyboard nav + zoom ─────
 function ImagesContent() {
-  const [images, setImages]           = useState<ImageEntry[]>([]);
+  const { data: portfolioData } = usePortfolioData();
+  const images = portfolioData.images as ImageEntry[];
   const [lightboxIdx, setLightboxIdx] = useState<number>(-1);
   const [zoomed, setZoomed]           = useState(false);
 
+  // Consume pendingImageId from HUD
   useEffect(() => {
-    fetch("/data.json")
-      .then(r => (r.ok ? r.json() : Promise.reject()))
-      .then((data: { images?: ImageEntry[] }) => {
-        if (Array.isArray(data.images) && data.images.length > 0) {
-          setImages(data.images);
-        }
-      })
-      .catch(() => {});
-  }, []);
+    const check = () => {
+      if (workModels.pendingImageId && images.length > 0) {
+        const id = workModels.pendingImageId;
+        workModels.pendingImageId = null;
+        const idx = images.findIndex(img => img.id === id);
+        if (idx >= 0) setLightboxIdx(idx);
+      }
+    };
+    check();
+    const unsub = subscribePendingTab(check);
+    return () => { unsub(); };
+  }, [images]);
 
   const openLightbox = useCallback((idx: number) => {
     setLightboxIdx(idx);
@@ -820,81 +844,12 @@ function ImagesContent() {
 // ─── Module-level constants ──────────────────────────────────────────────────
 const DEFAULT_TITLE = "Multiscatter";
 
-const TAB_LABELS: Record<WorkTab, { label: string; icon: string }> = {
-  models: { label: 'ARTIFACTS',     icon: '◇' },
-  videos: { label: 'DATA LOGS',     icon: '▶' },
-  images: { label: 'MEMORY CARDS',  icon: '▪' },
-};
-
-// ─── Shared tab strip — console styled ──────────────────────────────────────
-function WorkTabButtons({
-  activeTab,
-  onTabChange,
-}: {
-  activeTab: WorkTab;
-  onTabChange: (tab: WorkTab) => void;
-}) {
-  return (
-    <div style={{
-      display: "flex",
-      gap: 0,
-      borderBottom: "1px solid rgba(184,240,255,0.08)",
-      background: "linear-gradient(180deg, rgba(8,14,28,0.4) 0%, transparent 100%)",
-    }}>
-      {(Object.keys(TAB_LABELS) as WorkTab[]).map((tab) => {
-        const isActive = activeTab === tab;
-        return (
-          <button
-            key={tab}
-            onClick={() => onTabChange(tab)}
-            className="work-tab holo-btn"
-            style={{
-              background:   isActive ? "rgba(184,240,255,0.03)" : "none",
-              border:       "none",
-              borderBottom: isActive
-                ? "2px solid rgba(255,160,60,0.6)"
-                : "2px solid transparent",
-              marginBottom: "-1px",
-              padding:      "0.55rem 1.1rem 0.55rem",
-              cursor:       "pointer",
-              ...MON,
-              fontSize:     "clamp(0.55rem, 1.4vw, 0.64rem)",
-              letterSpacing: "0.16em",
-              color: isActive ? "rgba(255,160,60,0.85)" : "rgba(184,240,255,0.5)",
-              transition:   "color 0.25s, border-color 0.25s, background 0.25s",
-              whiteSpace:   "nowrap",
-              display: "flex",
-              alignItems: "center",
-              gap: "0.4rem",
-            }}
-            onMouseEnter={(e) => {
-              const el = e.currentTarget as HTMLButtonElement;
-              if (!isActive) {
-                el.style.color = "rgba(184,240,255,0.85)";
-                el.style.background = "rgba(184,240,255,0.02)";
-              }
-            }}
-            onMouseLeave={(e) => {
-              const el = e.currentTarget as HTMLButtonElement;
-              if (!isActive) {
-                el.style.color = "rgba(184,240,255,0.5)";
-                el.style.background = "none";
-              }
-            }}
-          >
-            <span style={{ fontSize: "0.5rem", opacity: 0.7 }}>{TAB_LABELS[tab].icon}</span>
-            {TAB_LABELS[tab].label}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
+// TAB_LABELS + WorkTabButtons removed — WeaponHUD is the sole tab navigation
 
 // ─── Fallback: minimal shell to avoid layout shift during Suspense ──────────
 function WorkGridFallback() {
   return (
-    <section id="work" style={{ position: "relative", height: "100vh", overflow: "hidden", background: "transparent" }} />
+    <section aria-hidden style={{ position: "relative", height: "100vh", overflow: "hidden", background: "transparent" }} />
   );
 }
 
@@ -902,7 +857,7 @@ function WorkGridFallback() {
 function WorkGridContent() {
   const sectionRef   = useRef<HTMLElement>(null);
   const dragZoneRef  = useRef<HTMLDivElement>(null);
-  const headerRef    = useRef<HTMLDivElement>(null);
+  // headerRef removed — WeaponHUD replaced the old header panel
   const modelListRef = useRef<HTMLDivElement>(null);
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -926,21 +881,7 @@ function WorkGridContent() {
   useEffect(() => { activeTabRef.current = activeTab; }, [activeTab]);
 
   // ── Camera-reference parallax on work header ──────────────────────────────
-  useEffect(() => {
-    if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
-    let raf: number;
-    let hx = 0, hy = 0;
-    const tick = () => {
-      raf = requestAnimationFrame(tick);
-      hx += (voidState.mouseNX * 2.8 - hx) * 0.038;
-      hy += (voidState.mouseNY * 1.6 - hy) * 0.038;
-      if (headerRef.current) {
-        headerRef.current.style.transform = `translate(${hx.toFixed(2)}px, ${hy.toFixed(2)}px)`;
-      }
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, []);
+  // Header parallax removed — WeaponHUD replaced the old header panel
 
   // ── Deep link: open viewer from ?model=slug (e.g. ?model=torch) ─────────────
   // (viewer omitted from deps so closing with setViewer(null) doesn't re-run and re-open)
@@ -1001,10 +942,13 @@ function WorkGridContent() {
     // the model — don't force it here, so it only shows when section is in view.
   }, [activeTab]);
 
-  // ── Load models (static data.json first for static export, else API) ───────
+  // ── Load models from shared data cache ──────────────────────────────────────
+  const { data: portfolioData, loading: dataLoading } = usePortfolioData();
   useEffect(() => {
     gsap.registerPlugin(ScrollTrigger);
-    const applyModels = (models: Array<{ path: string; title: string; category: string; year: string; description?: string; textures?: TextureSet; thumbnail?: string }>) => {
+    if (dataLoading) return;
+    const models = portfolioData.models;
+    if (models.length > 0) {
       setProjects(models.map((m, i) => ({
         id:        `proj-${i}`,
         title:     m.title,
@@ -1016,18 +960,10 @@ function WorkGridContent() {
         thumbnail:   m.thumbnail,
       })));
       setLoading(false);
-    };
-    fetch("/data.json")
-      .then(r => (r.ok ? r.json() : Promise.reject()))
-      .then((data: { models?: Array<{ path: string; title: string; category: string; year: string; description?: string; textures?: TextureSet; thumbnail?: string }> }) => {
-        if (Array.isArray(data.models) && data.models.length > 0) {
-          applyModels(data.models);
-        } else {
-          setLoading(false);
-        }
-      })
-      .catch(() => setLoading(false));
-  }, []);
+    } else {
+      setLoading(false);
+    }
+  }, [portfolioData, dataLoading]);
 
   // ── Register models + IntersectionObserver ────────────────────────────────
   useEffect(() => {
@@ -1101,9 +1037,14 @@ function WorkGridContent() {
     // Scroll camera to this model's weapon station
     const station = STATIONS.find(s => s.modelId === id);
     if (station) {
-      const mid = (station.scrollStart + station.scrollEnd) / 2;
       const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
-      window.scrollTo({ top: mid * maxScroll, behavior: "smooth" });
+      const target = station.scrollViewCenter * maxScroll;
+      voidState.snapCamera = true;
+      if (lenisInstance) {
+        lenisInstance.scrollTo(target, { immediate: true });
+      } else {
+        window.scrollTo(0, target);
+      }
     }
   };
 
@@ -1164,9 +1105,10 @@ function WorkGridContent() {
         height: "100vh",
         overflow: "hidden",
         background: "transparent",
-        // Hidden: data source for WeaponStations, UI not needed
-        opacity: 0,
-        pointerEvents: "none",
+        // Models tab: hidden (3D canvas renders models via WeaponStations).
+        // Videos/Images tabs: visible so HTML data-frames can be seen.
+        opacity:       activeTab !== 'models' ? 1 : 0,
+        pointerEvents: activeTab !== 'models' ? "auto" : "none",
       }}
     >
       {/* ── Drag zone (only active on models tab) ── */}
@@ -1207,62 +1149,7 @@ function WorkGridContent() {
         </div>
       ))}
 
-      {/* ── Header (top-left) — glass panel, anchors to screen when section fills viewport ── */}
-      <div
-        ref={headerRef}
-        style={{
-          position:      "fixed",
-          top:           "clamp(80px, 12vh, 110px)",
-          left:          "clamp(1rem, 4vw, 2.5rem)",
-          zIndex:        4,
-          pointerEvents: inWorkView ? "auto" : "none",
-          opacity:       inWorkView ? 1 : 0,
-          transform:     inWorkView ? "translateY(0)" : "translateY(-14px)",
-          transition:    "opacity 0.45s cubic-bezier(0.22,1,0.36,1), transform 0.45s cubic-bezier(0.22,1,0.36,1)",
-          padding:       isNarrow ? "0.6rem 0" : "0.8rem 0",
-        }}
-      >
-        {/* Console-styled section label */}
-        <div style={{
-          display: "flex", alignItems: "center", gap: "0.75rem",
-          marginBottom: "0.45rem",
-        }}>
-          <span style={{
-            fontFamily: "var(--font-geist-mono), monospace",
-            fontSize: "0.42rem", letterSpacing: "0.24em", textTransform: "uppercase",
-            color: "rgba(255,160,60,0.45)",
-          }}>
-            RECOVERED DATA
-          </span>
-          <span style={{
-            flex: 1, height: "1px",
-            background: "linear-gradient(90deg, rgba(255,160,60,0.15), transparent 60%)",
-          }} />
-        </div>
-        <p className="label" style={{ marginBottom: isNarrow ? "0.5rem" : "1.0rem", opacity: 0.85 }}>01 — Work</p>
-
-        {/* Tab strip: desktop only here; mobile shows tabs at bottom */}
-        {!isNarrow && (
-          <WorkTabButtons activeTab={activeTab} onTabChange={(t) => { setActiveTab(t); trackTabSwitch(t); }} />
-        )}
-      </div>
-
-      {/* Mobile: tabs anchored at very bottom */}
-      {isNarrow && (
-        <div style={{
-          position:      "fixed",
-          bottom:        "clamp(0.6rem, 2.5vh, 1.25rem)",
-          left:          "clamp(1rem, 4vw, 2.5rem)",
-          right:         "clamp(1rem, 4vw, 2.5rem)",
-          zIndex:        4,
-          pointerEvents: inWorkView ? "auto" : "none",
-          opacity:       inWorkView ? 1 : 0,
-          transform:     inWorkView ? "translateY(0)" : "translateY(18px)",
-          transition:    "opacity 0.45s cubic-bezier(0.22,1,0.36,1), transform 0.45s cubic-bezier(0.22,1,0.36,1)",
-        }}>
-          <WorkTabButtons activeTab={activeTab} onTabChange={(t) => { setActiveTab(t); trackTabSwitch(t); }} />
-        </div>
-      )}
+      {/* ── Header + tab strip removed — WeaponHUD is the sole navigation element ── */}
 
       {/* ── Models tab content ── */}
       {activeTab === 'models' && (
@@ -1457,7 +1344,7 @@ function WorkGridContent() {
       {/* ── Videos tab content — always mounted, opacity-toggled for smooth transition ── */}
       <div
         className="data-frame"
-        data-label="▶ RECOVERED DATA LOGS"
+        data-label="▶ VIDEOS"
         style={{
           position: "absolute",
           top: "clamp(155px, 22vh, 195px)",
@@ -1477,7 +1364,7 @@ function WorkGridContent() {
       {/* ── Images tab content — always mounted, opacity-toggled ── */}
       <div
         className="data-frame"
-        data-label="▪ MEMORY CARD ARCHIVE"
+        data-label="▪ IMAGES"
         style={{
           position: "absolute",
           top: "clamp(155px, 22vh, 195px)",

@@ -3,9 +3,9 @@
 /**
  * LoadingTerminal — premium console boot sequence.
  *
- * PS2/GameCube system menu aesthetic: monospace readout with warm orange
- * accent on the system ID, ice-blue diagnostic lines, subtle CRT scanlines,
- * and a metallic progress bar. Fades out once scene is ready.
+ * Cold void aesthetic: monospace readout with ice-blue accent on the
+ * system ID, diagnostic lines, subtle CRT scanlines, and a metallic
+ * progress bar. Fades out once scene is ready.
  *
  * Uses voidState.firstModelReady with 8s safety timeout.
  */
@@ -112,14 +112,14 @@ export default function LoadingTerminal() {
           <span style={{
             fontSize: "0.5rem",
             letterSpacing: "0.28em",
-            color: "rgba(255,160,60,0.6)",
+            color: "rgba(184,240,255,0.6)",
           }}>
             ε-9 RECOVERY CONSOLE
           </span>
           <span style={{
             flex: 1,
             height: "1px",
-            background: "linear-gradient(90deg, rgba(255,160,60,0.2), transparent)",
+            background: "linear-gradient(90deg, rgba(184,240,255,0.2), transparent)",
           }} />
           <span style={{
             fontSize: "0.42rem",
@@ -197,7 +197,7 @@ export default function LoadingTerminal() {
             height: "100%",
             background: isComplete
               ? "linear-gradient(90deg, rgba(120,255,160,0.5), rgba(120,255,160,0.2))"
-              : "linear-gradient(90deg, rgba(255,160,60,0.6), rgba(184,240,255,0.4), rgba(184,240,255,0.15))",
+              : "linear-gradient(90deg, rgba(184,240,255,0.6), rgba(184,240,255,0.4), rgba(184,240,255,0.15))",
             width: `${progress}%`,
             transition: "width 0.35s ease-out, background 0.5s ease",
           }} />
@@ -212,7 +212,7 @@ export default function LoadingTerminal() {
           letterSpacing: "0.2em",
           color: "rgba(184,240,255,0.2)",
         }}>
-          <span>SHATTERED NEBULA</span>
+          <span>MULTISCATTER</span>
           <span>{Math.round(progress)}%</span>
         </div>
       </div>

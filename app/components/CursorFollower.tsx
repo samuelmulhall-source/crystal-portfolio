@@ -143,8 +143,8 @@ export default function CursorFollower() {
       // Saturation lerps: 0 (white at rest) → 100 (full spectrum on hover)
       holoSat += ((hovering ? 100 : 0) - holoSat) * Math.min(0.14 * f, 1);
 
-      if (holoStops.length >= 5) {
-        // Faster sweep (100°/s) + stronger shimmer wobble = clearly visible iridescence
+      if (holoStops.length >= 5 && holoSat > 0.3) {
+        // Skip gradient updates when at rest (sat ≈ 0 = pure white, no visible change)
         const phase = t * 100 + Math.sin(t * 2.3) * 22;
         const sat   = holoSat;                     // 0% → 100% full saturation
         const lgt   = 100 - (holoSat / 100) * 38; // 100% (white) → 62% (vivid spectral)
@@ -171,9 +171,8 @@ export default function CursorFollower() {
         }
       }
 
-      // Drag overrides model hover
+      // Drag overrides model hover — velocity tilt ±18°
       if (isDragging) {
-        dragVX += 0; // keep drag vel live
         tRotX = Math.max(-18, Math.min(18, -dragVY * 0.05));
         tRotY = Math.max(-18, Math.min(18,  dragVX * 0.05));
       } else {

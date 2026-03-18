@@ -34,8 +34,6 @@ export interface TextureSet {
   normalMap?:       string;
   roughnessMap?:    string;
   metalnessMap?:    string;
-  transmissionMap?: string;
-  alphaMap?:        string;
 }
 
 export interface WorkModelEntry {
@@ -76,6 +74,10 @@ export const workModels = {
   pendingTab: null as 'models' | 'videos' | 'images' | null,
   /** When set, expanded view reuses VoidBackground — no new canvas/model. */
   expandedModelId: null as string | null,
+  /** Set by WeaponHUD to request a specific video; WorkGrid reads + clears it. */
+  pendingVideoId: null as string | null,
+  /** Set by WeaponHUD to request a specific image; WorkGrid reads + clears it. */
+  pendingImageId: null as string | null,
 
   /** Set expandedModelId and notify subscribers (avoids setInterval polling). */
   setExpandedModelId(id: string | null) {
@@ -96,5 +98,7 @@ export const workModels = {
     this.activeModelId = null;
     this.pendingTab = null;
     this.expandedModelId = null;
+    this.pendingVideoId = null;
+    this.pendingImageId = null;
   },
 };

@@ -80,7 +80,7 @@ export default function WeaponStation({ station, entry }: Props) {
     box.getSize(size);
     box.getCenter(center);
     const maxDim = Math.max(size.x, size.y, size.z);
-    const ns     = maxDim > 0 ? 3.2 / maxDim : 1;
+    const ns     = maxDim > 0 ? 2.2 / maxDim : 1;
     return { normScale: ns, centreOffset: center.clone().negate().multiplyScalar(ns) };
   }, [scene]);
 
@@ -148,14 +148,14 @@ export default function WeaponStation({ station, entry }: Props) {
           const tex = await loader.loadAsync(task.url);
           if (cancelled) { tex.dispose(); return null; }
           textures.push(tex);
-          return task;
+          return { task, tex };
         } catch { return null; }
       })
     ).then((results) => {
       if (cancelled) return;
       // Apply all textures in a single batch via requestIdleCallback
       const applyBatch = () => {
-        results.forEach(task => { if (task) task.apply(textures[results.indexOf(task)]!); });
+        results.forEach(r => { if (r) r.task.apply(r.tex); });
         // Single needsUpdate call per material (triggers one shader recompile)
         allMats.current.forEach(m => { if (m) m.needsUpdate = true; });
       };
@@ -246,10 +246,8 @@ export default function WeaponStation({ station, entry }: Props) {
                        workModels.expandedModelId === station.id;
     const isNearCamera = proximity > 0.1 || isExpanded;
 
-    // Dim weapons when in media mode (videos/images)
-    const mediaDim = voidState.mediaMode !== "models" ? 0.12 : 1;
     // Gate on shaderReady — don't show model until GPU shaders are compiled
-    const opTarget = (isNearCamera && shaderReady) ? mediaDim : 0;
+    const opTarget = (isNearCamera && shaderReady) ? 1 : 0;
     opacityRef.current += (opTarget - opacityRef.current) * Math.min(dt * 2.5, 1);
 
     // Reset entrance when fully faded
@@ -281,7 +279,6 @@ export default function WeaponStation({ station, entry }: Props) {
     // Write model opacity for loading animation
     if (voidState.activeStationIndex >= 0 && STATIONS_IDS[voidState.activeStationIndex] === station.id) {
       voidState.modelOpacity = op;
-      voidState.modelEntranceProgress = entranceRef.current;
       workModels.activeModelId = entry.id;
     }
 

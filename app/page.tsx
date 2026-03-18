@@ -2,10 +2,7 @@ import { Suspense } from "react";
 import VoidBackground    from "./components/VoidBackground";
 import CrystalCorridor   from "./components/CrystalCorridor";
 import EffectsOverlay    from "./components/EffectsOverlay";
-import LensOverlay       from "./components/LensOverlay";
-import CRTOverlay        from "./components/CRTOverlay";
 import LoadingTerminal   from "./components/LoadingTerminal";
-import CosmicLoader      from "./components/CosmicLoader";
 import CursorFollower    from "./components/CursorFollower";
 import HUDCorners        from "./components/HUDCorners";
 import Hero              from "./components/Hero";
@@ -13,9 +10,7 @@ import WorkGrid          from "./components/WorkGrid";
 import AboutContact      from "./components/AboutContact";
 import Nav               from "./components/Nav";
 import WeaponHUD         from "./components/WeaponHUD";
-import AudioController   from "./components/AudioController";
 import ScrollTracker     from "./components/ScrollTracker";
-import FPSCounter        from "./components/FPSCounter";
 import { STATIONS, TOTAL_SCROLL_VH } from "./lib/journeyConfig";
 
 export default function Home() {
@@ -25,13 +20,9 @@ export default function Home() {
       <a href="#work" className="skip-link">Skip to content</a>
 
       <LoadingTerminal />
-      <AudioController />
       <CursorFollower />
       <HUDCorners />
-      <FPSCounter />
-      <LensOverlay />
-      <CRTOverlay />
-      <Suspense fallback={<CosmicLoader />}>
+      <Suspense fallback={<div style={{ position: "fixed", inset: 0, zIndex: 0, background: "#000005" }} />}>
         <VoidBackground />
       </Suspense>
       <EffectsOverlay />
@@ -67,7 +58,7 @@ export default function Home() {
         <div style={{ height: "60vh", background: "transparent", pointerEvents: "none" }} />
 
         {/* Work section — data source for model entries (needed for WeaponStations) */}
-        <Suspense fallback={<CosmicLoader />}>
+        <Suspense fallback={<div style={{ minHeight: "50vh", background: "transparent" }} />}>
           <WorkGrid />
         </Suspense>
         <AboutContact />

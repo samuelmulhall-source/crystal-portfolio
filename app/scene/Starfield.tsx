@@ -121,19 +121,20 @@ export function StarLayer({
   // Recycling state
   const recycleOffset = useRef(0);
   const lastCamPos = useRef(new THREE.Vector3());
+  const isFirstFrame = useRef(true);
 
-  useFrame((s) => {
+  useFrame((s, frameDt) => {
     if (!pointsRef.current) return;
-    const dt = s.clock.getDelta() || 0.016;
+    const dt = frameDt || 0.016;
     const scrollBoost = 1 + Math.min(Math.abs(voidState.scrollVel) * 4, 3);
 
     // Accumulate rotation — applied in shader, NOT on the group transform.
-    // This keeps geometry positions stable in world space for recycling.
     rotY.current += dt * cfg.rotSpd * scrollBoost;
     rotX.current += dt * cfg.rotSpd * 0.32 * scrollBoost;
 
-    const dim = 1 - voidState.scrollProgress * 0.12;
-    mat.uniforms.uOpacity.value = 0.90 * dim;
+    // Minimal scroll dimming
+    const dim = 1 - voidState.scrollProgress * 0.04;
+    mat.uniforms.uOpacity.value = 0.92 * dim;
     mat.uniforms.uSize.value    = cfg.size;
     mat.uniforms.uVH.value = (s.gl.domElement).height * 0.5;
     mat.uniforms.uTime.value = s.clock.elapsedTime;
@@ -143,32 +144,70 @@ export function StarLayer({
     voidState.starRotY[li] = rotY.current;
     voidState.starRotX[li] = rotX.current;
 
-    // Dynamic star recycling — world space (group has no rotation)
     const cam = s.camera.position;
     const { isMobile } = ctx;
     const posAttr = pointsRef.current.geometry.getAttribute("position") as THREE.BufferAttribute;
     const posArr = posAttr.array as Float32Array;
-    const maxDist = cfg.rMax * 1.3;
+
+    // Pre-compute cube of radii for volume-corrected distribution
+    const rMin3 = cfg.rMin * cfg.rMin * cfg.rMin;
+    const rRange3 = cfg.rMax * cfg.rMax * cfg.rMax - rMin3;
+
+    // ── Inverse-rotated camera position ────────────────────────────────────
+    // The vertex shader rotates buffer positions by (rotY, rotX) around the
+    // origin before projecting. For recycling to match visual positions, we
+    // need the camera position in "buffer space" — i.e., where the camera
+    // sits before the shader rotation is applied. We compute this by applying
+    // the INVERSE rotation (−rotX then −rotY) to the camera position.
+    const cyR = Math.cos(-rotY.current), syR = Math.sin(-rotY.current);
+    const cxR = Math.cos(-rotX.current), sxR = Math.sin(-rotX.current);
+    // Inverse X rotation (undo shader's X rotation)
+    let irx = cam.x;
+    let iry = cxR * cam.y - sxR * cam.z;
+    let irz = sxR * cam.y + cxR * cam.z;
+    // Inverse Y rotation (undo shader's Y rotation)
+    const cx = cyR * irx + syR * irz;
+    const cy2 = iry;
+    const cz = -syR * irx + cyR * irz;
+
+    // ── (A) First-frame pre-warm: redistribute ALL stars around camera ──────
+    if (isFirstFrame.current) {
+      isFirstFrame.current = false;
+      for (let i = 0; i < cfg.count; i++) {
+        const ix = i * 3, iy = i * 3 + 1, iz = i * 3 + 2;
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos(2 * Math.random() - 1);
+        const r = Math.cbrt(rMin3 + Math.random() * rRange3);
+        posArr[ix] = cx + r * Math.sin(phi) * Math.cos(theta);
+        posArr[iy] = cy2 + r * Math.sin(phi) * Math.sin(theta);
+        posArr[iz] = cz + r * Math.cos(phi);
+      }
+      posAttr.needsUpdate = true;
+      lastCamPos.current.set(cx, cy2, cz);
+      return;
+    }
+
+    // ── Dynamic star recycling ──────────────────────────────────────────────
+    const maxDist = cfg.rMax * 1.1;
     const maxDist2 = maxDist * maxDist;
     let dirty = false;
 
-    // Camera position — local = world since group has no transform
-    const cx = cam.x, cy2 = cam.y, cz = cam.z;
-
-    // Adaptive budget: increase when many stars need recycling (fast scroll)
-    // Normal: 300/frame. After large camera jump: process all stars immediately.
-    const camDelta = lastCamPos.current.distanceToSquared(cam);
-    lastCamPos.current.copy(cam);
-    const bigJump = camDelta > 100; // camera moved >10 units since last frame
-    const BUDGET = bigJump ? cfg.count : (isMobile ? 150 : 300);
+    // Urgency-based budget: scales with camera speed
+    const camDelta = (cx - lastCamPos.current.x) ** 2 +
+                     (cy2 - lastCamPos.current.y) ** 2 +
+                     (cz - lastCamPos.current.z) ** 2;
+    lastCamPos.current.set(cx, cy2, cz);
+    const camDist = Math.sqrt(camDelta);
+    const urgency = Math.min(camDist / 2, 3);
+    const BUDGET = Math.round(
+      (isMobile ? 150 : 300) * (1 + urgency * 2),
+    );
 
     const start = recycleOffset.current;
     const end = Math.min(start + BUDGET, cfg.count);
     recycleOffset.current = end >= cfg.count ? 0 : end;
 
-    // Pre-compute cube of radii for volume-corrected distribution
-    const rMin3 = cfg.rMin * cfg.rMin * cfg.rMin;
-    const rRange3 = cfg.rMax * cfg.rMax * cfg.rMax - rMin3;
+    const behindThresh = cfg.rMax * 0.3;
 
     for (let i = start; i < end; i++) {
       const ix = i * 3, iy = i * 3 + 1, iz = i * 3 + 2;
@@ -180,11 +219,14 @@ export function StarLayer({
       if (dist2 > maxDist2) {
         const theta = Math.random() * Math.PI * 2;
         const phi = Math.acos(2 * Math.random() - 1);
-        // Volume-corrected radius: uniform density in spherical shell
         const r = Math.cbrt(rMin3 + Math.random() * rRange3);
-        posArr[ix] = cx + r * Math.sin(phi) * Math.cos(theta);
-        posArr[iy] = cy2 + r * Math.sin(phi) * Math.sin(theta);
-        posArr[iz] = cz + r * Math.cos(phi);
+        const sx = r * Math.sin(phi) * Math.cos(theta);
+        const sy = r * Math.sin(phi) * Math.sin(theta);
+        let sz = r * Math.cos(phi);
+        if (sz > behindThresh) sz = -sz;
+        posArr[ix] = cx + sx;
+        posArr[iy] = cy2 + sy;
+        posArr[iz] = cz + sz;
         dirty = true;
       }
     }

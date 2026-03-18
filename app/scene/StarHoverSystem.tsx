@@ -73,8 +73,8 @@ export default function StarHoverSystem({
 
     // Expensive star scan — skip when mouse idle and not on scan frame
     if (!skipScan) {
-      const NDC_GLOW  = 0.060;
-      const NDC_LINE  = 0.120;
+      const NDC_GLOW  = 0.040;
+      const NDC_LINE  = 0.080;
       const camX  = camera.position.x, camY = camera.position.y, camZ = camera.position.z;
       const MIN_D2 = 5 * 5;
 
@@ -163,7 +163,7 @@ export default function StarHoverSystem({
     }
 
     slots.forEach((s, i) => {
-      const maxEase = i < GLOW_POOL ? 1.0 : 0.28;
+      const maxEase = i < GLOW_POOL ? 0.45 : 0.15;
       s.ease += ((s.active ? maxEase : 0) - s.ease) * lerpK;
 
       if (s.ease > 0.01 && s.layerIdx >= 0 && s.starIdx >= 0) {

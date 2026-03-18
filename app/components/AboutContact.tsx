@@ -1,5 +1,14 @@
 "use client";
 
+/**
+ * AboutContact — Terminal destination of the journey.
+ *
+ * Styled as the final chamber: a contained terminal panel that feels like
+ * arriving at the deepest point of the void, not a conventional footer.
+ * The section fades in from the starfield with a gradient mask and uses
+ * the same monospace + ice-blue language as the rest of the experience.
+ */
+
 import { useEffect, useRef, useState } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -12,58 +21,22 @@ const SKILLS_3D = [
 
 export default function AboutContact() {
   const sectionRef = useRef<HTMLElement>(null);
-  const gridRef    = useRef<HTMLDivElement>(null);
   const [sent, setSent]   = useState(false);
   const [form, setForm]   = useState({ name: "", email: "", message: "" });
-
-  // ── 3D perspective tilt on the grid ──────────────────────────────────────
-  useEffect(() => {
-    const grid = gridRef.current;
-    if (!grid) return;
-    // Only on desktop
-    if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
-
-    let tx = 0, ty = 0;
-    let mx = 0, my = 0;
-    let raf: number;
-
-    const onMove = (e: MouseEvent) => {
-      const rect = grid.getBoundingClientRect();
-      const cx = rect.left + rect.width  / 2;
-      const cy = rect.top  + rect.height / 2;
-      mx = ((e.clientY - cy) / window.innerHeight) * -1.5;
-      my = ((e.clientX - cx) / window.innerWidth)  *  1.5;
-    };
-
-    const tick = () => {
-      raf = requestAnimationFrame(tick);
-      tx += (mx - tx) * 0.055;
-      ty += (my - ty) * 0.055;
-      grid.style.transform = `perspective(1800px) rotateX(${tx.toFixed(3)}deg) rotateY(${ty.toFixed(3)}deg)`;
-    };
-
-    window.addEventListener("mousemove", onMove, { passive: true });
-    raf = requestAnimationFrame(tick);
-    return () => {
-      cancelAnimationFrame(raf);
-      window.removeEventListener("mousemove", onMove);
-    };
-  }, []);
 
   useEffect(() => {
     gsap.registerPlugin(ScrollTrigger);
 
-    // Animate individual content elements — section itself always has opaque background
     sectionRef.current?.querySelectorAll(".reveal").forEach((el, i) => {
       gsap.fromTo(el,
-        { opacity: 0, y: 28 },
+        { opacity: 0, y: 24 },
         {
           opacity: 1, y: 0,
-          duration: 0.92, ease: "power2.out",
-          delay: i * 0.045,
+          duration: 0.85, ease: "power2.out",
+          delay: i * 0.04,
           scrollTrigger: {
             trigger: el,
-            start: "top 88%",
+            start: "top 90%",
             toggleActions: "play none none reverse",
           },
         }
@@ -83,70 +56,95 @@ export default function AboutContact() {
     <section
       id="about"
       ref={sectionRef}
-      className="section-panel"
-      style={{ position: "relative", zIndex: 2, background: "#05070f", padding: "8rem 0 0" }}
+      style={{
+        position: "relative",
+        zIndex: 2,
+        // Fade from transparent starfield into solid void
+        background: "linear-gradient(180deg, rgba(5,7,15,0) 0%, rgba(5,7,15,0.7) 6%, rgba(5,7,15,0.95) 14%, #05070f 28%)",
+        padding: "6rem 0 0",
+      }}
     >
-      <div style={{ maxWidth: "1060px", margin: "0 auto", padding: "0 2.5rem 9rem" }}>
+      {/* Terminal container — the "final chamber" */}
+      <div style={{
+        maxWidth: "960px",
+        margin: "0 auto",
+        padding: "0 2rem 6rem",
+      }}>
 
-        {/* Console-styled section header */}
-        <div className="reveal" style={{ marginBottom: "3.5rem" }}>
-          <div style={{
-            display: "flex", alignItems: "center", gap: "0.75rem",
-            marginBottom: "0.6rem",
+        {/* Terminal header bar */}
+        <div className="reveal" style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "0.75rem",
+          marginBottom: "2.5rem",
+          paddingBottom: "0.6rem",
+          borderBottom: "1px solid rgba(184,240,255,0.08)",
+        }}>
+          <span style={{
+            width: "6px", height: "6px",
+            borderRadius: "50%",
+            background: "rgba(184,240,255,0.5)",
+            boxShadow: "0 0 8px rgba(184,240,255,0.3)",
+            flexShrink: 0,
+          }} />
+          <span style={{
+            fontFamily: "var(--font-geist-mono), monospace",
+            fontSize: "0.44rem",
+            letterSpacing: "0.3em",
+            textTransform: "uppercase",
+            color: "rgba(184,240,255,0.4)",
           }}>
-            <span style={{
-              fontFamily: "var(--font-geist-mono), monospace",
-              fontSize: "0.42rem", letterSpacing: "0.24em", textTransform: "uppercase",
-              color: "rgba(255,160,60,0.45)",
-            }}>
-              TERMINAL ACCESS
-            </span>
-            <span style={{
-              flex: 1, height: "1px",
-              background: "linear-gradient(90deg, rgba(255,160,60,0.15), transparent 60%)",
-            }} />
-          </div>
-          <p className="label" style={{ margin: 0 }}>02 — About & Contact</p>
+            END OF LINE — TERMINAL ACCESS
+          </span>
+          <span style={{
+            flex: 1, height: "1px",
+            background: "linear-gradient(90deg, rgba(184,240,255,0.12), transparent 70%)",
+          }} />
         </div>
 
-        {/* ── Two-column unified layout ─────────────────────────────────── */}
-        <div
-          ref={gridRef}
-          className="ac-grid"
-          style={{
-            display:             "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap:                 "5.5rem",
-            alignItems:          "start",
-            transformStyle:      "preserve-3d",
-            willChange:          "transform",
-          }}
-        >
+        {/* ── Two-column layout ── */}
+        <div className="ac-grid" style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: "4rem",
+          alignItems: "start",
+        }}>
 
-          {/* ── Left: bio ─────────────────────────────────────────────── */}
+          {/* Left: identity */}
           <div>
-            <h2 className="heading-lg reveal" style={{ marginBottom: "2.4rem" }}>
+            <h2 className="heading-lg reveal" style={{ marginBottom: "2rem" }}>
               The detail is
               <br />
               the work.
             </h2>
 
-            <div style={{ borderLeft: "1px solid rgba(184,240,255,0.10)", paddingLeft: "1.4rem" }}>
+            <div style={{
+              borderLeft: "1px solid rgba(184,240,255,0.08)",
+              paddingLeft: "1.2rem",
+            }}>
               <p className="reveal" style={{
-                color: "var(--text-secondary)", lineHeight: 2.0, fontWeight: 400,
-                fontSize: "clamp(0.9rem, 1.2vw, 0.95rem)", marginBottom: "1.35rem",
+                color: "var(--text-secondary)", lineHeight: 1.9, fontWeight: 400,
+                fontSize: "clamp(0.88rem, 1.15vw, 0.94rem)", marginBottom: "1.2rem",
               }}>
                 Working across the full production pipeline since 2020. I build
                 everything from detailed environments and animated intros to icons
                 and experimental projects.
               </p>
               <p className="reveal" style={{
-                color: "var(--text-secondary)", lineHeight: 2.0, fontWeight: 400,
-                fontSize: "clamp(0.9rem, 1.2vw, 0.95rem)", marginBottom: "2.75rem",
+                color: "var(--text-secondary)", lineHeight: 1.9, fontWeight: 400,
+                fontSize: "clamp(0.88rem, 1.15vw, 0.94rem)", marginBottom: "2.2rem",
               }}>
                 While Blender is my primary hub, I&apos;m results-oriented and will
                 use any software or technique required to hit the right look.
               </p>
+            </div>
+
+            {/* Toolset */}
+            <div className="reveal" style={{ marginBottom: "1.8rem" }}>
+              <p className="label" style={{ marginBottom: "0.7rem" }}>Toolset</p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.38rem" }}>
+                {SKILLS_3D.map(s => <span key={s} className="skill-tag">{s}</span>)}
+              </div>
             </div>
 
             <a
@@ -159,125 +157,145 @@ export default function AboutContact() {
             </a>
           </div>
 
-          {/* ── Right: toolset + contact ──────────────────────────────── */}
-          {/* id="contact" here so the nav Contact link scrolls to this column */}
+          {/* Right: contact terminal */}
           <div id="contact">
-
-            {/* Toolset */}
-            <div style={{ marginBottom: "3rem" }}>
-              <p className="label reveal" style={{ marginBottom: "0.9rem" }}>3D Toolset</p>
-              <div className="reveal" style={{ display: "flex", flexWrap: "wrap", gap: "0.42rem", marginBottom: "2rem" }}>
-                {SKILLS_3D.map(s => <span key={s} className="skill-tag">{s}</span>)}
-              </div>
-              <div
-                className="reveal"
-                style={{ borderLeft: "1px solid rgba(184,240,255,0.10)", paddingLeft: "1.2rem" }}
-              >
-                <p className="label" style={{ marginBottom: "0.5rem" }}>Available for</p>
-                <p style={{ color: "var(--text-secondary)", fontSize: "clamp(0.85rem, 1.1vw, 0.9rem)", lineHeight: 1.75, margin: 0 }}>
-                  Commissions, collaborations, discussions, and experiments welcome.
-                </p>
-              </div>
-            </div>
-
-            {/* Divider */}
-            <div className="void-divider reveal" style={{ marginBottom: "2.5rem" }} />
-
-            {/* Contact form */}
-            <div className="reveal" style={{ marginBottom: "1.6rem" }}>
-              <a
-                href="https://x.com/multiscatter"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="void-btn"
-              >
-                ↗ DM on X — @multiscatter
-              </a>
-            </div>
-
-            {sent ? (
+            <div className="reveal" style={{
+              background: "linear-gradient(145deg, rgba(8,14,32,0.6) 0%, rgba(4,8,20,0.75) 100%)",
+              border: "1px solid rgba(184,240,255,0.06)",
+              borderRadius: "4px",
+              padding: "1.8rem",
+              backdropFilter: "blur(12px)",
+              WebkitBackdropFilter: "blur(12px)",
+              boxShadow: "inset 0 1px 0 rgba(255,255,255,0.04), 0 8px 32px rgba(0,0,12,0.4)",
+            }}>
+              {/* Terminal prompt header */}
               <div style={{
-                padding: "1.6rem", marginTop: "1.2rem",
-                border: "1px solid rgba(184,240,255,0.14)", borderRadius: "2px",
-                textAlign: "center", background: "rgba(184,240,255,0.025)",
+                display: "flex", alignItems: "center", gap: "0.5rem",
+                marginBottom: "1.4rem",
+                paddingBottom: "0.6rem",
+                borderBottom: "1px solid rgba(184,240,255,0.05)",
               }}>
-                <span className="label" style={{ color: "var(--ice)", letterSpacing: "0.28em", display: "block", marginBottom: "0.6rem" }}>
-                  Your email client should have opened.
-                </span>
-                <span style={{ fontFamily: "var(--font-geist-mono), monospace", fontSize: "0.6rem", letterSpacing: "0.18em", color: "rgba(184,240,255,0.45)" }}>
-                  Alternatively, DM @multiscatter on X.
+                <span style={{
+                  fontFamily: "var(--font-geist-mono), monospace",
+                  fontSize: "0.44rem",
+                  letterSpacing: "0.2em",
+                  color: "rgba(184,240,255,0.45)",
+                  textTransform: "uppercase",
+                }}>
+                  TRANSMIT MESSAGE
                 </span>
               </div>
-            ) : (
-              <form
-                onSubmit={handleSubmit}
-                className="reveal"
-                style={{ display: "flex", flexDirection: "column", gap: "0.8rem", marginTop: "1.2rem" }}
-              >
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.8rem" }}>
-                  <input
-                    required type="text" placeholder="Name"
-                    value={form.name}
-                    onChange={e => setForm({ ...form, name: e.target.value })}
-                    className="void-input"
-                  />
-                  <input
-                    required type="email" placeholder="Email"
-                    value={form.email}
-                    onChange={e => setForm({ ...form, email: e.target.value })}
-                    className="void-input"
-                  />
+
+              <p style={{
+                color: "var(--text-secondary)",
+                fontSize: "clamp(0.82rem, 1vw, 0.88rem)",
+                lineHeight: 1.7,
+                marginBottom: "1.4rem",
+              }}>
+                Commissions, collaborations, discussions, and experiments welcome.
+              </p>
+
+              <div style={{ marginBottom: "1.2rem" }}>
+                <a
+                  href="https://x.com/multiscatter"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="void-btn"
+                  style={{ fontSize: "0.72rem" }}
+                >
+                  ↗ DM on X — @multiscatter
+                </a>
+              </div>
+
+              {/* Divider */}
+              <div style={{
+                height: "1px",
+                background: "linear-gradient(90deg, rgba(184,240,255,0.08), transparent)",
+                margin: "1.2rem 0",
+              }} />
+
+              {sent ? (
+                <div style={{
+                  padding: "1.2rem",
+                  border: "1px solid rgba(184,240,255,0.1)",
+                  borderRadius: "2px",
+                  textAlign: "center",
+                  background: "rgba(184,240,255,0.02)",
+                }}>
+                  <span className="label" style={{
+                    color: "var(--ice)", letterSpacing: "0.24em",
+                    display: "block", marginBottom: "0.4rem",
+                  }}>
+                    Message prepared
+                  </span>
+                  <span style={{
+                    fontFamily: "var(--font-geist-mono), monospace",
+                    fontSize: "0.55rem", letterSpacing: "0.15em",
+                    color: "rgba(184,240,255,0.4)",
+                  }}>
+                    Your email client should have opened.
+                  </span>
                 </div>
-                <textarea
-                  required rows={4} placeholder="What are you working on?"
-                  value={form.message}
-                  onChange={e => setForm({ ...form, message: e.target.value })}
-                  className="void-input"
-                />
-                <button type="submit" className="void-btn" style={{ alignSelf: "flex-start" }}>
-                  Send message ↗
-                </button>
-              </form>
-            )}
+              ) : (
+                <form
+                  onSubmit={handleSubmit}
+                  style={{ display: "flex", flexDirection: "column", gap: "0.7rem" }}
+                >
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.7rem" }}>
+                    <input
+                      required type="text" placeholder="Name"
+                      value={form.name}
+                      onChange={e => setForm({ ...form, name: e.target.value })}
+                      className="void-input"
+                    />
+                    <input
+                      required type="email" placeholder="Email"
+                      value={form.email}
+                      onChange={e => setForm({ ...form, email: e.target.value })}
+                      className="void-input"
+                    />
+                  </div>
+                  <textarea
+                    required rows={3} placeholder="What are you working on?"
+                    value={form.message}
+                    onChange={e => setForm({ ...form, message: e.target.value })}
+                    className="void-input"
+                  />
+                  <button type="submit" className="void-btn" style={{ alignSelf: "flex-start" }}>
+                    Send message ↗
+                  </button>
+                </form>
+              )}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Footer — console-styled */}
+      {/* Footer — minimal terminal line */}
       <div style={{
-        borderTop: "1px solid rgba(184,240,255,0.06)",
-        padding: "1.6rem 2rem",
+        borderTop: "1px solid rgba(184,240,255,0.04)",
+        padding: "1.2rem 2rem",
         display: "flex", justifyContent: "space-between", alignItems: "center",
-        maxWidth: "1100px", margin: "0 auto",
+        maxWidth: "960px", margin: "0 auto",
       }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
           <span className="status-led" />
           <span style={{
             fontFamily: "var(--font-geist-mono), monospace",
-            fontSize: "0.555rem", letterSpacing: "0.26em",
+            fontSize: "0.5rem", letterSpacing: "0.22em",
             textTransform: "uppercase", color: "var(--text-muted)",
           }}>
             © 2026 Multiscatter
           </span>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
-          <span style={{
-            fontFamily: "var(--font-geist-mono), monospace",
-            fontSize: "0.42rem", letterSpacing: "0.2em",
-            textTransform: "uppercase",
-            color: "rgba(184,240,255,0.22)",
-          }}>
-            SYS:ONLINE · WEBGL
-          </span>
-          <a href="https://x.com/multiscatter" target="_blank" rel="noopener noreferrer" className="frost-link">
-            @multiscatter
-          </a>
-        </div>
+        <a href="https://x.com/multiscatter" target="_blank" rel="noopener noreferrer" className="frost-link">
+          @multiscatter
+        </a>
       </div>
 
       <style>{`
         @media (max-width: 760px) {
-          .ac-grid { grid-template-columns: 1fr !important; gap: 3.5rem !important; }
+          .ac-grid { grid-template-columns: 1fr !important; gap: 2.5rem !important; }
         }
       `}</style>
     </section>

@@ -3,9 +3,9 @@
 /**
  * Nav — Console-themed top navigation bar.
  *
- * PS2/GameCube aesthetic: metallic glass panel with subtle warm accents,
+ * Cold void aesthetic: metallic glass panel with ice-blue accents,
  * monospace typography, and a structured dropdown for Work sub-tabs.
- * Active section uses orange phosphor accent; inactive uses ice-blue.
+ * Active section uses brighter ice-blue; inactive uses dimmed ice-blue.
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -16,12 +16,11 @@ import { useIsMobile } from "../lib/useMediaQuery";
 
 type WorkTab = 'models' | 'videos' | 'images';
 const WORK_SUBS: { icon: string; label: string; tab: WorkTab }[] = [
-  { icon: "\u25C7", label: "Artifacts",    tab: "models" },
-  { icon: "\u25B6", label: "Data Logs",    tab: "videos" },
-  { icon: "\u25AA", label: "Memory Cards", tab: "images" },
+  { icon: "\u25C7", label: "Models",  tab: "models" },
+  { icon: "\u25B6", label: "Videos",  tab: "videos" },
+  { icon: "\u25AA", label: "Images",  tab: "images" },
 ];
 const LINKS = [
-  { label: "Gallery", href: "#work" },
   { label: "Contact", href: "#contact" },
 ];
 
@@ -125,17 +124,17 @@ export default function Nav() {
           letterSpacing:  "0.28em",
           textTransform:  "uppercase",
           color:          linkActive("hero")
-            ? "rgba(255,160,60,0.9)"
+            ? "rgba(184,240,255,0.9)"
             : scrolled ? "rgba(184,240,255,0.6)" : "rgba(238,248,255,0.88)",
           textDecoration: "none",
           textShadow: linkActive("hero")
-            ? "0 0 16px rgba(255,160,60,0.3)"
+            ? "0 0 16px rgba(184,240,255,0.3)"
             : scrolled ? "none" : "0 0 22px rgba(184,240,255,0.18), 0 1px 2px rgba(0,0,0,0.4)",
           transition: "color 0.35s ease, text-shadow 0.35s ease",
           minHeight: "44px", display: "flex", alignItems: "center", gap: "0.5rem",
         }}
       >
-        {/* PS2-style status LED */}
+        {/* Status LED */}
         <span className="status-led" />
         MULTISCATTER
       </a>
@@ -160,11 +159,11 @@ export default function Nav() {
               }
             }}
             style={{
-              color: linkActive("work") ? "rgba(255,160,60,0.85)" : scrolled ? "rgba(184,240,255,0.48)" : "rgba(184,240,255,0.72)",
-              textShadow: linkActive("work") ? "0 0 12px rgba(255,160,60,0.25)" : "none",
+              color: linkActive("work") ? "rgba(184,240,255,0.85)" : scrolled ? "rgba(184,240,255,0.48)" : "rgba(184,240,255,0.72)",
+              textShadow: linkActive("work") ? "0 0 12px rgba(184,240,255,0.25)" : "none",
               display: "flex", alignItems: "center", gap: "0.3rem",
               minHeight: "44px", justifyContent: "center", padding: "0 4px",
-              borderBottom: linkActive("work") ? "1px solid rgba(255,160,60,0.45)" : "1px solid transparent",
+              borderBottom: linkActive("work") ? "1px solid rgba(184,240,255,0.45)" : "1px solid transparent",
               marginBottom: linkActive("work") ? "-1px" : "0",
               transition: "color 0.25s ease, border-color 0.25s ease, text-shadow 0.25s ease",
             }}
@@ -214,9 +213,9 @@ export default function Nav() {
                 fontSize: "0.42rem",
                 letterSpacing: "0.24em",
                 textTransform: "uppercase",
-                color: "rgba(255,160,60,0.4)",
+                color: "rgba(184,240,255,0.4)",
               }}>
-                RECOVERED DATA
+                WORK
               </span>
             </li>
             {WORK_SUBS.map(({ icon, label, tab }) => (
@@ -242,9 +241,9 @@ export default function Nav() {
                   }}
                   onMouseEnter={e => {
                     const el = e.currentTarget as HTMLElement;
-                    el.style.color      = "rgba(255,160,60,0.9)";
-                    el.style.background = "rgba(255,160,60,0.04)";
-                    el.style.textShadow = "0 0 10px rgba(255,160,60,0.2)";
+                    el.style.color      = "rgba(184,240,255,0.9)";
+                    el.style.background = "rgba(184,240,255,0.04)";
+                    el.style.textShadow = "0 0 10px rgba(184,240,255,0.2)";
                   }}
                   onMouseLeave={e => {
                     const el = e.currentTarget as HTMLElement;
@@ -271,10 +270,10 @@ export default function Nav() {
                 className="frost-link nav-link"
                 onClick={(e) => { scrollTo(e, href); setWorkOpen(false); }}
                 style={{
-                  color: active ? "rgba(255,160,60,0.85)" : scrolled ? "rgba(184,240,255,0.48)" : "rgba(184,240,255,0.72)",
-                  textShadow: active ? "0 0 12px rgba(255,160,60,0.25)" : "none",
+                  color: active ? "rgba(184,240,255,0.85)" : scrolled ? "rgba(184,240,255,0.48)" : "rgba(184,240,255,0.72)",
+                  textShadow: active ? "0 0 12px rgba(184,240,255,0.25)" : "none",
                   minHeight: "44px", display: "flex", alignItems: "center", padding: "0 4px",
-                  borderBottom: active ? "1px solid rgba(255,160,60,0.45)" : "1px solid transparent",
+                  borderBottom: active ? "1px solid rgba(184,240,255,0.45)" : "1px solid transparent",
                   marginBottom: active ? "-1px" : "0",
                   transition: "color 0.25s ease, border-color 0.25s ease, text-shadow 0.25s ease",
                 }}

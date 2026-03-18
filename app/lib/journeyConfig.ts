@@ -27,14 +27,9 @@ export interface WeaponStation {
   scrollStart: number;
   /** Scroll fraction (0-1) where this station ends */
   scrollEnd: number;
-  /** Media panel config — floating alongside the weapon */
-  media?: {
-    type: "video" | "image";
-    path: string;
-    title: string;
-    /** X position for the media panel (opposite side from weapon) */
-    panelX: number;
-  };
+  /** Optimal scroll fraction where the camera frames the model best.
+   *  Computed from the CatmullRom spline — NOT the arithmetic midpoint. */
+  scrollViewCenter: number;
 }
 
 /**
@@ -46,96 +41,71 @@ export const STATIONS: WeaponStation[] = [
     id: "torch",
     modelId: "proj-0",
     modelIndex: 0,
-    worldPosition: [3, 0, -20],
+    worldPosition: [5, 0, -20],
     loreName: "TORCH",
     loreTag: "Hand-crafted fantasy torch — layered metal wrap",
     loreSpec: "PBR PIPELINE: COLOUR · METALNESS · ROUGHNESS · NORMAL",
     designation: "STATION 01",
-    scrollStart: 0.18,
-    scrollEnd: 0.30,
-    media: {
-      type: "video",
-      path: "/Video renders/Evening Fishing.mp4",
-      title: "Evening Fishing",
-      panelX: -4,
-    },
+    scrollStart: 0.16,
+    scrollEnd: 0.32,
+    scrollViewCenter: 0.208,
   },
   {
     id: "ornate-dagger",
     modelId: "proj-2",
     modelIndex: 2,
-    worldPosition: [-3, 0, -45],
+    worldPosition: [-5, 0, -45],
     loreName: "ORNATE DAGGER",
     loreTag: "Ceremonial dagger — filigree crossguard, gemstone pommel",
     loreSpec: "TEXTURE DENSITY: 4K MAPS · CHASED SURFACE DETAIL",
     designation: "STATION 02",
-    scrollStart: 0.32,
-    scrollEnd: 0.44,
-    media: {
-      type: "image",
-      path: "/Image renders/cam_icon_fullscale_medium-dark-lightrim.webp",
-      title: "Camera Icon",
-      panelX: 4,
-    },
+    scrollStart: 0.33,
+    scrollEnd: 0.48,
+    scrollViewCenter: 0.375,
   },
   {
     id: "shield",
     modelId: "proj-3",
     modelIndex: 3,
-    worldPosition: [2, 0, -70],
+    worldPosition: [4.5, 0, -70],
     loreName: "SHIELD",
     loreTag: "Kite shield — riveted iron rim, aged leather facing",
     loreSpec: "SURFACE: BAKED WEAR · NORMAL + ROUGHNESS CHANNELS",
     designation: "STATION 03",
-    scrollStart: 0.46,
-    scrollEnd: 0.58,
-    media: {
-      type: "video",
-      path: "/Video renders/Soulbound Lantern (multiple versions).mp4",
-      title: "Soulbound Lantern",
-      panelX: -4,
-    },
+    scrollStart: 0.49,
+    scrollEnd: 0.63,
+    scrollViewCenter: 0.542,
   },
   {
     id: "sword",
     modelId: "proj-4",
     modelIndex: 4,
-    worldPosition: [-2, 0, -95],
+    worldPosition: [-4.5, 0, -95],
     loreName: "SWORD",
     loreTag: "Arming sword — glass-and-metal guard, translucent blade",
     loreSpec: "MATERIAL: TRANSMISSION MAP · CRYSTAL FULLER REFRACTION",
     designation: "STATION 04",
-    scrollStart: 0.60,
-    scrollEnd: 0.72,
-    media: {
-      type: "image",
-      path: "/Image renders/fourteenth_image.webp",
-      title: "Fourteenth Study",
-      panelX: 4,
-    },
+    scrollStart: 0.64,
+    scrollEnd: 0.77,
+    scrollViewCenter: 0.708,
   },
   {
     id: "bow",
     modelId: "proj-1",
     modelIndex: 1,
-    worldPosition: [0, 0, -120],
+    worldPosition: [4, 0, -120],
     loreName: "BOW",
     loreTag: "Recurve longbow — laminated limbs, sinew wrapping",
     loreSpec: "TOPOLOGY: GAME-READY · HERO-ASSET RESOLUTION",
     designation: "STATION 05",
-    scrollStart: 0.74,
-    scrollEnd: 0.86,
-    media: {
-      type: "image",
-      path: "/Image renders/holography_scaled.webp",
-      title: "Holography Study",
-      panelX: 4,
-    },
+    scrollStart: 0.78,
+    scrollEnd: 0.91,
+    scrollViewCenter: 0.875,
   },
 ];
 
 /** Total page height in viewport units to accommodate the full journey */
-export const TOTAL_SCROLL_VH = 900;
+export const TOTAL_SCROLL_VH = 700;
 
 /**
  * Camera position spline control points.
@@ -153,44 +123,44 @@ export const CAMERA_POSITION_POINTS: [number, number, number][] = [
   [0, 0, 4],
   [0, 0, -5],
 
-  // ── Station 1: Torch at [3, 0, -20] (scroll 0.18-0.30) ───────────────
-  [0.8, 0, -14],       // approach — gentle lean toward model
-  [1.2, 0.2, -20],     // viewing — nearly alongside
-  [0.2, 0, -26],       // exit — drift back to center
+  // ── Station 1: Torch at [5, 0, -20] ───────────────────────────────────
+  [1.2, 0, -14],       // approach — gentle lean toward model
+  [1.2, 0.2, -20],     // viewing — 3.8 units from model
+  [0.4, 0, -26],       // exit — drift back to center
 
   // ── Transit to Station 2 ──────────────────────────────────────────────
   [0, 0, -33],
 
-  // ── Station 2: Dagger at [-3, 0, -45] (scroll 0.32-0.44) ─────────────
-  [-0.8, 0, -38],      // approach
-  [-1.2, 0.2, -45],    // viewing
-  [-0.2, 0, -51],      // exit
+  // ── Station 2: Dagger at [-5, 0, -45] ─────────────────────────────────
+  [-1.2, 0, -38],      // approach
+  [-1.2, 0.2, -45],    // viewing — 3.8 units from model
+  [-0.4, 0, -51],      // exit
 
   // ── Transit to Station 3 ──────────────────────────────────────────────
   [0, 0, -58],
 
-  // ── Station 3: Shield at [2, 0, -70] (scroll 0.46-0.58) ──────────────
-  [0.6, 0, -64],       // approach
-  [1.0, 0.2, -70],     // viewing
-  [0.2, 0, -76],       // exit
+  // ── Station 3: Shield at [4.5, 0, -70] ─────────────────────────────────
+  [1.0, 0, -64],       // approach
+  [1.0, 0.2, -70],     // viewing — 3.5 units from model
+  [0.3, 0, -76],       // exit
 
   // ── Transit to Station 4 ──────────────────────────────────────────────
   [0, 0, -83],
 
-  // ── Station 4: Sword at [-2, 0, -95] (scroll 0.60-0.72) ──────────────
-  [-0.6, 0, -89],      // approach
-  [-1.0, 0.2, -95],    // viewing
-  [-0.2, 0, -101],     // exit
+  // ── Station 4: Sword at [-4.5, 0, -95] ─────────────────────────────────
+  [-1.0, 0, -89],      // approach
+  [-1.0, 0.2, -95],    // viewing — 3.5 units from model
+  [-0.3, 0, -101],     // exit
 
   // ── Transit to Station 5 ──────────────────────────────────────────────
   [0, 0, -108],
 
-  // ── Station 5: Bow at [0, 0, -120] (scroll 0.74-0.86) ────────────────
-  [0, 0, -114],        // approach
-  [0.5, 0.2, -120],    // viewing
+  // ── Station 5: Bow at [4, 0, -120] ─────────────────────────────────────
+  [0.5, 0, -114],      // approach
+  [0.5, 0.2, -120],    // viewing — 3.5 units from model
   [0, 0, -125],        // exit
 
-  // ── About / Contact zone (scroll 0.86-1.0) ───────────────────────────
+  // ── About / Contact zone (scroll 0.87-1.0) ───────────────────────────
   [0, -4, -126],       // start descending
   [0, -10, -130],      // about zone — camera looking down into void
 ];
@@ -208,42 +178,42 @@ export const CAMERA_LOOKAT_POINTS: [number, number, number][] = [
   [0, 0, -10],
   [0, 0, -18],
 
-  // ── Station 1: Torch at [3, 0, -20] ──────────────────────────────────
-  [3, 0, -20],
-  [3, 0, -20],
-  [1, 0, -30],        // blend toward next
+  // ── Station 1: Torch at [5, 0, -20] ──────────────────────────────────
+  [5, 0, -20],
+  [5, 0, -20],
+  [1.5, 0, -30],      // blend toward next
 
   // ── Transit — look ahead ──────────────────────────────────────────────
-  [-1, 0, -42],
+  [-2.5, 0, -42],
 
-  // ── Station 2: Dagger at [-3, 0, -45] ────────────────────────────────
-  [-3, 0, -45],
-  [-3, 0, -45],
-  [-1, 0, -55],
-
-  // ── Transit ───────────────────────────────────────────────────────────
-  [1, 0, -66],
-
-  // ── Station 3: Shield at [2, 0, -70] ─────────────────────────────────
-  [2, 0, -70],
-  [2, 0, -70],
-  [0, 0, -80],
+  // ── Station 2: Dagger at [-5, 0, -45] ────────────────────────────────
+  [-5, 0, -45],
+  [-5, 0, -45],
+  [-1.5, 0, -55],
 
   // ── Transit ───────────────────────────────────────────────────────────
-  [-1, 0, -90],
+  [2.5, 0, -66],
 
-  // ── Station 4: Sword at [-2, 0, -95] ─────────────────────────────────
-  [-2, 0, -95],
-  [-2, 0, -95],
-  [0, 0, -105],
+  // ── Station 3: Shield at [4.5, 0, -70] ──────────────────────────────
+  [4.5, 0, -70],
+  [4.5, 0, -70],
+  [1, 0, -80],
 
   // ── Transit ───────────────────────────────────────────────────────────
-  [0, 0, -115],
+  [-2.5, 0, -90],
 
-  // ── Station 5: Bow at [0, 0, -120] ───────────────────────────────────
-  [0, 0, -120],
-  [0, 0, -120],
-  [0, -1, -125],
+  // ── Station 4: Sword at [-4.5, 0, -95] ──────────────────────────────
+  [-4.5, 0, -95],
+  [-4.5, 0, -95],
+  [-1, 0, -105],
+
+  // ── Transit ───────────────────────────────────────────────────────────
+  [2, 0, -115],
+
+  // ── Station 5: Bow at [4, 0, -120] ───────────────────────────────────
+  [4, 0, -120],
+  [4, 0, -120],
+  [1, -1, -125],
 
   // ── About zone — looking down into void ──────────────────────────────
   [0, -6, -128],

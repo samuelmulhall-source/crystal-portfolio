@@ -75,36 +75,6 @@ export function startDrone(): void {
 }
 
 /**
- * Stop the ambient drone.
- */
-export function stopDrone(): void {
-  if (!isPlaying) return;
-  const ctx = getAudioContext();
-
-  if (droneGain && ctx) {
-    droneGain.gain.setTargetAtTime(0, ctx.currentTime, 0.5);
-  }
-
-  // Clean up after fade out
-  setTimeout(() => {
-    osc1?.stop();
-    osc2?.stop();
-    lfo?.stop();
-    osc1?.disconnect();
-    osc2?.disconnect();
-    lfo?.disconnect();
-    filter?.disconnect();
-    droneGain?.disconnect();
-    osc1 = null;
-    osc2 = null;
-    lfo = null;
-    filter = null;
-    droneGain = null;
-    isPlaying = false;
-  }, 2000);
-}
-
-/**
  * Modulate drone based on camera proximity to a weapon.
  * Deeper resonance when near weapons.
  */

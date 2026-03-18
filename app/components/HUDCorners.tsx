@@ -64,7 +64,7 @@ export default function HUDCorners() {
         style={{
           position: "fixed", top: "0.7rem", left: "1.3rem", zIndex: 201,
           ...MON,
-          color: "rgba(255,160,60,0.2)",
+          color: "rgba(184,240,255,0.2)",
           display: "flex", alignItems: "center", gap: "0.5rem",
         }}
       >
