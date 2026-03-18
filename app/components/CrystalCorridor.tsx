@@ -1,22 +1,19 @@
 "use client";
 
 /**
- * CrystalCorridor — Scroll-driven layered hero composition.
+ * CrystalCorridor — Scroll-driven dual smoke animation.
  *
- * Three composited layers:
- *   1. Back smoke still (depth atmosphere, subtle parallax)
- *   2. Animated stair sequence (90 frames at 1280×720 WebP, scroll-scrubbed)
- *   3. Front smoke still (foreground atmosphere, stronger parallax)
+ * Two composited animated layers:
+ *   1. Back smoke (90 frames, depth atmosphere, subtle parallax)
+ *   2. Front smoke (90 frames, foreground atmosphere, stronger parallax)
  *
- * The back smoke sits behind the stair animation. The front smoke
- * overlays it, giving volumetric depth. Parallax offsets differ per
- * layer so the composition reads as spatial, not flat.
+ * Both sequences end at fully transparent frames, so no manual
+ * opacity fade is needed — the animation naturally dissolves.
  *
  * Performance:
- *   - First 12 frames loaded eagerly for instant response
- *   - Remaining frames lazy-loaded in batches of 12
- *   - Smoke stills preloaded in parallel with first batch
- *   - Canvas drawImage composites 3 layers per rAF — cheap
+ *   - First 15 frames of each layer loaded eagerly
+ *   - Remaining frames lazy-loaded in batches of 15
+ *   - Canvas drawImage composites 2 layers per rAF — cheap
  *   - Container display:none past corridor end for zero ongoing cost
  *   - rAF only runs while corridor is potentially visible
  */
@@ -24,22 +21,21 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { voidState } from "../lib/voidState";
 
-/** Total frames in the animated stair sequence */
+/** Total frames in each smoke sequence */
 const TOTAL_FRAMES = 90;
 
-/** Scroll fraction where corridor sequence ends */
-const CORRIDOR_END = 0.18;
+/** Scroll fraction where corridor sequence ends (middle ground timing) */
+const CORRIDOR_END = 0.15;
 
-/** How many frames to eagerly preload */
-const EAGER_COUNT = 12;
+/** How many frames to eagerly preload per layer */
+const EAGER_COUNT = 15;
 
 /** Batch size for lazy loading remaining frames */
-const LAZY_BATCH = 12;
+const LAZY_BATCH = 15;
 
 /** Per-layer parallax magnitude (px at canvas scale) */
-const PARALLAX_BACK  = 6;   // subtle — far layer
-const PARALLAX_STAIR = 12;  // medium — main animation
-const PARALLAX_FRONT = 20;  // strong — near layer
+const PARALLAX_BACK  = 8;   // subtle — far layer
+const PARALLAX_FRONT = 22;  // strong — near layer
 
 function lerp(a: number, b: number, t: number) {
   return a + (b - a) * t;
@@ -48,37 +44,37 @@ function lerp(a: number, b: number, t: number) {
 export default function CrystalCorridor() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const framesRef = useRef<(HTMLImageElement | null)[]>(new Array(TOTAL_FRAMES).fill(null));
-  const backSmokeRef = useRef<HTMLImageElement | null>(null);
-  const frontSmokeRef = useRef<HTMLImageElement | null>(null);
+  const backFramesRef = useRef<(HTMLImageElement | null)[]>(new Array(TOTAL_FRAMES).fill(null));
+  const frontFramesRef = useRef<(HTMLImageElement | null)[]>(new Array(TOTAL_FRAMES).fill(null));
   const loadedCountRef = useRef(0);
   const currentFrameRef = useRef(-1);
   const smoothFrameRef = useRef(0);
   // Per-layer parallax offsets (smoothed independently)
   const offsetBackX = useRef(0);
   const offsetBackY = useRef(0);
-  const offsetStairX = useRef(0);
-  const offsetStairY = useRef(0);
   const offsetFrontX = useRef(0);
   const offsetFrontY = useRef(0);
-  const opacityRef = useRef(1);
   const rafRef = useRef(0);
   const dprRef = useRef(1);
   const [ready, setReady] = useState(false);
 
-  /** Load a single stair frame */
-  const loadFrame = useCallback((index: number): Promise<HTMLImageElement> => {
+  /** Load a single frame from a sequence folder */
+  const loadFrame = useCallback((
+    folder: string,
+    index: number,
+    targetArray: (HTMLImageElement | null)[],
+  ): Promise<HTMLImageElement> => {
     return new Promise((resolve, reject) => {
-      if (framesRef.current[index]) {
-        resolve(framesRef.current[index]!);
+      if (targetArray[index]) {
+        resolve(targetArray[index]!);
         return;
       }
       const img = new Image();
       img.decoding = "async";
       const padded = String(index + 1).padStart(2, "0");
-      img.src = `/hero/seq/${padded}.webp`;
+      img.src = `/hero/${folder}/${padded}.webp`;
       img.onload = () => {
-        framesRef.current[index] = img;
+        targetArray[index] = img;
         loadedCountRef.current++;
         resolve(img);
       };
@@ -86,46 +82,29 @@ export default function CrystalCorridor() {
     });
   }, []);
 
-  /** Load a smoke layer image */
-  const loadSmoke = useCallback((path: string): Promise<HTMLImageElement> => {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.decoding = "async";
-      img.src = path;
-      img.onload = () => resolve(img);
-      img.onerror = reject;
-    });
-  }, []);
-
-  // ── Preload frames + smoke layers ──
+  // ── Preload frames for both layers ──
   useEffect(() => {
     let cancelled = false;
 
     async function preload() {
-      // Kick off smoke loading in parallel with frame loading
-      const smokePromise = Promise.all([
-        loadSmoke("/hero/smoke/back.webp"),
-        loadSmoke("/hero/smoke/front.webp"),
-      ]);
-
-      // Eager: first N stair frames
-      const eagerPromises: Promise<HTMLImageElement>[] = [];
+      // Eager: first N frames of both layers in parallel
+      const eagerBack: Promise<HTMLImageElement>[] = [];
+      const eagerFront: Promise<HTMLImageElement>[] = [];
       for (let i = 0; i < Math.min(EAGER_COUNT, TOTAL_FRAMES); i++) {
-        eagerPromises.push(loadFrame(i));
+        eagerBack.push(loadFrame("smoke_back", i, backFramesRef.current));
+        eagerFront.push(loadFrame("smoke_front", i, frontFramesRef.current));
       }
-      const [smokeResult] = await Promise.all([smokePromise, Promise.all(eagerPromises)]);
+      await Promise.all([...eagerBack, ...eagerFront]);
       if (cancelled) return;
-
-      backSmokeRef.current = smokeResult[0];
-      frontSmokeRef.current = smokeResult[1];
       setReady(true);
 
-      // Lazy: remaining stair frames in batches
+      // Lazy: remaining frames in batches
       for (let start = EAGER_COUNT; start < TOTAL_FRAMES; start += LAZY_BATCH) {
         if (cancelled) return;
         const batch: Promise<HTMLImageElement>[] = [];
         for (let i = start; i < Math.min(start + LAZY_BATCH, TOTAL_FRAMES); i++) {
-          batch.push(loadFrame(i));
+          batch.push(loadFrame("smoke_back", i, backFramesRef.current));
+          batch.push(loadFrame("smoke_front", i, frontFramesRef.current));
         }
         await Promise.all(batch);
       }
@@ -133,9 +112,9 @@ export default function CrystalCorridor() {
 
     preload();
     return () => { cancelled = true; };
-  }, [loadFrame, loadSmoke]);
+  }, [loadFrame]);
 
-  // ── Scroll-driven multi-layer canvas rendering ──
+  // ── Scroll-driven dual-layer canvas rendering ──
   useEffect(() => {
     if (!ready) return;
 
@@ -197,7 +176,7 @@ export default function CrystalCorridor() {
       const targetFrame = corridorP * (TOTAL_FRAMES - 1);
 
       // Smooth interpolation for silky scrubbing
-      smoothFrameRef.current = lerp(smoothFrameRef.current, targetFrame, 0.18);
+      smoothFrameRef.current = lerp(smoothFrameRef.current, targetFrame, 0.16);
       const frameIdx = Math.round(Math.max(0, Math.min(TOTAL_FRAMES - 1, smoothFrameRef.current)));
 
       // Mouse parallax — different magnitude per layer for depth
@@ -208,57 +187,36 @@ export default function CrystalCorridor() {
       offsetBackX.current = lerp(offsetBackX.current, mx * PARALLAX_BACK * dpr, 0.03);
       offsetBackY.current = lerp(offsetBackY.current, my * PARALLAX_BACK * 0.5 * dpr, 0.03);
 
-      // Stair animation: medium
-      offsetStairX.current = lerp(offsetStairX.current, mx * PARALLAX_STAIR * dpr, 0.06);
-      offsetStairY.current = lerp(offsetStairY.current, my * PARALLAX_STAIR * 0.5 * dpr, 0.06);
-
       // Front smoke: strong, fast chase
-      offsetFrontX.current = lerp(offsetFrontX.current, mx * PARALLAX_FRONT * dpr, 0.09);
-      offsetFrontY.current = lerp(offsetFrontY.current, my * PARALLAX_FRONT * 0.5 * dpr, 0.09);
-
-      // Opacity — fade out approaching corridor end
-      const fadeStart = CORRIDOR_END * 0.65;
-      const fadeEnd = CORRIDOR_END;
-      let targetOpacity = 1;
-      if (p >= fadeStart) {
-        targetOpacity = Math.max(0, 1 - (p - fadeStart) / (fadeEnd - fadeStart));
-      }
-      opacityRef.current = lerp(opacityRef.current, targetOpacity, 0.12);
+      offsetFrontX.current = lerp(offsetFrontX.current, mx * PARALLAX_FRONT * dpr, 0.08);
+      offsetFrontY.current = lerp(offsetFrontY.current, my * PARALLAX_FRONT * 0.5 * dpr, 0.08);
 
       // Skip redraw if same frame and parallax stable
       const parallaxMoving =
-        Math.abs(offsetStairX.current) > 0.3 ||
+        Math.abs(offsetBackX.current) > 0.3 ||
         Math.abs(offsetFrontX.current) > 0.3;
-      const shouldDraw = frameIdx !== currentFrameRef.current || parallaxMoving;
-      if (!shouldDraw && Math.abs(opacityRef.current - targetOpacity) < 0.01) return;
+      if (frameIdx === currentFrameRef.current && !parallaxMoving) return;
       currentFrameRef.current = frameIdx;
 
-      const stairImg = framesRef.current[frameIdx];
-      if (!stairImg) return;
+      const backImg = backFramesRef.current[frameIdx];
+      const frontImg = frontFramesRef.current[frameIdx];
 
       const cw = canvas.width;
       const ch = canvas.height;
       ctx!.clearRect(0, 0, cw, ch);
 
-      const op = opacityRef.current;
-
-      // Layer 1: Back smoke — dimmer, very subtle parallax
-      if (backSmokeRef.current) {
-        drawCover(backSmokeRef.current, cw, ch,
+      // Layer 1: Back smoke — depth atmosphere
+      if (backImg) {
+        drawCover(backImg, cw, ch,
           offsetBackX.current, offsetBackY.current,
-          op * 0.55, 1.12);
+          0.6, 1.12);
       }
 
-      // Layer 2: Animated stair sequence — main content
-      drawCover(stairImg, cw, ch,
-        offsetStairX.current, offsetStairY.current,
-        op, 1.08);
-
-      // Layer 3: Front smoke — brighter, stronger parallax
-      if (frontSmokeRef.current) {
-        drawCover(frontSmokeRef.current, cw, ch,
+      // Layer 2: Front smoke — foreground atmosphere
+      if (frontImg) {
+        drawCover(frontImg, cw, ch,
           offsetFrontX.current, offsetFrontY.current,
-          op * 0.45, 1.14);
+          0.5, 1.14);
       }
 
       ctx!.globalAlpha = 1;
