@@ -60,8 +60,9 @@ export function makeHoloStarMat(hasVelocity: boolean): THREE.ShaderMaterial {
         ${ROTATION_GLSL}
         vec4 mv = modelViewMatrix * vec4(rp, 1.0);
         float nat = uSize * projectionMatrix[1][1] * uVH / (-mv.z);
-        nat = clamp(nat, 1.2, 5.5); // consistent sizing: no sub-pixel dots, no blobs
-        if (-mv.z > uVH * 3.0) {
+        // Clamp: min 1.5px (no invisible sub-pixel), max 4.5px (no giant blobs)
+        nat = clamp(nat, 1.5, 4.5);
+        if (nat < 0.5) {
           gl_Position = vec4(10.0, 10.0, 10.0, 1.0);
           gl_PointSize = 1.0;
           vVelDir = vec2(0.0);
@@ -113,8 +114,8 @@ export function makeHoloStarMat(hasVelocity: boolean): THREE.ShaderMaterial {
         ${ROTATION_GLSL}
         vec4 mv = modelViewMatrix * vec4(rp, 1.0);
         float nat = uSize * projectionMatrix[1][1] * uVH / (-mv.z);
-        nat = clamp(nat, 1.2, 5.5);
-        if (-mv.z > uVH * 3.0) {
+        nat = clamp(nat, 1.5, 4.5);
+        if (nat < 0.5) {
           gl_Position = vec4(10.0, 10.0, 10.0, 1.0);
           gl_PointSize = 1.0;
           return;

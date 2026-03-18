@@ -191,45 +191,62 @@ export function StarLayer({
     const maxDist2 = maxDist * maxDist;
     let dirty = false;
 
-    // Urgency-based budget: scales with camera speed
+    // Camera movement since last frame
     const camDelta = (cx - lastCamPos.current.x) ** 2 +
                      (cy2 - lastCamPos.current.y) ** 2 +
                      (cz - lastCamPos.current.z) ** 2;
     lastCamPos.current.set(cx, cy2, cz);
     const camDist = Math.sqrt(camDelta);
-    const urgency = Math.min(camDist / 2, 3);
-    const BUDGET = Math.round(
-      (isMobile ? 150 : 300) * (1 + urgency * 2),
-    );
 
-    const start = recycleOffset.current;
-    const end = Math.min(start + BUDGET, cfg.count);
-    recycleOffset.current = end >= cfg.count ? 0 : end;
-
+    // Emergency full sweep: if camera jumped > 10 units (HUD click, snap),
+    // redistribute ALL stars immediately — no budget, no partial sweep.
     const behindThresh = cfg.rMax * 0.3;
-
-    for (let i = start; i < end; i++) {
-      const ix = i * 3, iy = i * 3 + 1, iz = i * 3 + 2;
-      const dx = posArr[ix] - cx;
-      const dy = posArr[iy] - cy2;
-      const dz = posArr[iz] - cz;
-      const dist2 = dx * dx + dy * dy + dz * dz;
-
-      if (dist2 > maxDist2) {
+    if (camDist > 10) {
+      for (let i = 0; i < cfg.count; i++) {
+        const ix = i * 3, iy = i * 3 + 1, iz = i * 3 + 2;
         const theta = Math.random() * Math.PI * 2;
         const phi = Math.acos(2 * Math.random() - 1);
         const r = Math.cbrt(rMin3 + Math.random() * rRange3);
-        const sx = r * Math.sin(phi) * Math.cos(theta);
-        const sy = r * Math.sin(phi) * Math.sin(theta);
-        let sz = r * Math.cos(phi);
-        if (sz > behindThresh) sz = -sz;
-        posArr[ix] = cx + sx;
-        posArr[iy] = cy2 + sy;
-        posArr[iz] = cz + sz;
-        dirty = true;
+        posArr[ix] = cx + r * Math.sin(phi) * Math.cos(theta);
+        posArr[iy] = cy2 + r * Math.sin(phi) * Math.sin(theta);
+        posArr[iz] = cz + r * Math.cos(phi);
       }
+      posAttr.needsUpdate = true;
+      recycleOffset.current = 0;
+    } else {
+      // Normal budgeted recycling for smooth scrolling
+      const urgency = Math.min(camDist / 2, 3);
+      const BUDGET = Math.round(
+        (isMobile ? 200 : 500) * (1 + urgency * 2),
+      );
+
+      const start = recycleOffset.current;
+      const end = Math.min(start + BUDGET, cfg.count);
+      recycleOffset.current = end >= cfg.count ? 0 : end;
+
+      for (let i = start; i < end; i++) {
+        const ix = i * 3, iy = i * 3 + 1, iz = i * 3 + 2;
+        const dx = posArr[ix] - cx;
+        const dy = posArr[iy] - cy2;
+        const dz = posArr[iz] - cz;
+        const dist2 = dx * dx + dy * dy + dz * dz;
+
+        if (dist2 > maxDist2) {
+          const theta = Math.random() * Math.PI * 2;
+          const phi = Math.acos(2 * Math.random() - 1);
+          const r = Math.cbrt(rMin3 + Math.random() * rRange3);
+          const sx = r * Math.sin(phi) * Math.cos(theta);
+          const sy = r * Math.sin(phi) * Math.sin(theta);
+          let sz = r * Math.cos(phi);
+          if (sz > behindThresh) sz = -sz;
+          posArr[ix] = cx + sx;
+          posArr[iy] = cy2 + sy;
+          posArr[iz] = cz + sz;
+          dirty = true;
+        }
+      }
+      if (dirty) posAttr.needsUpdate = true;
     }
-    if (dirty) posAttr.needsUpdate = true;
   });
 
   return (

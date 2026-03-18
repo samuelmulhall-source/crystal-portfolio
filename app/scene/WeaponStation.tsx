@@ -27,7 +27,7 @@ interface Props {
 
 export default function WeaponStation({ station, entry }: Props) {
   const { isMobile }  = useContext(VoidContext);
-  const scene         = useFBX(entry.modelPath);
+  const scene         = useFBX(station.modelPath);
   const { gl, camera } = useThree();
   const posGroupRef   = useRef<THREE.Group>(null);
   const rotGroupRef   = useRef<THREE.Group>(null);

@@ -13,6 +13,8 @@ export interface WeaponStation {
   modelId: string;
   /** Index into data.json models array */
   modelIndex: number;
+  /** Direct FBX path — authoritative, bypasses entries lookup */
+  modelPath: string;
   /** Fixed world position [x, y, z] */
   worldPosition: [number, number, number];
   /** Narrative name displayed in HUD */
@@ -41,6 +43,7 @@ export const STATIONS: WeaponStation[] = [
     id: "torch",
     modelId: "proj-0",
     modelIndex: 0,
+    modelPath: "/models/Torch/torch.fbx",
     worldPosition: [5, 0, -20],
     loreName: "TORCH",
     loreTag: "Hand-crafted fantasy torch — layered metal wrap",
@@ -54,6 +57,7 @@ export const STATIONS: WeaponStation[] = [
     id: "ornate-dagger",
     modelId: "proj-2",
     modelIndex: 2,
+    modelPath: "/models/Weapons/Ornate Dagger/Ornate Dagger.fbx",
     worldPosition: [-5, 0, -45],
     loreName: "ORNATE DAGGER",
     loreTag: "Ceremonial dagger — filigree crossguard, gemstone pommel",
@@ -67,6 +71,7 @@ export const STATIONS: WeaponStation[] = [
     id: "shield",
     modelId: "proj-3",
     modelIndex: 3,
+    modelPath: "/models/Weapons/Shield/Shield.fbx",
     worldPosition: [4.5, 0, -70],
     loreName: "SHIELD",
     loreTag: "Kite shield — riveted iron rim, aged leather facing",
@@ -80,6 +85,7 @@ export const STATIONS: WeaponStation[] = [
     id: "sword",
     modelId: "proj-4",
     modelIndex: 4,
+    modelPath: "/models/Weapons/Sword/sword.fbx",
     worldPosition: [-4.5, 0, -95],
     loreName: "SWORD",
     loreTag: "Arming sword — glass-and-metal guard, translucent blade",
@@ -93,6 +99,7 @@ export const STATIONS: WeaponStation[] = [
     id: "bow",
     modelId: "proj-1",
     modelIndex: 1,
+    modelPath: "/models/Weapons/bow/Bow.fbx",
     worldPosition: [4, 0, -120],
     loreName: "BOW",
     loreTag: "Recurve longbow — laminated limbs, sinew wrapping",
