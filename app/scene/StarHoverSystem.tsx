@@ -73,8 +73,8 @@ export default function StarHoverSystem({
 
     // Expensive star scan — skip when mouse idle and not on scan frame
     if (!skipScan) {
-      const NDC_GLOW  = 0.040;
-      const NDC_LINE  = 0.080;
+      const NDC_GLOW  = 0.065;
+      const NDC_LINE  = 0.130;
       const camX  = camera.position.x, camY = camera.position.y, camZ = camera.position.z;
       const MIN_D2 = 5 * 5;
 
@@ -170,9 +170,21 @@ export default function StarHoverSystem({
         const pObj = pts[s.layerIdx].current;
         if (pObj) {
           const a = pObj.geometry.attributes.position.array as Float32Array;
-          tmpV.set(a[s.starIdx * 3], a[s.starIdx * 3 + 1], a[s.starIdx * 3 + 2]);
-          tmpV.applyMatrix4(pObj.matrixWorld);
-          s.wx = tmpV.x; s.wy = tmpV.y; s.wz = tmpV.z;
+          let px2 = a[s.starIdx * 3], py2 = a[s.starIdx * 3 + 1], pz2 = a[s.starIdx * 3 + 2];
+          // Apply same shader rotation (Y then X) so screen projection matches visual
+          const ry2 = voidState.starRotY[s.layerIdx] || 0;
+          const rx2 = voidState.starRotX[s.layerIdx] || 0;
+          const cy2 = Math.cos(ry2), sy2 = Math.sin(ry2);
+          const cx2 = Math.cos(rx2), sx2 = Math.sin(rx2);
+          // Y rotation
+          const yrx = cy2 * px2 + sy2 * pz2;
+          const yrz = -sy2 * px2 + cy2 * pz2;
+          px2 = yrx; pz2 = yrz;
+          // X rotation
+          const xry = cx2 * py2 - sx2 * pz2;
+          const xrz = sx2 * py2 + cx2 * pz2;
+          py2 = xry; pz2 = xrz;
+          s.wx = px2; s.wy = py2; s.wz = pz2;
         }
       }
 

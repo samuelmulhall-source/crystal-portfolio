@@ -132,9 +132,8 @@ export function StarLayer({
     rotY.current += dt * cfg.rotSpd * scrollBoost;
     rotX.current += dt * cfg.rotSpd * 0.32 * scrollBoost;
 
-    // Minimal scroll dimming
-    const dim = 1 - voidState.scrollProgress * 0.04;
-    mat.uniforms.uOpacity.value = 0.92 * dim;
+    // Consistent opacity throughout the journey
+    mat.uniforms.uOpacity.value = 0.90;
     mat.uniforms.uSize.value    = cfg.size;
     mat.uniforms.uVH.value = (s.gl.domElement).height * 0.5;
     mat.uniforms.uTime.value = s.clock.elapsedTime;

@@ -145,8 +145,8 @@ export default function EffectsOverlay() {
         const ease = Math.min(spring.pos, 1.0);
         const { sx, sy } = slot;
 
-        // Scale kept small — accent, not a large graphic
-        const scale = ease * 5;
+        // Scale: visible accent around each star
+        const scale = ease * 14;
         const FOV   = 6;
 
         // n morphs slowly per slot (4–7), giving a unique feel per star
@@ -201,41 +201,44 @@ export default function EffectsOverlay() {
         }
 
         // Outer glow halo — soft bloom around the whole star
-        const glow = ctx!.createRadialGradient(sx, sy, 0, sx, sy, 9 * ease);
-        glow.addColorStop(0,   `rgba(184,240,255,${ease * 0.14})`);
-        glow.addColorStop(0.5, `rgba(140,210,255,${ease * 0.06})`);
+        const glowR = 22 * ease;
+        const glow = ctx!.createRadialGradient(sx, sy, 0, sx, sy, glowR);
+        glow.addColorStop(0,   `rgba(184,240,255,${ease * 0.12})`);
+        glow.addColorStop(0.4, `rgba(140,210,255,${ease * 0.06})`);
         glow.addColorStop(1,   "rgba(0,0,0,0)");
         ctx!.fillStyle = glow;
         ctx!.beginPath();
-        ctx!.arc(sx, sy, 9 * ease, 0, Math.PI * 2);
+        ctx!.arc(sx, sy, glowR, 0, Math.PI * 2);
         ctx!.fill();
 
         // Chromatic aberration fringes — cyan left, magenta right
-        const aberr = ease * 2.2;
-        const fL = ctx!.createRadialGradient(sx - aberr, sy, 0, sx - aberr, sy, 3 * ease);
-        fL.addColorStop(0, `rgba(0,255,240,${ease * 0.32})`);
+        const aberr = ease * 4.5;
+        const fringeR = 6 * ease;
+        const fL = ctx!.createRadialGradient(sx - aberr, sy, 0, sx - aberr, sy, fringeR);
+        fL.addColorStop(0, `rgba(0,255,240,${ease * 0.28})`);
         fL.addColorStop(1, "rgba(0,0,0,0)");
         ctx!.fillStyle = fL;
         ctx!.beginPath();
-        ctx!.arc(sx - aberr, sy, 3 * ease, 0, Math.PI * 2);
+        ctx!.arc(sx - aberr, sy, fringeR, 0, Math.PI * 2);
         ctx!.fill();
 
-        const fR = ctx!.createRadialGradient(sx + aberr, sy, 0, sx + aberr, sy, 3 * ease);
-        fR.addColorStop(0, `rgba(255,80,180,${ease * 0.22})`);
+        const fR = ctx!.createRadialGradient(sx + aberr, sy, 0, sx + aberr, sy, fringeR);
+        fR.addColorStop(0, `rgba(255,80,180,${ease * 0.20})`);
         fR.addColorStop(1, "rgba(0,0,0,0)");
         ctx!.fillStyle = fR;
         ctx!.beginPath();
-        ctx!.arc(sx + aberr, sy, 3 * ease, 0, Math.PI * 2);
+        ctx!.arc(sx + aberr, sy, fringeR, 0, Math.PI * 2);
         ctx!.fill();
 
-        // Tiny ice-white core at star centre
-        const anchor = ctx!.createRadialGradient(sx, sy, 0, sx, sy, 2.2 * ease);
-        anchor.addColorStop(0,   `rgba(240,250,255,${ease * 0.95})`);
-        anchor.addColorStop(0.5, `rgba(180,230,255,${ease * 0.45})`);
+        // Ice-white core at star centre
+        const coreR = 4 * ease;
+        const anchor = ctx!.createRadialGradient(sx, sy, 0, sx, sy, coreR);
+        anchor.addColorStop(0,   `rgba(240,250,255,${ease * 0.90})`);
+        anchor.addColorStop(0.4, `rgba(180,230,255,${ease * 0.45})`);
         anchor.addColorStop(1,   "rgba(0,0,0,0)");
         ctx!.fillStyle = anchor;
         ctx!.beginPath();
-        ctx!.arc(sx, sy, 2.2 * ease, 0, Math.PI * 2);
+        ctx!.arc(sx, sy, coreR, 0, Math.PI * 2);
         ctx!.fill();
 
         ctx!.restore();
@@ -257,10 +260,10 @@ export default function EffectsOverlay() {
           for (let b = a + 1; b < active.length; b++) {
             const sa = active[a], sb = active[b];
             const dist = Math.hypot(sa.sx - sb.sx, sa.sy - sb.sy);
-            if (dist > 560 || dist < 6) continue;
+            if (dist > 700 || dist < 8) continue;
 
             const minE     = Math.min(sa.ease, sb.ease);
-            const distFade = Math.max(0, 1 - dist / 560);
+            const distFade = Math.max(0, 1 - dist / 700);
             const alpha    = minE * distFade * 0.55;
 
             const dashLen    = 8 + dist * 0.06;

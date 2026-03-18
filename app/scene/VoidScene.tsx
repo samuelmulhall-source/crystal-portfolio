@@ -29,14 +29,14 @@ type LayerConfig = readonly { count: number; rMin: number; rMax: number; rotSpd:
 
 // Spherical shell radii — stars distributed around origin, dynamically recycled to follow camera
 const LAYERS_DESKTOP = [
-  { count: 2200, rMin: 20, rMax: 55, rotSpd: 0.005, size: 0.22, seed: 11111 },
-  { count: 1600, rMin: 40, rMax: 75, rotSpd: 0.008, size: 0.28, seed: 22222 },
-  { count: 1000, rMin: 55, rMax: 95, rotSpd: 0.012, size: 0.36, seed: 33333 },
+  { count: 2400, rMin: 18, rMax: 55, rotSpd: 0.005, size: 0.18, seed: 11111 },
+  { count: 1800, rMin: 35, rMax: 70, rotSpd: 0.008, size: 0.22, seed: 22222 },
+  { count: 1200, rMin: 50, rMax: 90, rotSpd: 0.012, size: 0.26, seed: 33333 },
 ] as const;
 const LAYERS_MOBILE = [
-  { count: 500, rMin: 20, rMax: 55, rotSpd: 0.006, size: 0.24, seed: 11111 },
-  { count: 400, rMin: 40, rMax: 75, rotSpd: 0.009, size: 0.30, seed: 22222 },
-  { count: 250, rMin: 55, rMax: 95, rotSpd: 0.013, size: 0.36, seed: 33333 },
+  { count: 600, rMin: 18, rMax: 55, rotSpd: 0.006, size: 0.20, seed: 11111 },
+  { count: 450, rMin: 35, rMax: 70, rotSpd: 0.009, size: 0.24, seed: 22222 },
+  { count: 300, rMin: 50, rMax: 90, rotSpd: 0.013, size: 0.28, seed: 33333 },
 ] as const;
 
 export const VoidContext = createContext<{ isMobile: boolean; layers: LayerConfig }>({
