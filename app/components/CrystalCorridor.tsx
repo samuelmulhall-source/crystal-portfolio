@@ -18,20 +18,12 @@
  *   - rAF only runs while corridor is potentially visible
  */
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { voidState } from "../lib/voidState";
-
-/** Total frames in each smoke sequence */
-const TOTAL_FRAMES = 90;
+import { getDeviceProfile } from "../lib/deviceTier";
 
 /** Scroll fraction where corridor sequence ends (middle ground timing) */
 const CORRIDOR_END = 0.15;
-
-/** How many frames to eagerly preload per layer */
-const EAGER_COUNT = 15;
-
-/** Batch size for lazy loading remaining frames */
-const LAZY_BATCH = 15;
 
 /** Per-layer parallax magnitude (px at canvas scale) */
 const PARALLAX_BACK  = 8;   // subtle — far layer
@@ -42,6 +34,13 @@ function lerp(a: number, b: number, t: number) {
 }
 
 export default function CrystalCorridor() {
+  const profile = useMemo(() => getDeviceProfile(), []);
+  const TOTAL_FRAMES = profile.smokeFrames;
+  const EAGER_COUNT = profile.smokeEager;
+  const LAZY_BATCH = profile.tier === "low" ? 10 : 15;
+  const SMOKE_FOLDER_BACK = `smoke_back${profile.smokeSuffix}`;
+  const SMOKE_FOLDER_FRONT = `smoke_front${profile.smokeSuffix}`;
+
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const backFramesRef = useRef<(HTMLImageElement | null)[]>(new Array(TOTAL_FRAMES).fill(null));
@@ -91,8 +90,8 @@ export default function CrystalCorridor() {
       const eagerBack: Promise<HTMLImageElement>[] = [];
       const eagerFront: Promise<HTMLImageElement>[] = [];
       for (let i = 0; i < Math.min(EAGER_COUNT, TOTAL_FRAMES); i++) {
-        eagerBack.push(loadFrame("smoke_back", i, backFramesRef.current));
-        eagerFront.push(loadFrame("smoke_front", i, frontFramesRef.current));
+        eagerBack.push(loadFrame(SMOKE_FOLDER_BACK, i, backFramesRef.current));
+        eagerFront.push(loadFrame(SMOKE_FOLDER_FRONT, i, frontFramesRef.current));
       }
       await Promise.all([...eagerBack, ...eagerFront]);
       if (cancelled) return;
@@ -103,8 +102,8 @@ export default function CrystalCorridor() {
         if (cancelled) return;
         const batch: Promise<HTMLImageElement>[] = [];
         for (let i = start; i < Math.min(start + LAZY_BATCH, TOTAL_FRAMES); i++) {
-          batch.push(loadFrame("smoke_back", i, backFramesRef.current));
-          batch.push(loadFrame("smoke_front", i, frontFramesRef.current));
+          batch.push(loadFrame(SMOKE_FOLDER_BACK, i, backFramesRef.current));
+          batch.push(loadFrame(SMOKE_FOLDER_FRONT, i, frontFramesRef.current));
         }
         await Promise.all(batch);
       }
@@ -123,7 +122,7 @@ export default function CrystalCorridor() {
     const ctx = canvas.getContext("2d", { alpha: true });
     if (!ctx) return;
 
-    const dpr = Math.min(window.devicePixelRatio, 2);
+    const dpr = Math.min(window.devicePixelRatio, profile.smokeDpr);
     dprRef.current = dpr;
 
     const resize = () => {

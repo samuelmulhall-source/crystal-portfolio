@@ -9,17 +9,19 @@
  * All scene logic (starfield, camera, weapons, lighting) lives in app/scene/.
  */
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Canvas } from "@react-three/fiber";
 import * as THREE from "three";
 import { voidState } from "../lib/voidState";
 import { workModels, subscribeExpanded } from "../lib/workModels";
+import { getDeviceProfile } from "../lib/deviceTier";
 import VoidScene from "../scene/VoidScene";
 
 export default function VoidBackground() {
   const [mounted, setMounted] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const deviceProfile = useMemo(() => typeof window !== "undefined" ? getDeviceProfile() : null, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -141,9 +143,13 @@ export default function VoidBackground() {
       aria-hidden="true"
     >
       <Canvas
-        gl={{ antialias: true, alpha: false, powerPreference: "high-performance" }}
+        gl={{
+          antialias: !deviceProfile || deviceProfile.tier !== "low",
+          alpha: false,
+          powerPreference: "high-performance",
+        }}
         camera={{ position: [0, 0, 14], fov: 50 }}
-        dpr={[1, 1.5]}
+        dpr={[1, deviceProfile?.maxDpr ?? 1.5]}
         frameloop="always"
         style={{ width: "100%", height: "100%", display: "block" }}
         aria-label="Interactive 3D cinematic weapon journey"
