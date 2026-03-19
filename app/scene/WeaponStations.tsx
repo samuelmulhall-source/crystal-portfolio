@@ -12,18 +12,34 @@
  * only when the loaded set actually grows.
  */
 
-import { useState, useRef, useCallback, Suspense } from "react";
+import { useState, useRef, useCallback, useEffect, Suspense } from "react";
 import { useFrame } from "@react-three/fiber";
 import { useFBX } from "@react-three/drei";
+import * as THREE from "three";
 import { voidState } from "../lib/voidState";
 import { workModels, type WorkModelEntry } from "../lib/workModels";
 import { STATIONS } from "../lib/journeyConfig";
+import { loadGate } from "../lib/loadingOrchestrator";
+
+/**
+ * Redirect .png/.jpg/.tga texture requests to .webp — FBX files embed
+ * original texture references (e.g. Torch_color.png) but we only ship .webp.
+ * This prevents dozens of 404 errors during FBX parsing and lets the browser
+ * cache shared textures between FBXLoader and our custom PBR pipeline.
+ */
+if (typeof window !== "undefined") {
+  THREE.DefaultLoadingManager.setURLModifier((url) => {
+    if (/\.(png|jpg|jpeg|tga|bmp)$/i.test(url)) {
+      return url.replace(/\.(png|jpg|jpeg|tga|bmp)$/i, ".webp");
+    }
+    return url;
+  });
+}
 import WeaponStation from "./WeaponStation";
 
-// Module-level FBX preloading — starts immediately when this module is imported.
+// FBX preloading — DEFERRED until loading screen dismisses so FBX downloads
+// don't compete for bandwidth with critical smoke frame decoding.
 // Staggered to avoid concurrent FBX parses blocking the main thread.
-// The first model (torch, station 0) loads immediately since it's visible first.
-// The dagger (20MB) loads last to avoid blocking other loads.
 const PRELOAD_PATHS = [
   "/models/Torch/torch.fbx",           // 103KB - Station 0, visible first
   "/models/Weapons/bow/Bow.fbx",        // 579KB - Station 4
@@ -32,20 +48,50 @@ const PRELOAD_PATHS = [
   "/models/Weapons/Ornate Dagger/Ornate Dagger.fbx", // 20MB - Station 1, last!
 ];
 
-// Start first preload immediately, rest staggered
-if (typeof window !== "undefined") {
-  useFBX.preload(PRELOAD_PATHS[0]);
-  PRELOAD_PATHS.slice(1).forEach((path, i) => {
-    setTimeout(() => useFBX.preload(path), (i + 1) * 2000);
-  });
-}
-
 export default function WeaponStations() {
   const [, setTick] = useState(0);
   const entriesRef = useRef<WorkModelEntry[]>([]);
   const versionRef = useRef(-1);
   const loadedRef = useRef<Set<string>>(new Set());
   const pendingUpdate = useRef(false);
+
+  // Grace period: don't mount ANY stations until either:
+  //   a) User scrolls past hero (scrollProgress > 0.05), OR
+  //   b) 3 seconds after loading screen dismisses (preloads have had time)
+  // This prevents FBX parsing + shader compilation from stuttering the hero.
+  const graceRef = useRef(false);
+
+  // Defer FBX preloading until loading screen dismisses — prevents FBX
+  // downloads from competing with critical smoke frame loading.
+  // Also starts the station-mounting grace timer.
+  useEffect(() => {
+    const startPreload = () => {
+      useFBX.preload(PRELOAD_PATHS[0]);
+      PRELOAD_PATHS.slice(1).forEach((path, i) => {
+        setTimeout(() => useFBX.preload(path), (i + 1) * 2000);
+      });
+    };
+
+    const startGraceTimer = () => {
+      setTimeout(() => { graceRef.current = true; }, 3000);
+    };
+
+    if (loadGate.dismissed) {
+      startPreload();
+      startGraceTimer();
+      return;
+    }
+
+    const unsub = loadGate.subscribe(() => {
+      if (loadGate.dismissed) {
+        unsub();
+        // Small delay to let loading screen fadeout finish and scene settle
+        setTimeout(startPreload, 400);
+        startGraceTimer();
+      }
+    });
+    return unsub;
+  }, []);
 
   const bump = useCallback(() => {
     if (!pendingUpdate.current) {
@@ -67,6 +113,12 @@ export default function WeaponStations() {
       entriesRef.current = [...workModels.entries];
       bump();
     }
+
+    // Don't mount stations until user scrolls past hero OR grace period elapsed.
+    // Prevents FBX parsing + shader compilation from causing frame drops
+    // during the hero presentation.
+    const shouldLoad = graceRef.current || voidState.scrollProgress > 0.05;
+    if (!shouldLoad) return;
 
     // Determine which stations to load
     const current = voidState.activeStationIndex;

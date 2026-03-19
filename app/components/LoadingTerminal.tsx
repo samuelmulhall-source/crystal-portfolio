@@ -1,58 +1,104 @@
 "use client";
 
 /**
- * LoadingTerminal — premium console boot sequence.
+ * LoadingTerminal — premium console boot sequence gated on REAL milestones.
  *
- * Cold void aesthetic: monospace readout with ice-blue accent on the
- * system ID, diagnostic lines, subtle CRT scanlines, and a metallic
- * progress bar. Fades out once scene is ready.
+ * Each boot line appears only when:
+ *   1. A minimum display time has elapsed (for pacing on fast machines), AND
+ *   2. Its readiness gate (if any) has been met by the loading orchestrator.
  *
- * Uses voidState.firstModelReady with 8s safety timeout.
+ * This ensures the scene is genuinely ready — shaders compiled, smoke frames
+ * decoded — before the loading screen fades. No more decorative loading
+ * followed by stutter.
+ *
+ * Safety timeout: 10s hard limit forces dismissal regardless.
  */
 
 import { useEffect, useRef, useState } from "react";
-import { voidState } from "../lib/voidState";
+import { loadGate } from "../lib/loadingOrchestrator";
 
-const BOOT_LINES = [
-  { text: "INITIALIZING VOID RENDERER", delay: 0 },
-  { text: "MAPPING STELLAR COORDINATES", delay: 350 },
-  { text: "CALIBRATING NAVIGATION SPLINE", delay: 700 },
-  { text: "LOADING ARTIFACT GEOMETRY", delay: 1050 },
-  { text: "ESTABLISHING NEBULA FIELD", delay: 1400 },
-  { text: "CONSOLE ONLINE", delay: 1800 },
+type Gate = "sceneWarmed" | "smokeReady" | "allReady" | null;
+
+const BOOT_LINES: { text: string; minTime: number; gate: Gate }[] = [
+  { text: "INITIALIZING VOID RENDERER",     minTime: 0,    gate: null },
+  { text: "COMPILING STELLAR SHADERS",       minTime: 300,  gate: "sceneWarmed" },
+  { text: "MAPPING NAVIGATION SPLINE",       minTime: 600,  gate: null },
+  { text: "DECODING NEBULA SEQUENCES",       minTime: 900,  gate: "smokeReady" },
+  { text: "CALIBRATING PARALLAX ENGINE",     minTime: 1200, gate: null },
+  { text: "CONSOLE ONLINE",                  minTime: 1500, gate: "allReady" },
 ];
+
+function isGateMet(gate: Gate): boolean {
+  if (!gate) return true;
+  if (gate === "sceneWarmed") return loadGate.sceneWarmed;
+  if (gate === "smokeReady") return loadGate.smokeReady;
+  if (gate === "allReady") return loadGate.ready;
+  return true;
+}
 
 export default function LoadingTerminal() {
   const [visible, setVisible] = useState(true);
   const [fadingOut, setFadingOut] = useState(false);
   const [visibleLines, setVisibleLines] = useState(0);
-  const checkRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const dismissedRef = useRef(false);
+  const startTimeRef = useRef(Date.now());
 
-  // Animate boot lines
   useEffect(() => {
-    BOOT_LINES.forEach((_, i) => {
-      setTimeout(() => setVisibleLines(i + 1), BOOT_LINES[i].delay);
-    });
-  }, []);
-
-  // Check for model ready — with 8s safety timeout
-  useEffect(() => {
-    const startTime = Date.now();
-    const MAX_WAIT_MS = 8000;
+    const startTime = startTimeRef.current;
+    const MAX_WAIT_MS = 10000;
 
     const dismiss = () => {
+      if (dismissedRef.current) return;
+      dismissedRef.current = true;
+      loadGate.markDismissed();
       setFadingOut(true);
       setTimeout(() => setVisible(false), 800);
-      if (checkRef.current) clearInterval(checkRef.current);
     };
 
-    checkRef.current = setInterval(() => {
-      if (voidState.firstModelReady || Date.now() - startTime > MAX_WAIT_MS) {
+    const update = () => {
+      if (dismissedRef.current) return;
+      const elapsed = Date.now() - startTime;
+
+      // Safety timeout — force dismiss
+      if (elapsed > MAX_WAIT_MS) {
+        setVisibleLines(BOOT_LINES.length);
         dismiss();
+        return;
       }
-    }, 100);
+
+      // Count how many lines should be visible.
+      // Each line requires:
+      //   - All previous lines visible
+      //   - Minimum elapsed time met
+      //   - Readiness gate met (if any)
+      let newVisible = 0;
+      for (let i = 0; i < BOOT_LINES.length; i++) {
+        const line = BOOT_LINES[i];
+        if (elapsed < line.minTime) break;
+        if (!isGateMet(line.gate)) break;
+        newVisible = i + 1;
+      }
+
+      setVisibleLines(prev => {
+        const next = Math.max(prev, newVisible);
+
+        // All lines shown → dismiss after brief beat
+        if (next >= BOOT_LINES.length && !dismissedRef.current) {
+          setTimeout(dismiss, 350);
+        }
+
+        return next;
+      });
+    };
+
+    // Poll on interval + re-check when milestones fire
+    const interval = setInterval(update, 60);
+    const unsub = loadGate.subscribe(update);
+    update(); // initial check
+
     return () => {
-      if (checkRef.current) clearInterval(checkRef.current);
+      clearInterval(interval);
+      unsub();
     };
   }, []);
 

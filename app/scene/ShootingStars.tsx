@@ -87,7 +87,9 @@ export default function ShootingStars({
     return () => lights.forEach((l) => g.remove(l));
   }, [lights]);
 
-  useFrame((state, dt) => {
+  useFrame((state, rawDt) => {
+    // Cap dt to prevent meteors teleporting during frame drops (loading, tab switch)
+    const dt      = Math.min(rawDt, 0.05);
     const t       = state.clock.elapsedTime;
     const meteors = meteorsRef.current;
     const W       = typeof window !== "undefined" ? window.innerWidth  : 1920;

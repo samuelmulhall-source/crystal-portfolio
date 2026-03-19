@@ -11,6 +11,7 @@ import React, { Suspense, createContext, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { voidState } from "../lib/voidState";
+import { loadGate } from "../lib/loadingOrchestrator";
 import Lighting from "./Lighting";
 import { StarLayer } from "./Starfield";
 import DustParticles from "./DustParticles";
@@ -45,19 +46,20 @@ export const VoidContext = createContext<{ isMobile: boolean; layers: LayerConfi
 });
 
 /**
- * SceneReady — signals that the scene has rendered at least one frame.
- * Sets voidState.firstModelReady as a fallback after the scene mounts,
- * ensuring the loading terminal dismisses even before weapon models load.
+ * SceneReady — counts rendered frames and signals the loading orchestrator
+ * once the GPU has compiled all star/dust shaders (≥5 frames).
+ *
+ * This replaces the old 600ms setTimeout — the scene is genuinely warm
+ * before the loading screen is allowed to dismiss.
  */
 function SceneReady() {
-  const signalled = useRef(false);
+  const frameCount = useRef(0);
   useFrame(() => {
-    if (!signalled.current) {
-      signalled.current = true;
-      // Signal ready after a short delay to let starfield render a few frames
-      setTimeout(() => {
-        voidState.firstModelReady = true;
-      }, 600);
+    if (frameCount.current < 5) {
+      frameCount.current++;
+      if (frameCount.current === 5) {
+        loadGate.markSceneWarmed();
+      }
     }
   });
   return null;

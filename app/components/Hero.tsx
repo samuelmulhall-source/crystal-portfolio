@@ -14,6 +14,7 @@
 import { useRef, useEffect } from "react";
 import { gsap } from "gsap";
 import { voidState } from "../lib/voidState";
+import { loadGate } from "../lib/loadingOrchestrator";
 
 export default function Hero() {
   // GSAP entrance wrappers
@@ -53,28 +54,48 @@ export default function Hero() {
     return () => cancelAnimationFrame(raf);
   }, []);
 
-  // Entrance animation — staggered reveal
+  // Entrance animation — gated on loading screen dismissal.
+  // Starts 200ms after fade begins so the hero text emerges AS the loading
+  // screen goes transparent, creating a seamless handoff instead of a stutter.
   useEffect(() => {
-    const tl = gsap.timeline({ delay: 0.85 });
-    tl.fromTo(subWrapRef.current,
-        { opacity: 0, y: 16 },
-        { opacity: 1, y: 0, duration: 1.05, ease: "power2.out" }
-      )
-      .fromTo(titWrapRef.current,
-        { opacity: 0, y: 26, filter: "blur(16px)" },
-        { opacity: 1, y: 0, filter: "blur(0px)", duration: 1.5, ease: "power2.out" },
-        "-=0.55"
-      )
-      .fromTo(hanWrapRef.current,
-        { opacity: 0, y: 10 },
-        { opacity: 1, y: 0, duration: 0.9, ease: "power2.out" },
-        "-=0.65"
-      )
-      .fromTo(ctaWrapRef.current,
-        { opacity: 0 },
-        { opacity: 1, duration: 0.8, ease: "power2.out" },
-        "-=0.5"
-      );
+    let cancelled = false;
+
+    const startAnimation = () => {
+      if (cancelled) return;
+      const tl = gsap.timeline({ delay: 0.2 });
+      tl.fromTo(subWrapRef.current,
+          { opacity: 0, y: 16 },
+          { opacity: 1, y: 0, duration: 1.05, ease: "power2.out" }
+        )
+        .fromTo(titWrapRef.current,
+          { opacity: 0, y: 26, filter: "blur(16px)" },
+          { opacity: 1, y: 0, filter: "blur(0px)", duration: 1.5, ease: "power2.out" },
+          "-=0.55"
+        )
+        .fromTo(hanWrapRef.current,
+          { opacity: 0, y: 10 },
+          { opacity: 1, y: 0, duration: 0.9, ease: "power2.out" },
+          "-=0.65"
+        )
+        .fromTo(ctaWrapRef.current,
+          { opacity: 0 },
+          { opacity: 1, duration: 0.8, ease: "power2.out" },
+          "-=0.5"
+        );
+    };
+
+    if (loadGate.dismissed) {
+      startAnimation();
+    } else {
+      const unsub = loadGate.subscribe(() => {
+        if (loadGate.dismissed) {
+          unsub();
+          startAnimation();
+        }
+      });
+      return () => { cancelled = true; unsub(); };
+    }
+    return () => { cancelled = true; };
   }, []);
 
   return (

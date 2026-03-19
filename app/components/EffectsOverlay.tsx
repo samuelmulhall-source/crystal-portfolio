@@ -14,6 +14,7 @@
 
 import { useEffect, useRef } from "react";
 import { voidState } from "../lib/voidState";
+import { loadGate } from "../lib/loadingOrchestrator";
 
 // Per-slot spring state (lives outside React render cycle)
 const _springs: Array<{ pos: number; vel: number }> =
@@ -113,6 +114,11 @@ export default function EffectsOverlay() {
 
     function draw() {
       raf = requestAnimationFrame(draw);
+
+      // Skip all rendering while loading screen is visible — nothing to draw
+      // and we avoid competing for CPU time during critical loading phase.
+      if (!loadGate.dismissed) return;
+
       const w   = canvas!.width;
       const h   = canvas!.height;
       ctx!.clearRect(0, 0, w, h);

@@ -7,20 +7,24 @@
  *   1. Back smoke (90 frames, depth atmosphere, subtle parallax)
  *   2. Front smoke (90 frames, foreground atmosphere, stronger parallax)
  *
+ * PERFORMANCE:
+ *   - Frames pre-decoded with createImageBitmap() — off-thread WebP decode
+ *     eliminates synchronous decode stutter on first drawImage per frame.
+ *   - Canvas DPR hard-capped to 1.0 — source images are 1920×1080, no
+ *     visual benefit from retina scaling on soft volumetric smoke. This
+ *     reduces fillrate from ~12M to ~5M pixels per redraw.
+ *   - Skip redraw when same frame and parallax stable.
+ *   - Container display:none past corridor end for zero ongoing cost.
+ *   - rAF only runs while corridor is potentially visible.
+ *
  * Both sequences end at fully transparent frames, so no manual
  * opacity fade is needed — the animation naturally dissolves.
- *
- * Performance:
- *   - First 15 frames of each layer loaded eagerly
- *   - Remaining frames lazy-loaded in batches of 15
- *   - Canvas drawImage composites 2 layers per rAF — cheap
- *   - Container display:none past corridor end for zero ongoing cost
- *   - rAF only runs while corridor is potentially visible
  */
 
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { voidState } from "../lib/voidState";
 import { getDeviceProfile } from "../lib/deviceTier";
+import { loadGate } from "../lib/loadingOrchestrator";
 
 /** Scroll fraction where corridor sequence ends (middle ground timing) */
 const CORRIDOR_END = 0.15;
@@ -33,6 +37,17 @@ function lerp(a: number, b: number, t: number) {
   return a + (b - a) * t;
 }
 
+/** Image source type — ImageBitmap when createImageBitmap is available, HTMLImageElement as fallback */
+type FrameImage = ImageBitmap | HTMLImageElement;
+
+/** Get image dimensions (works for both ImageBitmap and HTMLImageElement) */
+function imgWidth(img: FrameImage): number {
+  return img instanceof ImageBitmap ? img.width : img.naturalWidth;
+}
+function imgHeight(img: FrameImage): number {
+  return img instanceof ImageBitmap ? img.height : img.naturalHeight;
+}
+
 export default function CrystalCorridor() {
   const profile = useMemo(() => getDeviceProfile(), []);
   const TOTAL_FRAMES = profile.smokeFrames;
@@ -43,9 +58,8 @@ export default function CrystalCorridor() {
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const backFramesRef = useRef<(HTMLImageElement | null)[]>(new Array(TOTAL_FRAMES).fill(null));
-  const frontFramesRef = useRef<(HTMLImageElement | null)[]>(new Array(TOTAL_FRAMES).fill(null));
-  const loadedCountRef = useRef(0);
+  const backFramesRef = useRef<(FrameImage | null)[]>(new Array(TOTAL_FRAMES).fill(null));
+  const frontFramesRef = useRef<(FrameImage | null)[]>(new Array(TOTAL_FRAMES).fill(null));
   const currentFrameRef = useRef(-1);
   const smoothFrameRef = useRef(0);
   // Per-layer parallax offsets (smoothed independently)
@@ -54,31 +68,43 @@ export default function CrystalCorridor() {
   const offsetFrontX = useRef(0);
   const offsetFrontY = useRef(0);
   const rafRef = useRef(0);
-  const dprRef = useRef(1);
   const [ready, setReady] = useState(false);
 
-  /** Load a single frame from a sequence folder */
-  const loadFrame = useCallback((
+  /**
+   * Load + pre-decode a single frame.
+   * Uses createImageBitmap for off-thread WebP decode where available,
+   * falls back to HTMLImageElement for older browsers.
+   */
+  const loadFrame = useCallback(async (
     folder: string,
     index: number,
-    targetArray: (HTMLImageElement | null)[],
-  ): Promise<HTMLImageElement> => {
-    return new Promise((resolve, reject) => {
-      if (targetArray[index]) {
-        resolve(targetArray[index]!);
-        return;
-      }
-      const img = new Image();
-      img.decoding = "async";
-      const padded = String(index + 1).padStart(2, "0");
-      img.src = `/hero/${folder}/${padded}.webp`;
-      img.onload = () => {
+    targetArray: (FrameImage | null)[],
+  ): Promise<void> => {
+    if (targetArray[index]) return;
+    const padded = String(index + 1).padStart(2, "0");
+    const url = `/hero/${folder}/${padded}.webp`;
+
+    try {
+      if (typeof createImageBitmap !== "undefined") {
+        // Preferred: off-thread decode via createImageBitmap
+        const resp = await fetch(url);
+        const blob = await resp.blob();
+        const bmp = await createImageBitmap(blob);
+        targetArray[index] = bmp;
+      } else {
+        // Fallback: HTMLImageElement (synchronous decode on first drawImage)
+        const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+          const el = new Image();
+          el.decoding = "async";
+          el.src = url;
+          el.onload = () => resolve(el);
+          el.onerror = reject;
+        });
         targetArray[index] = img;
-        loadedCountRef.current++;
-        resolve(img);
-      };
-      img.onerror = reject;
-    });
+      }
+    } catch {
+      // Silent fail — frame will be skipped during rendering
+    }
   }, []);
 
   // ── Preload frames for both layers ──
@@ -87,8 +113,8 @@ export default function CrystalCorridor() {
 
     async function preload() {
       // Eager: first N frames of both layers in parallel
-      const eagerBack: Promise<HTMLImageElement>[] = [];
-      const eagerFront: Promise<HTMLImageElement>[] = [];
+      const eagerBack: Promise<void>[] = [];
+      const eagerFront: Promise<void>[] = [];
       for (let i = 0; i < Math.min(EAGER_COUNT, TOTAL_FRAMES); i++) {
         eagerBack.push(loadFrame(SMOKE_FOLDER_BACK, i, backFramesRef.current));
         eagerFront.push(loadFrame(SMOKE_FOLDER_FRONT, i, frontFramesRef.current));
@@ -96,11 +122,12 @@ export default function CrystalCorridor() {
       await Promise.all([...eagerBack, ...eagerFront]);
       if (cancelled) return;
       setReady(true);
+      loadGate.markSmokeReady();
 
       // Lazy: remaining frames in batches
       for (let start = EAGER_COUNT; start < TOTAL_FRAMES; start += LAZY_BATCH) {
         if (cancelled) return;
-        const batch: Promise<HTMLImageElement>[] = [];
+        const batch: Promise<void>[] = [];
         for (let i = start; i < Math.min(start + LAZY_BATCH, TOTAL_FRAMES); i++) {
           batch.push(loadFrame(SMOKE_FOLDER_BACK, i, backFramesRef.current));
           batch.push(loadFrame(SMOKE_FOLDER_FRONT, i, frontFramesRef.current));
@@ -111,7 +138,7 @@ export default function CrystalCorridor() {
 
     preload();
     return () => { cancelled = true; };
-  }, [loadFrame]);
+  }, [loadFrame, EAGER_COUNT, LAZY_BATCH, SMOKE_FOLDER_BACK, SMOKE_FOLDER_FRONT, TOTAL_FRAMES]);
 
   // ── Scroll-driven dual-layer canvas rendering ──
   useEffect(() => {
@@ -122,8 +149,9 @@ export default function CrystalCorridor() {
     const ctx = canvas.getContext("2d", { alpha: true });
     if (!ctx) return;
 
-    const dpr = Math.min(window.devicePixelRatio, profile.smokeDpr);
-    dprRef.current = dpr;
+    // DPR HARD-CAPPED to 1.0 — smoke images are 1920×1080, no visual benefit
+    // from retina scaling on soft volumetric smoke. Reduces fillrate by 2-4×.
+    const dpr = 1;
 
     const resize = () => {
       const w = window.innerWidth;
@@ -132,19 +160,24 @@ export default function CrystalCorridor() {
       canvas.height = h * dpr;
       canvas.style.width = `${w}px`;
       canvas.style.height = `${h}px`;
+      // Force redraw after resize
+      currentFrameRef.current = -1;
     };
     resize();
     window.addEventListener("resize", resize);
 
     /** Draw an image cover-fit to canvas with parallax offset */
     function drawCover(
-      image: HTMLImageElement,
+      image: FrameImage,
       cw: number, ch: number,
       ox: number, oy: number,
       alpha: number,
       extraScale = 1.08,
     ) {
-      const imgAspect = image.naturalWidth / image.naturalHeight;
+      const iw = imgWidth(image);
+      const ih = imgHeight(image);
+      if (iw === 0 || ih === 0) return;
+      const imgAspect = iw / ih;
       const canvasAspect = cw / ch;
       let drawW: number, drawH: number;
       if (canvasAspect > imgAspect) {
@@ -226,7 +259,7 @@ export default function CrystalCorridor() {
       cancelAnimationFrame(rafRef.current);
       window.removeEventListener("resize", resize);
     };
-  }, [ready]);
+  }, [ready, TOTAL_FRAMES]);
 
   return (
     <div
