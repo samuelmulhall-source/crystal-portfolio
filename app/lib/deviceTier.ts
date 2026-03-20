@@ -31,7 +31,7 @@ let cached: DeviceProfile | null = null;
 function detect(): DeviceProfile {
   if (typeof window === "undefined") {
     // SSR fallback — assume high
-    return { tier: "high", isMobile: false, maxDpr: 1.5, smokeSuffix: "", smokeFrames: 90, smokeDpr: 2, smokeEager: 15 };
+    return { tier: "high", isMobile: false, maxDpr: 1.5, smokeSuffix: "", smokeFrames: 200, smokeDpr: 2, smokeEager: 20 };
   }
 
   const isMobile = window.matchMedia("(max-width: 768px)").matches;
@@ -81,9 +81,9 @@ function detect(): DeviceProfile {
     isMobile,
     maxDpr: tier === "low" ? 1.0 : tier === "mid" ? 1.5 : 1.5,
     smokeSuffix: tier === "low" ? "_m" : "",
-    smokeFrames: tier === "low" ? 45 : 90,
+    smokeFrames: 200,
     smokeDpr: tier === "low" ? 1.0 : Math.min(dpr, 2),
-    smokeEager: tier === "low" ? 8 : 15,
+    smokeEager: tier === "low" ? 12 : 20,
   };
 
   if (typeof console !== "undefined") {
