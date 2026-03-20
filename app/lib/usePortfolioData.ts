@@ -79,9 +79,7 @@ export function usePortfolioData(): { data: PortfolioData; loading: boolean } {
 
   useEffect(() => {
     if (cachedData) {
-      // Cache was warm — ensure state matches (handles HMR edge case)
-      setData(cachedData);
-      setLoading(false);
+      // Cache was warm — state was set via initializer, nothing to do
       return;
     }
     let cancelled = false;

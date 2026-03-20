@@ -4,7 +4,6 @@ import { useEffect, useState, useCallback } from "react";
 import { voidState } from "../../lib/voidState";
 import { workModels } from "../../lib/workModels";
 import { trackWireframeToggle } from "../../lib/analytics";
-import { MON } from "./types";
 
 // ─── Viewer controls — wireframe, auto-rotate, reset ──────────────────────
 export function ViewerControls({ mobile }: { mobile: boolean }) {

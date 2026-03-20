@@ -11,7 +11,6 @@
 import React, { useRef, useMemo, useEffect, useContext } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
-import { voidState } from "../lib/voidState";
 import { VoidContext } from "./VoidScene";
 import { makeHoloStarMat } from "./starShader";
 import { sr } from "../lib/seededRandom";
@@ -99,9 +98,8 @@ export function StarLayer({
   const hasVel = li < 2;
   const geo    = useMemo(() => buildStarGeo(cfg.count, cfg.rMin, cfg.rMax, cfg.seed, hasVel), [cfg, hasVel]);
 
-  // GLSL ShaderMaterial
+  // GLSL ShaderMaterial — created once via useMemo, uniform writes are in useFrame
   const mat = useMemo(() => makeHoloStarMat(hasVel), [hasVel]);
-
   useEffect(() => () => mat.dispose(), [mat]);
 
   // Recycling state
@@ -113,6 +111,7 @@ export function StarLayer({
     if (!pointsRef.current) return;
 
     // Consistent opacity throughout the journey
+    // eslint-disable-next-line react-hooks/immutability -- Three.js uniforms must be set per-frame
     mat.uniforms.uOpacity.value = 0.90;
     mat.uniforms.uSize.value    = cfg.size;
     mat.uniforms.uVH.value = (s.gl.domElement).height * 0.5;

@@ -74,12 +74,31 @@ export default function ShootingStars() {
     // Only render meteors during hero + first transit
     const pastHero = voidState.scrollProgress > 0.35;
 
-    // Spawn (only if in hero region)
+    // Spawn (only if in hero region) — camera-relative via matrixWorld basis
     const maxActive = isMobile ? 3 : METEOR_COUNT;
     if (!pastHero && t >= nextSpawnRef.current) {
       const burst = 1 + Math.floor(sr(Math.floor(t * 1000) % 99999) * 3);
       let spawned = 0;
       const activeCount = meteors.filter(m => m.active).length;
+
+      // Extract camera basis vectors from matrixWorld (zero alloc)
+      const mw = camera.matrixWorld.elements;
+      const rX = mw[0], rY = mw[1], rZ = mw[2];     // camera right
+      const uX = mw[4], uY = mw[5], uZ = mw[6];     // camera up
+      const fX = -mw[8], fY = -mw[9], fZ = -mw[10];  // camera forward (-Z)
+      const camX = camera.position.x, camY = camera.position.y, camZ = camera.position.z;
+
+      // Frustum geometry for spawn sizing
+      const camFov    = (camera as THREE.PerspectiveCamera).fov ?? 50;
+      const camAspect = (camera as THREE.PerspectiveCamera).aspect ?? 1.78;
+      const depth     = 4 + Math.random() * 4;
+      const halfH     = Math.tan((camFov / 2) * Math.PI / 180) * depth;
+      const halfW     = halfH * camAspect;
+
+      // Speed normalization: consistent screen-space crossing time
+      const REF_HALF_W = Math.tan(25 * Math.PI / 180) * 6 * 1.78;
+      const speedScale = halfW / REF_HALF_W;
+
       for (let m = 0; m < METEOR_COUNT && spawned < burst && activeCount + spawned < maxActive; m++) {
         if (!meteors[m].active) {
           const met  = meteors[m];
@@ -87,21 +106,30 @@ export default function ShootingStars() {
           met.t      = 0;
           met.phase  = Math.random() * Math.PI * 2;
           met.maxLife = 2.5 + Math.random() * 1.0;
-          met.pz = -(4 + Math.random() * 4);
-          const camPosZ   = (camera as THREE.PerspectiveCamera).position?.z ?? 12;
-          const viewZ     = camPosZ - met.pz;
-          const camFov    = (camera as THREE.PerspectiveCamera).fov ?? 50;
-          const camAspect = (camera as THREE.PerspectiveCamera).aspect ?? 1.78;
-          const halfH  = Math.tan((camFov / 2) * Math.PI / 180) * viewZ;
-          const halfW  = halfH * camAspect;
-          met.px = -(halfW * 1.05 + 1.5 + Math.random() * 3.0);
-          met.py = (-halfH * 0.3) + Math.random() * (halfH * 1.6);
+
+          // Spawn in camera space: left edge, random vertical, at depth
+          const offRight = -(halfW * 1.05 + 1.5 + Math.random() * 3.0);
+          const offUp    = (-halfH * 0.3) + Math.random() * (halfH * 1.6);
+
+          // Transform to world space
+          met.px = camX + fX * depth + rX * offRight + uX * offUp;
+          met.py = camY + fY * depth + rY * offRight + uY * offUp;
+          met.pz = camZ + fZ * depth + rZ * offRight + uZ * offUp;
+
+          // Direction in camera space (right + slightly down + slight forward)
           const sx  = 26 + Math.random() * 8;
           const sy  = -(5 + Math.random() * 4);
           const sz  = -(0.5 + Math.random() * 1.5);
           const len = Math.sqrt(sx * sx + sy * sy + sz * sz);
-          met.dx = sx / len; met.dy = sy / len; met.dz = sz / len;
-          met.speed = 8 + Math.random() * 5;
+          const cdx = sx / len, cdy = sy / len, cdz = sz / len;
+
+          // Transform direction to world space
+          met.dx = rX * cdx + uX * cdy + fX * cdz;
+          met.dy = rY * cdx + uY * cdy + fY * cdz;
+          met.dz = rZ * cdx + uZ * cdy + fZ * cdz;
+
+          met.speed = (8 + Math.random() * 5) * speedScale;
+
           // Reset trail ring buffer — fill with spawn position
           met.trailHead = 0;
           for (let ti = 0; ti < TRAIL_POINTS; ti++) {
@@ -123,6 +151,7 @@ export default function ShootingStars() {
       if (!met.active) {
         vMet.env     = Math.max(vMet.env - dt * 6, 0);
         vMet.active  = false;
+        // eslint-disable-next-line react-hooks/immutability -- Three.js light intensity per-frame update
         light.intensity = Math.max(light.intensity - dt * 18, 0);
         continue;
       }

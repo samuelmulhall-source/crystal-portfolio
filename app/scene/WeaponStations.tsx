@@ -49,7 +49,8 @@ const PRELOAD_PATHS = [
 ];
 
 export default function WeaponStations() {
-  const [, setTick] = useState(0);
+  const [renderEntries, setRenderEntries] = useState<WorkModelEntry[]>([]);
+  const [renderLoaded, setRenderLoaded] = useState<Set<string>>(new Set());
   const entriesRef = useRef<WorkModelEntry[]>([]);
   const versionRef = useRef(-1);
   const loadedRef = useRef<Set<string>>(new Set());
@@ -101,7 +102,8 @@ export default function WeaponStations() {
       // which can stack FBX parse into an already-busy frame.
       setTimeout(() => {
         pendingUpdate.current = false;
-        setTick(t => t + 1);
+        setRenderEntries([...entriesRef.current]);
+        setRenderLoaded(new Set(loadedRef.current));
       }, 0);
     }
   }, []);
@@ -147,13 +149,12 @@ export default function WeaponStations() {
     if (changed) bump();
   });
 
-  const entries = entriesRef.current;
-  if (entries.length === 0) return null;
+  if (renderEntries.length === 0) return null;
 
   return (
     <>
-      {STATIONS.filter(s => loadedRef.current.has(s.id)).map(station => {
-        const entry = entries.find(e => e.id === station.modelId);
+      {STATIONS.filter(s => renderLoaded.has(s.id)).map(station => {
+        const entry = renderEntries.find(e => e.id === station.modelId);
         if (!entry) return null;
         return (
           <Suspense key={station.id} fallback={null}>

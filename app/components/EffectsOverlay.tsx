@@ -49,7 +49,6 @@ function getStarGeom(n: number): { verts: Vec3[]; faces: Face[] } {
   // Build triangular faces: top cap and bottom cap
   for (let i = 0; i < n; i++) {
     const o  = 2 + i * 2;       // outer[i]
-    const ni = 2 + i * 2 + 2;   // inner[i]   (wraps)
     const o2 = 2 + ((i + 1) % n) * 2; // outer[i+1]
 
     const inner  = o + 1;

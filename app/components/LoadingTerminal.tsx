@@ -41,9 +41,10 @@ export default function LoadingTerminal() {
   const [fadingOut, setFadingOut] = useState(false);
   const [visibleLines, setVisibleLines] = useState(0);
   const dismissedRef = useRef(false);
-  const startTimeRef = useRef(Date.now());
+  const startTimeRef = useRef(0);
 
   useEffect(() => {
+    if (startTimeRef.current === 0) startTimeRef.current = Date.now();
     const startTime = startTimeRef.current;
     const MAX_WAIT_MS = 10000;
 

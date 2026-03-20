@@ -10,15 +10,10 @@ import { type VideoEntry, MON } from "./types";
 export function VideosContent({ visible, isNarrow }: { visible: boolean; isNarrow?: boolean }) {
   const { data: portfolioData } = usePortfolioData();
   const videos = portfolioData.videos as VideoEntry[];
-  const [activeId, setActiveId] = useState<string | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(() =>
+    portfolioData.videos.length > 0 ? (portfolioData.videos[0] as VideoEntry).id : null
+  );
   const videoRef = useRef<HTMLVideoElement>(null);
-
-  // Set initial active video when data loads
-  useEffect(() => {
-    if (videos.length > 0 && activeId === null) {
-      setActiveId(videos[0].id);
-    }
-  }, [videos, activeId]);
 
   // Pause when tab is hidden; don't autoplay on tab switch
   useEffect(() => {

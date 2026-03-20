@@ -10,7 +10,6 @@
 import { useRef, useState, useEffect, useContext } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
-import * as THREE from "three";
 import { workModels } from "../lib/workModels";
 import { STATIONS } from "../lib/journeyConfig";
 import { VoidContext } from "./VoidScene";

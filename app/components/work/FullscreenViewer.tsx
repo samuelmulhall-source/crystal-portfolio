@@ -145,7 +145,7 @@ export function FullscreenViewer({
         {/* ////// Category header */}
         <div style={{ marginBottom: "2.2rem" }}>
           <p style={{ ...MON, fontSize: "0.44rem", letterSpacing: "0.30em", color: "rgba(184,240,255,0.35)", margin: "0 0 0.9rem" }}>
-            ////// {project.category}
+            {"////// "}{project.category}
           </p>
           <h2 style={{
             fontFamily: "var(--font-geist-sans), sans-serif",
@@ -167,7 +167,7 @@ export function FullscreenViewer({
         {/* /// About */}
         <div style={{ marginBottom: "2.2rem" }}>
           <p style={{ ...MON, fontSize: "0.44rem", letterSpacing: "0.30em", color: "rgba(184,240,255,0.35)", marginBottom: "0.85rem" }}>
-            /// About
+            {"/// About"}
           </p>
           <p style={{
             fontFamily: "var(--font-geist-sans), sans-serif",
@@ -181,7 +181,7 @@ export function FullscreenViewer({
         {/* /// Specifications */}
         <div style={{ marginBottom: "2.4rem" }}>
           <p style={{ ...MON, fontSize: "0.44rem", letterSpacing: "0.30em", color: "rgba(184,240,255,0.35)", marginBottom: "0.85rem" }}>
-            /// Specifications
+            {"/// Specifications"}
           </p>
           {SPECS.map(([label, value]) => (
             <div key={label} style={{

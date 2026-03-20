@@ -13,11 +13,11 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { workModels, TextureSet, subscribePendingTab } from "../lib/workModels";
+import { workModels, subscribePendingTab } from "../lib/workModels";
 import { voidState } from "../lib/voidState";
 import { STATIONS } from "../lib/journeyConfig";
 import { lenisInstance } from "./SmoothScroll";
-import { trackModelView, trackTabSwitch } from "../lib/analytics";
+import { trackModelView } from "../lib/analytics";
 import { useIsMobile } from "../lib/useMediaQuery";
 import { usePortfolioData } from "../lib/usePortfolioData";
 

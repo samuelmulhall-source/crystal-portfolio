@@ -10,7 +10,7 @@
 import React, { Suspense, createContext, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
-import { voidState } from "../lib/voidState";
+import { loadGate } from "../lib/loadingOrchestrator";
 import Lighting from "./Lighting";
 import { StarLayer } from "./Starfield";
 import DustParticles from "./DustParticles";
@@ -50,14 +50,13 @@ export const VoidContext = createContext<{ isMobile: boolean; layers: LayerConfi
  * ensuring the loading terminal dismisses even before weapon models load.
  */
 function SceneReady() {
-  const signalled = useRef(false);
+  const frameCount = useRef(0);
   useFrame(() => {
-    if (!signalled.current) {
-      signalled.current = true;
-      // Signal ready after a short delay to let starfield render a few frames
-      setTimeout(() => {
-        voidState.firstModelReady = true;
-      }, 600);
+    if (frameCount.current < 5) {
+      frameCount.current++;
+      if (frameCount.current === 5) {
+        loadGate.markSceneWarmed();
+      }
     }
   });
   return null;

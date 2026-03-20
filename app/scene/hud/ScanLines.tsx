@@ -8,7 +8,7 @@
  * crawling scan effect. Opacity driven by camera proximity.
  */
 
-import { useRef, useMemo } from "react";
+import { useRef, useMemo, useEffect } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { voidState } from "../../lib/voidState";
@@ -81,9 +81,11 @@ export default function ScanLines({ station, stationIndex }: Props) {
       });
       return mat;
     });
-    matRefs.current = mats;
     return mats;
   }, [lines]);
+
+  // Sync ref after render (not during useMemo)
+  useEffect(() => { matRefs.current = materials; }, [materials]);
 
   useFrame((_, dt) => {
     if (!groupRef.current) return;

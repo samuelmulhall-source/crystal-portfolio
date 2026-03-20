@@ -21,6 +21,7 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { voidState } from "../lib/voidState";
 import { getDeviceProfile } from "../lib/deviceTier";
+import { loadGate } from "../lib/loadingOrchestrator";
 
 /** Scroll fraction where corridor sequence ends (middle ground timing) */
 const CORRIDOR_END = 0.15;
@@ -97,6 +98,7 @@ export default function CrystalCorridor() {
       await Promise.all([...eagerBack, ...eagerFront]);
       if (cancelled) return;
       setReady(true);
+      loadGate.markSmokeReady();
 
       // Lazy: remaining frames in batches
       for (let start = EAGER_COUNT; start < TOTAL_FRAMES; start += LAZY_BATCH) {
@@ -112,7 +114,7 @@ export default function CrystalCorridor() {
 
     preload();
     return () => { cancelled = true; };
-  }, [loadFrame]);
+  }, [loadFrame, EAGER_COUNT, LAZY_BATCH, SMOKE_FOLDER_BACK, SMOKE_FOLDER_FRONT, TOTAL_FRAMES]);
 
   // ── Scroll-driven dual-layer canvas rendering ──
   useEffect(() => {
@@ -227,7 +229,7 @@ export default function CrystalCorridor() {
       cancelAnimationFrame(rafRef.current);
       window.removeEventListener("resize", resize);
     };
-  }, [ready]);
+  }, [ready, TOTAL_FRAMES, profile.smokeDpr]);
 
   return (
     <div

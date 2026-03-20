@@ -11,7 +11,7 @@
  */
 
 import { useRef, useMemo } from "react";
-import { useFrame, useThree } from "@react-three/fiber";
+import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { voidState } from "../lib/voidState";
 import { workModels } from "../lib/workModels";
@@ -24,7 +24,7 @@ const MAX_PARALLAX_X = 1.5;
 const MAX_PARALLAX_Y = 0.8;
 
 export default function CameraRig() {
-  const { camera } = useThree();
+  const cameraRef = useRef<THREE.Camera | null>(null);
 
   // Spring state for position
   const springPos = useRef(new THREE.Vector3(0, 0, 14));
@@ -42,7 +42,10 @@ export default function CameraRig() {
   const _targetLook = useMemo(() => new THREE.Vector3(), []);
   const _parallelOffset = useMemo(() => new THREE.Vector3(), []);
 
-  useFrame((_, dt) => {
+  useFrame((state, dt) => {
+    const camera = state.camera;
+    cameraRef.current = camera;
+
     // Yield to OrbitControls when expanded
     const expanded = workModels.expandedModelId;
     if (expanded) {

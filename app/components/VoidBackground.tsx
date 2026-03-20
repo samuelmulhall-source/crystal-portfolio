@@ -9,7 +9,7 @@
  * All scene logic (starfield, camera, weapons, lighting) lives in app/scene/.
  */
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useSyncExternalStore } from "react";
 import { Canvas } from "@react-three/fiber";
 import * as THREE from "three";
 import { voidState } from "../lib/voidState";
@@ -17,16 +17,27 @@ import { workModels, subscribeExpanded } from "../lib/workModels";
 import { getDeviceProfile } from "../lib/deviceTier";
 import VoidScene from "../scene/VoidScene";
 
+// SSR-safe mount detection via useSyncExternalStore
+const subscribeMounted = (cb: () => void) => { cb(); return () => {}; };
+const getMounted = () => true;
+const getServerMounted = () => false;
+
+// Expanded state via useSyncExternalStore
+let expandedSnapshot = false;
+const subscribeExpandedStore = (cb: () => void) => {
+  const unsub = subscribeExpanded(() => {
+    expandedSnapshot = !!workModels.expandedModelId;
+    cb();
+  });
+  return unsub;
+};
+const getExpanded = () => expandedSnapshot;
+
 export default function VoidBackground() {
-  const [mounted, setMounted] = useState(false);
-  const [expanded, setExpanded] = useState(false);
+  const mounted = useSyncExternalStore(subscribeMounted, getMounted, getServerMounted);
+  const expanded = useSyncExternalStore(subscribeExpandedStore, getExpanded, getExpanded);
   const [isMobile, setIsMobile] = useState(false);
   const deviceProfile = useMemo(() => typeof window !== "undefined" ? getDeviceProfile() : null, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    setMounted(true);
-  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -104,12 +115,7 @@ export default function VoidBackground() {
     };
   }, [mounted]);
 
-  // Sync expanded state
-  useEffect(() => {
-    const unsub = subscribeExpanded(() => setExpanded(!!workModels.expandedModelId));
-    setExpanded(!!workModels.expandedModelId);
-    return () => { unsub(); };
-  }, []);
+  // expanded state is now via useSyncExternalStore above
 
   const onCanvasCreated = useCallback((state: { gl: THREE.WebGLRenderer }) => {
     const canvas = state.gl?.domElement;
