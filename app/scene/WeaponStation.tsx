@@ -252,16 +252,18 @@ export default function WeaponStation({ station, entry }: Props) {
     // Also check if this weapon is the active or expanded one
     const isExpanded = workModels.expandedModelId === entry.id ||
                        workModels.expandedModelId === station.id;
+    // With wider station windows (15%), model should appear fast and stay solid
     const visibility = proximity <= 0
       ? 0
-      : Math.min(1, Math.max(0, (proximity - 0.06) / 0.52));
+      : Math.min(1, Math.max(0, (proximity - 0.03) / 0.30));
     const isNearCamera = visibility > 0.02 || isExpanded;
 
     // Gate on shaderReady — don't show model until GPU shaders are compiled
     const opTarget = (isNearCamera && shaderReady)
-      ? Math.max(visibility, focus * 0.95, isExpanded ? 1 : 0)
+      ? Math.max(visibility, focus * 1.0, isExpanded ? 1 : 0)
       : 0;
-    opacityRef.current += (opTarget - opacityRef.current) * Math.min(dt * 2.5, 1);
+    // Faster fade-in (dt * 4) for snappier model appearance
+    opacityRef.current += (opTarget - opacityRef.current) * Math.min(dt * 4.0, 1);
 
     // Reset entrance when fully faded
     if (opacityRef.current < 0.01) entranceRef.current = 0;

@@ -133,12 +133,14 @@ export default function CameraRig() {
     springLook.current.y += springLookVel.current.y * cdt;
     springLook.current.z += springLookVel.current.z * cdt;
 
-    // Near the focus band → aggressively kill spring velocity and pull onto the shot.
-    if (maxFocus > 0.02) {
-      const dampFactor = Math.pow(1 - maxFocus, 6);
+    // Near the focus band → aggressively kill spring velocity and lock onto the shot.
+    // With wider station windows (15%), this needs to be very strong to prevent drift.
+    if (maxFocus > 0.01) {
+      const dampFactor = Math.pow(1 - maxFocus, 8); // very aggressive damping
       springVel.current.multiplyScalar(dampFactor);
       springLookVel.current.multiplyScalar(dampFactor);
-      const settle = Math.min(0.08 + maxFocus * 0.34, 0.42);
+      // Hard settle: at full focus, camera snaps directly to target
+      const settle = Math.min(0.12 + maxFocus * 0.6, 0.72);
       springPos.current.lerp(_targetPos, settle);
       springLook.current.lerp(_targetLook, settle);
     }

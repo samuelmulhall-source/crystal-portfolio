@@ -43,15 +43,15 @@ export default function SmoothScroll({ children }: { children: React.ReactNode }
         const target = station.scrollViewCenter * maxScroll;
         const delta = Math.abs(window.scrollY - target);
 
-        // Only snap if within station range but not already centered (>20px off)
-        if (delta > 20 && delta < maxScroll * 0.10) {
+        // Snap within the full station range — wider catch (15% stations)
+        if (delta > 20 && delta < maxScroll * 0.15) {
           isSnappingRef.current = true;
           lenis.scrollTo(target, {
-            duration: 0.6,
+            duration: 0.5,
             onComplete: () => { isSnappingRef.current = false; },
           });
         }
-      }, 400); // 400ms idle = user stopped scrolling
+      }, 300); // 300ms idle = user stopped scrolling (faster catch)
     };
 
     window.addEventListener("scroll", onScroll, { passive: true });

@@ -1,14 +1,15 @@
 "use client";
 
 /**
- * Starfield — 3 layers of star points with hyperspeed motion blur.
+ * Starfield — 3 layers of star points with hyperspace radial streaking.
  *
  * Camera-relative forward travel: stars exist in a cylinder volume along the
  * camera path. Stars that fall behind the camera are recycled ahead.
  *
- * During transit between weapon stations, stars streak into hyperspeed lines
- * (velocity written per-frame from camera delta). At stations, stars settle
- * to clean dots for a clear "lock-in" presentation feel.
+ * Hyperspace effect is 100% GPU — the shader computes radial streaks from
+ * screen center based on the uStreak uniform. No per-frame CPU velocity
+ * writes needed. Transit factor drives uStreak: 0 at stations (clean dots),
+ * 1 during transit (full hyperspace).
  */
 
 import React, { useRef, useMemo, useEffect, useContext } from "react";
@@ -47,7 +48,7 @@ const BEHIND_MARGIN = 12;
 const AHEAD_DIST = HALF_DEPTH * 2 - BEHIND_MARGIN;
 const SPREAD = 30;
 
-function buildStarGeo(count: number, rMin: number, rMax: number, seed: number, hasVelocity: boolean) {
+function buildStarGeo(count: number, rMin: number, rMax: number, seed: number) {
   const pos = new Float32Array(count * 3);
   const col = buildStarColors(count, seed);
   const seeds = new Float32Array(count);
@@ -61,13 +62,9 @@ function buildStarGeo(count: number, rMin: number, rMax: number, seed: number, h
     seeds[i] = sr(seed + i * 7 + 6);
   }
   const g = new THREE.BufferGeometry();
-  g.setAttribute("position",  new THREE.BufferAttribute(pos,   3));
-  g.setAttribute("color",     new THREE.BufferAttribute(col,   3));
-  g.setAttribute("aSeed",     new THREE.BufferAttribute(seeds, 1));
-  if (hasVelocity) {
-    const vel = new Float32Array(count * 3);
-    g.setAttribute("aVelocity", new THREE.BufferAttribute(vel, 3));
-  }
+  g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+  g.setAttribute("color",    new THREE.BufferAttribute(col, 3));
+  g.setAttribute("aSeed",    new THREE.BufferAttribute(seeds, 1));
   return g;
 }
 
@@ -82,15 +79,15 @@ export function StarLayer({
   const ctx = useContext(VoidContext);
   const { layers } = ctx;
   const cfg    = layers[li];
-  const hasVel = li < 2;
-  const geo    = useMemo(() => buildStarGeo(cfg.count, cfg.rMin, cfg.rMax, cfg.seed, hasVel), [cfg, hasVel]);
+  const hasVel = li < 2; // layers 0,1 get hyperspace streaking
+  const geo    = useMemo(() => buildStarGeo(cfg.count, cfg.rMin, cfg.rMax, cfg.seed), [cfg]);
 
   const mat = useMemo(() => makeHoloStarMat(hasVel), [hasVel]);
   useEffect(() => () => mat.dispose(), [mat]);
 
   // Recycling + camera tracking state
   const recycleOffset = useRef(0);
-  const lastCamPos = useRef(new THREE.Vector3(0, 0, 14));
+  const lastCamZ = useRef(14);
   const isFirstFrame = useRef(true);
   // Smoothed streak intensity for buttery transitions
   const smoothStreak = useRef(0);
@@ -103,23 +100,16 @@ export function StarLayer({
     const posAttr = pointsRef.current.geometry.getAttribute("position") as THREE.BufferAttribute;
     const posArr = posAttr.array as Float32Array;
 
-    // ── Compute camera velocity for hyperspeed streaking ────────────────
-    const camDx = cam.x - lastCamPos.current.x;
-    const camDy = cam.y - lastCamPos.current.y;
-    const camDz = cam.z - lastCamPos.current.z;
-    const camSpeedFrame = Math.sqrt(camDx * camDx + camDy * camDy + camDz * camDz);
-    const camDeltaZ = Math.abs(camDz);
-
-    // Transit factor from voidState (0 at station, 1 during transit)
+    // ── Compute streak intensity from transit factor + camera speed ──────
     const transit = voidState.transitFactor;
-    const travelSpeed = Math.min(Math.max((voidState.cameraSpeed - 0.6) / 7.0, 0), 1);
-    const scrollBoost = Math.min(Math.abs(voidState.scrollVel) * 10.0, 1.0);
-    const targetStreak = Math.pow(transit, 0.7) * Math.max(travelSpeed, scrollBoost * 0.75);
-    // Smooth transition: fast ramp-up (warp engage), slower settle (station lock-in)
-    const rampSpeed = targetStreak > smoothStreak.current ? 8.0 : 3.0;
+    const travelSpeed = Math.min(Math.max((voidState.cameraSpeed - 0.3) / 5.0, 0), 1);
+    const scrollBoost = Math.min(Math.abs(voidState.scrollVel) * 8.0, 1.0);
+    const targetStreak = transit * Math.max(travelSpeed, scrollBoost * 0.8);
+    // Fast ramp-up (warp engage), slower settle (station lock-in)
+    const rampSpeed = targetStreak > smoothStreak.current ? 10.0 : 4.0;
     smoothStreak.current += (targetStreak - smoothStreak.current) * Math.min(dt * rampSpeed, 1);
 
-    // ── Write uniforms ──────────────────────────────────────────────────
+    // ── Write uniforms (all streak logic is GPU-side) ───────────────────
     // eslint-disable-next-line react-hooks/immutability -- Three.js uniforms must be set per-frame
     mat.uniforms.uOpacity.value = 0.90;
     mat.uniforms.uSize.value    = cfg.size;
@@ -131,46 +121,9 @@ export function StarLayer({
 
     const rMin2 = cfg.rMin * cfg.rMin;
     const rRange2 = cfg.rMax * cfg.rMax - rMin2;
+    const camDeltaZ = Math.abs(cam.z - lastCamZ.current);
 
-    // ── Write velocity into aVelocity for motion blur (layers 0,1 only) ──
-    if (hasVel && camSpeedFrame > 0.0001) {
-      const velAttr = pointsRef.current.geometry.getAttribute("aVelocity") as THREE.BufferAttribute;
-      const velArr = velAttr.array as Float32Array;
-
-      const invDt = 1 / Math.max(dt, 0.001);
-      const camVX = -camDx * invDt;
-      const camVY = -camDy * invDt;
-      const camVZ = -camDz * invDt;
-      const velMag = Math.sqrt(camVX * camVX + camVY * camVY + camVZ * camVZ);
-      const safeVelMag = Math.max(velMag, 0.0001);
-      const velScale = Math.min(velMag * (0.22 + smoothStreak.current * 0.9), 28);
-      const vx = (camVX / safeVelMag) * velScale;
-      const vy = (camVY / safeVelMag) * velScale;
-      const vz = (camVZ / safeVelMag) * velScale;
-
-      // Write same velocity to all stars (projection handles radial spread)
-      for (let i = 0; i < cfg.count; i++) {
-        velArr[i * 3]     = vx;
-        velArr[i * 3 + 1] = vy;
-        velArr[i * 3 + 2] = vz;
-      }
-      velAttr.needsUpdate = true;
-    } else if (hasVel) {
-      // No camera movement — zero out velocities for clean dots
-      const velAttr = pointsRef.current.geometry.getAttribute("aVelocity") as THREE.BufferAttribute;
-      const velArr = velAttr.array as Float32Array;
-      // Only zero out if streak is still significant (avoid unnecessary writes)
-      if (smoothStreak.current > 0.01) {
-        for (let i = 0; i < cfg.count; i++) {
-          velArr[i * 3] = 0;
-          velArr[i * 3 + 1] = 0;
-          velArr[i * 3 + 2] = 0;
-        }
-        velAttr.needsUpdate = true;
-      }
-    }
-
-    // ── (A) First-frame pre-warm: redistribute ALL stars around camera ──
+    // ── First-frame pre-warm ─────────────────────────────────────────────
     if (isFirstFrame.current) {
       isFirstFrame.current = false;
       for (let i = 0; i < cfg.count; i++) {
@@ -181,7 +134,7 @@ export function StarLayer({
         posArr[i * 3 + 2] = cam.z - HALF_DEPTH + Math.random() * HALF_DEPTH * 2;
       }
       posAttr.needsUpdate = true;
-      lastCamPos.current.copy(cam);
+      lastCamZ.current = cam.z;
       return;
     }
 
@@ -196,7 +149,7 @@ export function StarLayer({
       }
       posAttr.needsUpdate = true;
       recycleOffset.current = 0;
-      lastCamPos.current.copy(cam);
+      lastCamZ.current = cam.z;
       return;
     }
 
@@ -229,7 +182,7 @@ export function StarLayer({
     }
     if (dirty) posAttr.needsUpdate = true;
 
-    lastCamPos.current.copy(cam);
+    lastCamZ.current = cam.z;
   });
 
   return (

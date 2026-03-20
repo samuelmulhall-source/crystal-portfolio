@@ -4,6 +4,13 @@
  * Z-Forward Journey: camera starts at the crystal corridor entrance (z=14),
  * flies forward through the corridor into the starfield, visiting weapon
  * stations placed along the -Z axis. Ends with a downward drop to About/Contact.
+ *
+ * TWO DISTINCT PHASES per model:
+ *   1. TRANSIT (2% scroll) — camera warps through space, hyperspace star streaks
+ *   2. STATION (15% scroll) — camera LOCKED on model, centered, well-framed
+ *
+ * A scroll→spline remap compresses transit into tiny scroll windows (camera
+ * flies fast) and expands stations into wide scroll windows (camera barely moves).
  */
 
 export interface WeaponStation {
@@ -37,14 +44,28 @@ export interface WeaponStation {
   scrollStart: number;
   /** Scroll fraction (0-1) where this station ends */
   scrollEnd: number;
-  /** Optimal scroll fraction where the camera frames the model best.
-   *  Computed from the CatmullRom spline — NOT the arithmetic midpoint. */
+  /** Optimal scroll fraction where the camera frames the model best. */
   scrollViewCenter: number;
 }
 
 /**
  * Five weapon stations placed along the Z-forward corridor.
- * Alternating slight X offsets create a gentle weave as the camera travels.
+ * Each station gets 15% of scroll — wide locked-in viewing windows.
+ * Transits between are compressed to 2% — dramatic warp travel.
+ *
+ * Layout:
+ *   Hero:      0.00 – 0.07  (7%)
+ *   Transit 1: 0.07 – 0.09  (2%)
+ *   Station 1: 0.09 – 0.24  (15%)  ← TORCH
+ *   Transit 2: 0.24 – 0.26  (2%)
+ *   Station 2: 0.26 – 0.41  (15%)  ← DAGGER
+ *   Transit 3: 0.41 – 0.43  (2%)
+ *   Station 3: 0.43 – 0.58  (15%)  ← SHIELD
+ *   Transit 4: 0.58 – 0.60  (2%)
+ *   Station 4: 0.60 – 0.75  (15%)  ← SWORD
+ *   Transit 5: 0.75 – 0.77  (2%)
+ *   Station 5: 0.77 – 0.90  (13%)  ← BOW
+ *   About:     0.90 – 1.00  (10%)
  */
 export const STATIONS: WeaponStation[] = [
   {
@@ -63,9 +84,9 @@ export const STATIONS: WeaponStation[] = [
     loreTag: "Hand-crafted fantasy torch — layered metal wrap",
     loreSpec: "PBR PIPELINE: COLOUR · METALNESS · ROUGHNESS · NORMAL",
     designation: "STATION 01",
-    scrollStart: 0.18,
-    scrollEnd: 0.28,
-    scrollViewCenter: 0.23,
+    scrollStart: 0.09,
+    scrollEnd: 0.24,
+    scrollViewCenter: 0.165,
   },
   {
     id: "ornate-dagger",
@@ -83,9 +104,9 @@ export const STATIONS: WeaponStation[] = [
     loreTag: "Ceremonial dagger — filigree crossguard, gemstone pommel",
     loreSpec: "TEXTURE DENSITY: 4K MAPS · CHASED SURFACE DETAIL",
     designation: "STATION 02",
-    scrollStart: 0.32,
-    scrollEnd: 0.42,
-    scrollViewCenter: 0.37,
+    scrollStart: 0.26,
+    scrollEnd: 0.41,
+    scrollViewCenter: 0.335,
   },
   {
     id: "shield",
@@ -103,9 +124,9 @@ export const STATIONS: WeaponStation[] = [
     loreTag: "Kite shield — riveted iron rim, aged leather facing",
     loreSpec: "SURFACE: BAKED WEAR · NORMAL + ROUGHNESS CHANNELS",
     designation: "STATION 03",
-    scrollStart: 0.46,
-    scrollEnd: 0.56,
-    scrollViewCenter: 0.51,
+    scrollStart: 0.43,
+    scrollEnd: 0.58,
+    scrollViewCenter: 0.505,
   },
   {
     id: "sword",
@@ -125,8 +146,8 @@ export const STATIONS: WeaponStation[] = [
     loreSpec: "MATERIAL: TRANSMISSION MAP · CRYSTAL FULLER REFRACTION",
     designation: "STATION 04",
     scrollStart: 0.60,
-    scrollEnd: 0.70,
-    scrollViewCenter: 0.65,
+    scrollEnd: 0.75,
+    scrollViewCenter: 0.675,
   },
   {
     id: "bow",
@@ -143,14 +164,14 @@ export const STATIONS: WeaponStation[] = [
     loreTag: "Recurve longbow — laminated limbs, sinew wrapping",
     loreSpec: "TOPOLOGY: GAME-READY · HERO-ASSET RESOLUTION",
     designation: "STATION 05",
-    scrollStart: 0.74,
-    scrollEnd: 0.84,
-    scrollViewCenter: 0.79,
+    scrollStart: 0.77,
+    scrollEnd: 0.90,
+    scrollViewCenter: 0.835,
   },
 ];
 
-/** Total page height in viewport units to accommodate the full journey */
-export const TOTAL_SCROLL_VH = 700;
+/** Total page height in viewport units — increased for more physical scroll room */
+export const TOTAL_SCROLL_VH = 900;
 
 /**
  * Camera position spline control points.
@@ -158,13 +179,18 @@ export const TOTAL_SCROLL_VH = 700;
  *
  * Z-forward journey: camera starts at z=14 (corridor entrance),
  * pushes through to z=-130, then drops Y for the about/contact zone.
+ *
+ * NOTE: The scroll→spline remap in cameraSpline.ts controls HOW FAST
+ * the camera traverses this path. Stations get slow traversal (locked),
+ * transits get fast traversal (warp). The control points define the
+ * physical path only.
  */
 export const CAMERA_POSITION_POINTS: [number, number, number][] = [
-  // ── Corridor Hero (scroll 0.00-0.12) ──────────────────────────────────
+  // ── Corridor Hero ──────────────────────────────────────────────────────
   [0, 0, 14],
   [0, 0, 10],
 
-  // ── Corridor Transit (scroll 0.12-0.18): push through corridor ────────
+  // ── Corridor Transit: push through corridor ────────────────────────────
   [0, 0, 4],
   [0, 0, -5],
 
@@ -205,7 +231,7 @@ export const CAMERA_POSITION_POINTS: [number, number, number][] = [
   [0.5, 0.2, -120],    // viewing — 3.5 units from model
   [0, 0, -125],        // exit
 
-  // ── About / Contact zone (scroll 0.87-1.0) ───────────────────────────
+  // ── About / Contact zone ───────────────────────────────────────────────
   [0, -4, -126],       // start descending
   [0, -10, -130],      // about zone — camera looking down into void
 ];
@@ -215,11 +241,11 @@ export const CAMERA_POSITION_POINTS: [number, number, number][] = [
  * Targets weapon world positions during stations, forward horizon during transits.
  */
 export const CAMERA_LOOKAT_POINTS: [number, number, number][] = [
-  // ── Corridor Hero — looking forward into the corridor ─────────────────
+  // ── Corridor Hero ─────────────────────────────────────────────────────
   [0, 0, 0],
   [0, 0, -4],
 
-  // ── Corridor Transit — looking forward toward first station ───────────
+  // ── Corridor Transit ───────────────────────────────────────────────────
   [0, 0, -10],
   [0, 0, -18],
 
@@ -228,7 +254,7 @@ export const CAMERA_LOOKAT_POINTS: [number, number, number][] = [
   [5, 0, -20],
   [1.5, 0, -30],      // blend toward next
 
-  // ── Transit — look ahead ──────────────────────────────────────────────
+  // ── Transit ──────────────────────────────────────────────────────────
   [-2.5, 0, -42],
 
   // ── Station 2: Dagger at [-5, 0, -45] ────────────────────────────────
@@ -236,7 +262,7 @@ export const CAMERA_LOOKAT_POINTS: [number, number, number][] = [
   [-5, 0, -45],
   [-1.5, 0, -55],
 
-  // ── Transit ───────────────────────────────────────────────────────────
+  // ── Transit ──────────────────────────────────────────────────────────
   [2.5, 0, -66],
 
   // ── Station 3: Shield at [4.5, 0, -70] ──────────────────────────────
@@ -244,7 +270,7 @@ export const CAMERA_LOOKAT_POINTS: [number, number, number][] = [
   [4.5, 0, -70],
   [1, 0, -80],
 
-  // ── Transit ───────────────────────────────────────────────────────────
+  // ── Transit ──────────────────────────────────────────────────────────
   [-2.5, 0, -90],
 
   // ── Station 4: Sword at [-4.5, 0, -95] ──────────────────────────────
@@ -252,7 +278,7 @@ export const CAMERA_LOOKAT_POINTS: [number, number, number][] = [
   [-4.5, 0, -95],
   [-1, 0, -105],
 
-  // ── Transit ───────────────────────────────────────────────────────────
+  // ── Transit ──────────────────────────────────────────────────────────
   [2, 0, -115],
 
   // ── Station 5: Bow at [4, 0, -120] ───────────────────────────────────
@@ -260,7 +286,7 @@ export const CAMERA_LOOKAT_POINTS: [number, number, number][] = [
   [4, 0, -120],
   [1, -1, -125],
 
-  // ── About zone — looking down into void ──────────────────────────────
+  // ── About zone ──────────────────────────────────────────────────────
   [0, -6, -128],
   [0, -12, -132],
 ];
@@ -282,6 +308,7 @@ export function findActiveStation(scrollProgress: number): number {
  * Compute proximity (0-1) of scrollProgress to a given station.
  * 1.0 = at the centre of the station's range.
  * 0.0 = outside the station's range.
+ * Uses smoothstep for clean transitions.
  */
 export function getStationProximity(
   scrollProgress: number,
@@ -299,13 +326,14 @@ export function getStationProximity(
 /**
  * Narrow station focus used for "lock-in" behavior.
  * Much tighter than general station proximity so arrival reads clearly.
+ * With wider station windows (15%), this band covers the inner ~40%.
  */
 export function getStationFocusProximity(
   scrollProgress: number,
   station: WeaponStation,
 ): number {
   const halfRange = (station.scrollEnd - station.scrollStart) / 2;
-  const focusHalfRange = Math.max(halfRange * 0.3, 0.016);
+  const focusHalfRange = Math.max(halfRange * 0.4, 0.02);
   const dist = Math.abs(scrollProgress - station.scrollViewCenter) / focusHalfRange;
   const t = Math.max(0, 1 - dist);
   return t * t * (3 - 2 * t);
