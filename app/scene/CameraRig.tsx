@@ -78,6 +78,11 @@ export default function CameraRig() {
     }
     const parallaxScale = 1 - maxProx * 0.7;
 
+    // Transit factor: 0 at station (locked), 1 during transit (hyperspeed)
+    // Smooth cubic falloff for clean lock-in feel
+    const rawTransit = 1 - maxProx;
+    voidState.transitFactor = rawTransit * rawTransit; // quadratic for snappy lock
+
     // Mouse parallax offset
     const px = voidState.mouseNX * MAX_PARALLAX_X * parallaxScale;
     const py = -voidState.mouseNY * MAX_PARALLAX_Y * parallaxScale;

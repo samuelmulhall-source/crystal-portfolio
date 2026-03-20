@@ -74,6 +74,11 @@ export const voidState = {
   showWireframe: false,
   autoRotate: true,
 
+  // ── Transit state ─────────────────────────────────────────────────
+  // 0 = locked at a station (clean dots), 1 = full transit (hyperspeed streaks).
+  // Written by CameraRig, read by Starfield for warp streak intensity.
+  transitFactor: 0,
+
   // ── Camera snap ──────────────────────────────────────────────────────
   // Set true by jumpToStation / model selection to skip spring physics
   // for one frame, teleporting the camera to the spline target instantly.

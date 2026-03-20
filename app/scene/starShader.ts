@@ -5,6 +5,9 @@
  * the trail and the fragment shader applies a directional Gaussian with a
  * bright leading edge and fading tail. Stars at rest render as clean round dots.
  *
+ * uStreak uniform scales the trail effect: 0 = clean dots (station lock-in),
+ * >1 = hyperspeed streaks (transit between stations).
+ *
  * Twinkle: per-star aSeed attribute drives asynchronous brightness pulsing
  * via sin(uTime * rate + phase). Creates alive-feeling starfield.
  *
@@ -21,6 +24,7 @@ export function makeHoloStarMat(hasVelocity: boolean): THREE.ShaderMaterial {
       uOpacity: { value: 0.90 },
       uVH:      { value: 400.0 },
       uTime:    { value: 0.0 },
+      uStreak:  { value: 0.0 },   // 0 = dots, 1+ = hyperspeed streaks
     },
     vertexShader: hasVelocity ? /* glsl */`
       attribute vec3 aVelocity;
@@ -30,12 +34,15 @@ export function makeHoloStarMat(hasVelocity: boolean): THREE.ShaderMaterial {
       varying float vTrailLen;
       varying float vBaseR;
       varying float vTwinkle;
+      varying float vStreak;
       uniform float uSize;
       uniform float uVH;
       uniform float uTime;
+      uniform float uStreak;
 
       void main() {
         vColor = color;
+        vStreak = uStreak;
         // Per-star twinkle: async brightness pulse
         float rate = 1.5 + aSeed * 2.5;
         float phase = aSeed * 6.2832;
@@ -57,7 +64,9 @@ export function makeHoloStarMat(hasVelocity: boolean): THREE.ShaderMaterial {
         gl_Position = projectionMatrix * mv;
 
         // Velocity endpoint for motion blur trail
-        vec3 vEnd = position + aVelocity * 0.045;
+        // uStreak amplifies the velocity scale: 0 = no trail, 1+ = hyperspeed
+        float velScale = 0.045 + uStreak * 0.35;
+        vec3 vEnd = position + aVelocity * velScale;
         vec4 mvEnd = modelViewMatrix * vec4(vEnd, 1.0);
         vec4 clipEnd = projectionMatrix * mvEnd;
         vec2 screenStart = gl_Position.xy / gl_Position.w;
@@ -65,7 +74,9 @@ export function makeHoloStarMat(hasVelocity: boolean): THREE.ShaderMaterial {
         vec2 screenVel = (screenEnd - screenStart) * uVH;
 
         float velMag = length(screenVel);
-        float trailPx = min(velMag * 0.6, 18.0);
+        // Max trail: 18px at rest, up to 90px during hyperspeed
+        float maxTrail = 18.0 + uStreak * 72.0;
+        float trailPx = min(velMag * (0.6 + uStreak * 2.4), maxTrail);
 
         float totalSize = max(2.0, nat + trailPx);
         gl_PointSize = totalSize;
@@ -108,6 +119,7 @@ export function makeHoloStarMat(hasVelocity: boolean): THREE.ShaderMaterial {
       varying float vTrailLen;
       varying float vBaseR;
       varying float vTwinkle;
+      varying float vStreak;
 
       void main() {
         vec2 uv = gl_PointCoord * 2.0 - 1.0;
@@ -127,9 +139,14 @@ export function makeHoloStarMat(hasVelocity: boolean): THREE.ShaderMaterial {
         trailFade = max(trailFade, 0.15);
 
         float core = exp(-r * r * 7.0) * trailFade;
-        float a = uOpacity * core * vTwinkle;
+
+        // During hyperspeed, boost brightness and shift color toward ice-blue
+        float warpBoost = 1.0 + vStreak * 0.6;
+        vec3 warpColor = mix(vColor, vec3(0.7, 0.9, 1.0), vStreak * 0.4);
+
+        float a = uOpacity * core * vTwinkle * warpBoost;
         if (a < 0.004) discard;
-        gl_FragColor = vec4(vColor * core * vTwinkle, a);
+        gl_FragColor = vec4(warpColor * core * vTwinkle * warpBoost, a);
       }
     ` : /* glsl */`
       uniform float uOpacity;

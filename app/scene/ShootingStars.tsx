@@ -1,11 +1,13 @@
 "use client";
 
 /**
- * Shooting stars system — camera-relative meteor spawning with trail rendering.
+ * Shooting stars system — fully camera-relative meteor spawning with trails.
  *
  * Decoupled from starfield: no disruption color flash, no star buffer access.
- * Only active during hero + first transit (scrollProgress < 0.35).
- * Meteor screen positions written to voidState.meteorSlots for EffectsOverlay.
+ * Active throughout the entire journey. Spawn and pathing are relative to the
+ * camera's current position/orientation so they look identical regardless of
+ * scroll position. Meteor screen positions written to voidState.meteorSlots
+ * for EffectsOverlay to render comet trail + head spark.
  */
 
 import React, { useRef, useMemo, useEffect, useContext } from "react";
@@ -24,12 +26,13 @@ interface MeteorState {
   active:  boolean;
   t:       number;
   maxLife: number;
-  px: number; py: number; pz: number;
-  dx: number; dy: number; dz: number;
+  // Position and direction in camera-local space (updated each frame)
+  localPx: number; localPy: number; localPz: number;
+  localDx: number; localDy: number; localDz: number;
   speed:   number;
   phase:   number;
-  trail:   Array<{ x: number; y: number; z: number }>;
-  trailHead: number; // ring buffer write index
+  trail:   Array<{ x: number; y: number; z: number }>; // world-space trail points
+  trailHead: number;
 }
 
 export default function ShootingStars() {
@@ -42,8 +45,8 @@ export default function ShootingStars() {
   const meteorsRef   = useRef<MeteorState[]>(
     Array.from({ length: METEOR_COUNT }, () => ({
       active: false, t: 0, maxLife: 1.8,
-      px: 0, py: 0, pz: 0,
-      dx: 1, dy: 0, dz: 0,
+      localPx: 0, localPy: 0, localPz: 0,
+      localDx: 1, localDy: 0, localDz: 0,
       speed: 14, phase: 0,
       trail: Array.from({ length: TRAIL_POINTS }, () => ({ x: 0, y: 0, z: 0 })),
       trailHead: 0,
@@ -71,26 +74,24 @@ export default function ShootingStars() {
     const W       = typeof window !== "undefined" ? window.innerWidth  : 1920;
     const H       = typeof window !== "undefined" ? window.innerHeight : 1080;
 
-    // Only render meteors during hero + first transit
-    const pastHero = voidState.scrollProgress > 0.35;
+    // Extract camera basis vectors from matrixWorld (zero alloc)
+    const mw = camera.matrixWorld.elements;
+    const rX = mw[0], rY = mw[1], rZ = mw[2];     // camera right
+    const uX = mw[4], uY = mw[5], uZ = mw[6];     // camera up
+    const fX = -mw[8], fY = -mw[9], fZ = -mw[10];  // camera forward (-Z)
+    const camX = camera.position.x, camY = camera.position.y, camZ = camera.position.z;
 
-    // Spawn (only if in hero region) — camera-relative via matrixWorld basis
+    // Frustum geometry for spawn sizing
+    const camFov    = (camera as THREE.PerspectiveCamera).fov ?? 50;
+    const camAspect = (camera as THREE.PerspectiveCamera).aspect ?? 1.78;
+
+    // ── Spawn — camera-relative, active throughout journey ──────────────
     const maxActive = isMobile ? 3 : METEOR_COUNT;
-    if (!pastHero && t >= nextSpawnRef.current) {
+    if (t >= nextSpawnRef.current) {
       const burst = 1 + Math.floor(sr(Math.floor(t * 1000) % 99999) * 3);
       let spawned = 0;
       const activeCount = meteors.filter(m => m.active).length;
 
-      // Extract camera basis vectors from matrixWorld (zero alloc)
-      const mw = camera.matrixWorld.elements;
-      const rX = mw[0], rY = mw[1], rZ = mw[2];     // camera right
-      const uX = mw[4], uY = mw[5], uZ = mw[6];     // camera up
-      const fX = -mw[8], fY = -mw[9], fZ = -mw[10];  // camera forward (-Z)
-      const camX = camera.position.x, camY = camera.position.y, camZ = camera.position.z;
-
-      // Frustum geometry for spawn sizing
-      const camFov    = (camera as THREE.PerspectiveCamera).fov ?? 50;
-      const camAspect = (camera as THREE.PerspectiveCamera).aspect ?? 1.78;
       const depth     = 4 + Math.random() * 4;
       const halfH     = Math.tan((camFov / 2) * Math.PI / 180) * depth;
       const halfW     = halfH * camAspect;
@@ -107,35 +108,33 @@ export default function ShootingStars() {
           met.phase  = Math.random() * Math.PI * 2;
           met.maxLife = 2.5 + Math.random() * 1.0;
 
-          // Spawn in camera space: left edge, random vertical, at depth
-          const offRight = -(halfW * 1.05 + 1.5 + Math.random() * 3.0);
-          const offUp    = (-halfH * 0.3) + Math.random() * (halfH * 1.6);
+          // Spawn position in camera-local space: left edge, random vertical
+          met.localPx = -(halfW * 1.05 + 1.5 + Math.random() * 3.0);
+          met.localPy = (-halfH * 0.3) + Math.random() * (halfH * 1.6);
+          met.localPz = depth;
 
-          // Transform to world space
-          met.px = camX + fX * depth + rX * offRight + uX * offUp;
-          met.py = camY + fY * depth + rY * offRight + uY * offUp;
-          met.pz = camZ + fZ * depth + rZ * offRight + uZ * offUp;
-
-          // Direction in camera space (right + slightly down + slight forward)
+          // Direction in camera-local space (right + slightly down + slight forward)
           const sx  = 26 + Math.random() * 8;
           const sy  = -(5 + Math.random() * 4);
           const sz  = -(0.5 + Math.random() * 1.5);
           const len = Math.sqrt(sx * sx + sy * sy + sz * sz);
-          const cdx = sx / len, cdy = sy / len, cdz = sz / len;
-
-          // Transform direction to world space
-          met.dx = rX * cdx + uX * cdy + fX * cdz;
-          met.dy = rY * cdx + uY * cdy + fY * cdz;
-          met.dz = rZ * cdx + uZ * cdy + fZ * cdz;
+          met.localDx = sx / len;
+          met.localDy = sy / len;
+          met.localDz = sz / len;
 
           met.speed = (8 + Math.random() * 5) * speedScale;
 
-          // Reset trail ring buffer — fill with spawn position
+          // Compute initial world position for trail
+          const wpx = camX + fX * met.localPz + rX * met.localPx + uX * met.localPy;
+          const wpy = camY + fY * met.localPz + rY * met.localPx + uY * met.localPy;
+          const wpz = camZ + fZ * met.localPz + rZ * met.localPx + uZ * met.localPy;
+
+          // Reset trail ring buffer
           met.trailHead = 0;
           for (let ti = 0; ti < TRAIL_POINTS; ti++) {
-            met.trail[ti].x = met.px;
-            met.trail[ti].y = met.py;
-            met.trail[ti].z = met.pz;
+            met.trail[ti].x = wpx;
+            met.trail[ti].y = wpy;
+            met.trail[ti].z = wpz;
           }
           spawned++;
         }
@@ -156,11 +155,6 @@ export default function ShootingStars() {
         continue;
       }
 
-      // If we scrolled past hero, kill active meteors quickly
-      if (pastHero) {
-        met.t = met.maxLife; // force expire
-      }
-
       met.t += dt;
       const lifeNorm = Math.min(met.t / met.maxLife, 1);
       if (lifeNorm >= 1) { met.active = false; continue; }
@@ -169,25 +163,37 @@ export default function ShootingStars() {
       const fadeOut = Math.max(1 - (lifeNorm - 0.65) / 0.35, 0);
       const env     = fadeIn * fadeOut;
 
-      met.px += met.dx * met.speed * dt;
-      met.py += met.dy * met.speed * dt;
-      met.pz += met.dz * met.speed * dt;
+      // Advance in camera-local space
+      met.localPx += met.localDx * met.speed * dt;
+      met.localPy += met.localDy * met.speed * dt;
+      met.localPz += met.localDz * met.speed * dt;
 
-      // Push current position into trail ring buffer
-      met.trail[met.trailHead].x = met.px;
-      met.trail[met.trailHead].y = met.py;
-      met.trail[met.trailHead].z = met.pz;
+      // Transform local position to world space using current camera basis
+      const wpx = camX + fX * met.localPz + rX * met.localPx + uX * met.localPy;
+      const wpy = camY + fY * met.localPz + rY * met.localPx + uY * met.localPy;
+      const wpz = camZ + fZ * met.localPz + rZ * met.localPx + uZ * met.localPy;
+
+      // Push current world position into trail ring buffer
+      met.trail[met.trailHead].x = wpx;
+      met.trail[met.trailHead].y = wpy;
+      met.trail[met.trailHead].z = wpz;
       met.trailHead = (met.trailHead + 1) % TRAIL_POINTS;
 
-      tmpV.set(met.px, met.py, met.pz).project(camera);
+      // Project head to screen
+      tmpV.set(wpx, wpy, wpz).project(camera);
       if (tmpV.z > 1) { vMet.env = 0; continue; }
       vMet.hsx = (tmpV.x + 1) / 2 * W;
       vMet.hsy = (1 - tmpV.y) / 2 * H;
 
+      // Transform local direction to world for tail projection
+      const wdx = rX * met.localDx + uX * met.localDy + fX * met.localDz;
+      const wdy = rY * met.localDx + uY * met.localDy + fY * met.localDz;
+      const wdz = rZ * met.localDx + uZ * met.localDy + fZ * met.localDz;
+
       tmpV.set(
-        met.px - met.dx * TRAIL_LEN,
-        met.py - met.dy * TRAIL_LEN,
-        met.pz - met.dz * TRAIL_LEN,
+        wpx - wdx * TRAIL_LEN,
+        wpy - wdy * TRAIL_LEN,
+        wpz - wdz * TRAIL_LEN,
       ).project(camera);
       vMet.tsx = (tmpV.x + 1) / 2 * W;
       vMet.tsy = (1 - tmpV.y) / 2 * H;
@@ -195,7 +201,6 @@ export default function ShootingStars() {
       // Project trail points to screen space (newest first)
       let trailCount = 0;
       for (let ti = 0; ti < TRAIL_POINTS; ti++) {
-        // Read from ring buffer: newest -> oldest
         const idx = (met.trailHead - 1 - ti + TRAIL_POINTS * 2) % TRAIL_POINTS;
         const tp = met.trail[idx];
         tmpV.set(tp.x, tp.y, tp.z).project(camera);
@@ -209,7 +214,7 @@ export default function ShootingStars() {
       vMet.active = true;
       vMet.env    = env;
 
-      light.position.set(met.px, met.py, met.pz);
+      light.position.set(wpx, wpy, wpz);
       light.intensity = env * 4.5;
     }
 

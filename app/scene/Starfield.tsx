@@ -1,11 +1,14 @@
 "use client";
 
 /**
- * Starfield — 3 layers of star points with motion blur and twinkle.
+ * Starfield — 3 layers of star points with hyperspeed motion blur.
  *
  * Camera-relative forward travel: stars exist in a cylinder volume along the
  * camera path. Stars that fall behind the camera are recycled ahead.
- * No rotation — camera movement creates natural parallax streaming.
+ *
+ * During transit between weapon stations, stars streak into hyperspeed lines
+ * (velocity written per-frame from camera delta). At stations, stars settle
+ * to clean dots for a clear "lock-in" presentation feel.
  */
 
 import React, { useRef, useMemo, useEffect, useContext } from "react";
@@ -14,10 +17,9 @@ import * as THREE from "three";
 import { VoidContext } from "./VoidScene";
 import { makeHoloStarMat } from "./starShader";
 import { sr } from "../lib/seededRandom";
+import { voidState } from "../lib/voidState";
 
 // ─── Spectral star color classes (Harvard classification) ──────────────────
-// Cumulative probability thresholds for spectral class selection.
-// Distribution weighted toward mid-range stars for natural appearance.
 const SPECTRAL_CLASSES: readonly { p: number; r: number; g: number; b: number }[] = [
   { p: 0.10, r: 0.70, g: 0.85, b: 1.00 }, // O/B — bright blue-white  (10%)
   { p: 0.25, r: 1.00, g: 1.00, b: 1.00 }, // A   — pure white         (15%)
@@ -40,39 +42,24 @@ export function buildStarColors(count: number, seed: number): Float32Array {
 }
 
 // ─── Cylinder volume distribution ──────────────────────────────────────────
-// Stars are scattered in a cylinder around the camera path (Z axis).
-// HALF_DEPTH controls how far ahead/behind the camera stars extend.
-// BEHIND_MARGIN controls the recycling threshold behind the camera.
-const HALF_DEPTH = 80;       // half the cylinder length along Z
-const BEHIND_MARGIN = 12;    // recycle stars this far behind camera
-const AHEAD_DIST = HALF_DEPTH * 2 - BEHIND_MARGIN; // how far ahead to place recycled stars
-const SPREAD = 30;           // random Z spread when recycling
+const HALF_DEPTH = 80;
+const BEHIND_MARGIN = 12;
+const AHEAD_DIST = HALF_DEPTH * 2 - BEHIND_MARGIN;
+const SPREAD = 30;
 
-function buildCylinderPositions(
-  count: number, rMin: number, rMax: number, seed: number, camZ: number,
-): Float32Array {
+function buildStarGeo(count: number, rMin: number, rMax: number, seed: number, hasVelocity: boolean) {
   const pos = new Float32Array(count * 3);
+  const col = buildStarColors(count, seed);
+  const seeds = new Float32Array(count);
   for (let i = 0; i < count; i++) {
-    // Radial position in annular ring [rMin, rMax] with volume-correct distribution
     const rFrac = sr(seed + i * 7 + 3);
     const r = Math.sqrt(rMin * rMin + rFrac * (rMax * rMax - rMin * rMin));
     const theta = sr(seed + i * 7 + 2) * Math.PI * 2;
-
-    pos[i * 3]     = r * Math.cos(theta);     // X
-    pos[i * 3 + 1] = r * Math.sin(theta);     // Y (radial, not gravity-aligned)
-    // Z: distributed around camera position
-    pos[i * 3 + 2] = camZ - HALF_DEPTH + sr(seed + i * 7 + 0) * HALF_DEPTH * 2;
+    pos[i * 3]     = r * Math.cos(theta);
+    pos[i * 3 + 1] = r * Math.sin(theta);
+    pos[i * 3 + 2] = 14 - HALF_DEPTH + sr(seed + i * 7 + 0) * HALF_DEPTH * 2;
+    seeds[i] = sr(seed + i * 7 + 6);
   }
-  return pos;
-}
-
-function buildStarGeo(count: number, rMin: number, rMax: number, seed: number, hasVelocity: boolean) {
-  // Initial positions centered around z=14 (camera start)
-  const pos = buildCylinderPositions(count, rMin, rMax, seed, 14);
-  const col = buildStarColors(count, seed);
-  // Per-star twinkle seed — random phase offset for asynchronous brightness pulsing
-  const seeds = new Float32Array(count);
-  for (let i = 0; i < count; i++) seeds[i] = sr(seed + i * 7 + 6);
   const g = new THREE.BufferGeometry();
   g.setAttribute("position",  new THREE.BufferAttribute(pos,   3));
   g.setAttribute("color",     new THREE.BufferAttribute(col,   3));
@@ -98,35 +85,90 @@ export function StarLayer({
   const hasVel = li < 2;
   const geo    = useMemo(() => buildStarGeo(cfg.count, cfg.rMin, cfg.rMax, cfg.seed, hasVel), [cfg, hasVel]);
 
-  // GLSL ShaderMaterial — created once via useMemo, uniform writes are in useFrame
   const mat = useMemo(() => makeHoloStarMat(hasVel), [hasVel]);
   useEffect(() => () => mat.dispose(), [mat]);
 
-  // Recycling state
+  // Recycling + camera tracking state
   const recycleOffset = useRef(0);
-  const lastCamZ = useRef(14); // camera starts at z=14
+  const lastCamPos = useRef(new THREE.Vector3(0, 0, 14));
   const isFirstFrame = useRef(true);
+  // Smoothed streak intensity for buttery transitions
+  const smoothStreak = useRef(0);
 
   useFrame((s) => {
     if (!pointsRef.current) return;
-
-    // Consistent opacity throughout the journey
-    // eslint-disable-next-line react-hooks/immutability -- Three.js uniforms must be set per-frame
-    mat.uniforms.uOpacity.value = 0.90;
-    mat.uniforms.uSize.value    = cfg.size;
-    mat.uniforms.uVH.value = (s.gl.domElement).height * 0.5;
-    mat.uniforms.uTime.value = s.clock.elapsedTime;
 
     const cam = s.camera.position;
     const { isMobile } = ctx;
     const posAttr = pointsRef.current.geometry.getAttribute("position") as THREE.BufferAttribute;
     const posArr = posAttr.array as Float32Array;
 
-    // Pre-compute squared radii for volume-corrected distribution
+    // ── Compute camera velocity for hyperspeed streaking ────────────────
+    const camDx = cam.x - lastCamPos.current.x;
+    const camDy = cam.y - lastCamPos.current.y;
+    const camDz = cam.z - lastCamPos.current.z;
+    const camSpeed = Math.sqrt(camDx * camDx + camDy * camDy + camDz * camDz);
+    const camDeltaZ = Math.abs(camDz);
+
+    // Transit factor from voidState (0 at station, 1 during transit)
+    const transit = voidState.transitFactor;
+    // Scroll speed drives streak intensity — need actual movement, not just being in transit
+    const scrollMag = Math.abs(voidState.scrollVel);
+    // Streak = transit openness * actual scroll velocity * amplifier
+    const targetStreak = transit * Math.min(scrollMag * 4.0, 1.0);
+    // Smooth transition: fast ramp-up (warp engage), slower settle (station lock-in)
+    const dt = s.clock.getDelta() || 0.016;
+    const rampSpeed = targetStreak > smoothStreak.current ? 8.0 : 3.0;
+    smoothStreak.current += (targetStreak - smoothStreak.current) * Math.min(dt * rampSpeed, 1);
+
+    // ── Write uniforms ──────────────────────────────────────────────────
+    // eslint-disable-next-line react-hooks/immutability -- Three.js uniforms must be set per-frame
+    mat.uniforms.uOpacity.value = 0.90;
+    mat.uniforms.uSize.value    = cfg.size;
+    mat.uniforms.uVH.value = s.gl.domElement.height * 0.5;
+    mat.uniforms.uTime.value = s.clock.elapsedTime;
+    if (hasVel) {
+      mat.uniforms.uStreak.value = smoothStreak.current;
+    }
+
     const rMin2 = cfg.rMin * cfg.rMin;
     const rRange2 = cfg.rMax * cfg.rMax - rMin2;
 
-    // ── (A) First-frame pre-warm: redistribute ALL stars around camera ──────
+    // ── Write velocity into aVelocity for motion blur (layers 0,1 only) ──
+    if (hasVel && camSpeed > 0.001) {
+      const velAttr = pointsRef.current.geometry.getAttribute("aVelocity") as THREE.BufferAttribute;
+      const velArr = velAttr.array as Float32Array;
+
+      // Camera velocity direction (world space, negated = stars appear to streak opposite)
+      // Normalized and scaled by camera speed for proportional streaking
+      const velScale = camSpeed * 60; // scale up for visible streaking at scroll speeds
+      const vx = -camDx / camSpeed * velScale;
+      const vy = -camDy / camSpeed * velScale;
+      const vz = -camDz / camSpeed * velScale;
+
+      // Write same velocity to all stars (projection handles radial spread)
+      for (let i = 0; i < cfg.count; i++) {
+        velArr[i * 3]     = vx;
+        velArr[i * 3 + 1] = vy;
+        velArr[i * 3 + 2] = vz;
+      }
+      velAttr.needsUpdate = true;
+    } else if (hasVel) {
+      // No camera movement — zero out velocities for clean dots
+      const velAttr = pointsRef.current.geometry.getAttribute("aVelocity") as THREE.BufferAttribute;
+      const velArr = velAttr.array as Float32Array;
+      // Only zero out if streak is still significant (avoid unnecessary writes)
+      if (smoothStreak.current > 0.01) {
+        for (let i = 0; i < cfg.count; i++) {
+          velArr[i * 3] = 0;
+          velArr[i * 3 + 1] = 0;
+          velArr[i * 3 + 2] = 0;
+        }
+        velAttr.needsUpdate = true;
+      }
+    }
+
+    // ── (A) First-frame pre-warm: redistribute ALL stars around camera ──
     if (isFirstFrame.current) {
       isFirstFrame.current = false;
       for (let i = 0; i < cfg.count; i++) {
@@ -137,16 +179,11 @@ export function StarLayer({
         posArr[i * 3 + 2] = cam.z - HALF_DEPTH + Math.random() * HALF_DEPTH * 2;
       }
       posAttr.needsUpdate = true;
-      lastCamZ.current = cam.z;
+      lastCamPos.current.copy(cam);
       return;
     }
 
-    // ── Dynamic star recycling ──────────────────────────────────────────────
-    const camDeltaZ = Math.abs(cam.z - lastCamZ.current);
-    lastCamZ.current = cam.z;
-
-    // Emergency full sweep: if camera jumped > 10 units (HUD click, snap),
-    // redistribute ALL stars immediately.
+    // ── Emergency full sweep (camera jump > 10 units) ────────────────────
     if (camDeltaZ > 10) {
       for (let i = 0; i < cfg.count; i++) {
         const r = Math.sqrt(rMin2 + Math.random() * rRange2);
@@ -157,10 +194,11 @@ export function StarLayer({
       }
       posAttr.needsUpdate = true;
       recycleOffset.current = 0;
+      lastCamPos.current.copy(cam);
       return;
     }
 
-    // Normal budgeted recycling for smooth scrolling
+    // ── Normal budgeted recycling ────────────────────────────────────────
     const urgency = Math.min(camDeltaZ / 2, 3);
     const BUDGET = Math.round(
       (isMobile ? 200 : 500) * (1 + urgency * 2),
@@ -178,18 +216,18 @@ export function StarLayer({
       const iz = i * 3 + 2;
       const starZ = posArr[iz];
 
-      // Recycle if star is behind camera or too far ahead
       if (starZ > behindZ || starZ < aheadZ - BEHIND_MARGIN) {
         const r = Math.sqrt(rMin2 + Math.random() * rRange2);
         const theta = Math.random() * Math.PI * 2;
         posArr[i * 3]     = cam.x + r * Math.cos(theta);
         posArr[i * 3 + 1] = cam.y + r * Math.sin(theta);
-        // Place ahead of camera with some random spread
         posArr[iz] = cam.z - AHEAD_DIST + Math.random() * SPREAD;
         dirty = true;
       }
     }
     if (dirty) posAttr.needsUpdate = true;
+
+    lastCamPos.current.copy(cam);
   });
 
   return (
