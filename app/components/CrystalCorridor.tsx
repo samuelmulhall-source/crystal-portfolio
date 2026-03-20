@@ -194,10 +194,14 @@ export default function CrystalCorridor() {
     }
 
     // ── Spring constants for silky frame interpolation ──────────────────
-    // Critically-damped spring: responsive to scroll input but settles
-    // without oscillation. dt-aware so it's framerate-independent.
-    const SPRING_K    = 90;   // stiffness — higher = faster response
-    const SPRING_DAMP = 19;   // damping — ~2*sqrt(K) for critical damping
+    // Slightly overdamped spring: responsive to scroll, springy on fast
+    // flicks, but settles decisively without crawling through frames.
+    const SPRING_K    = 100;  // stiffness — high for responsive tracking
+    const SPRING_DAMP = 22;   // damping — slightly above critical for fast settle
+    // Dead-zone: when spring is nearly at rest, snap to target instantly.
+    // Prevents the visible "last 1-2 frames ticking by" crawl.
+    const SNAP_VEL    = 1.5;  // velocity threshold (frames/s)
+    const SNAP_DIST   = 0.6;  // distance threshold (frames)
 
     lastTickRef.current = performance.now();
 
@@ -228,13 +232,16 @@ export default function CrystalCorridor() {
       springVelRef.current += (springForce - dampForce) * dt;
       smoothFrameRef.current += springVelRef.current * dt;
 
+      // Dead-zone snap: when nearly settled, jump to target and kill velocity.
+      // This prevents the slow crawl through last 1-2 frames that looks stuttery.
+      if (Math.abs(springVelRef.current) < SNAP_VEL && Math.abs(displacement) < SNAP_DIST) {
+        smoothFrameRef.current = targetFrame;
+        springVelRef.current = 0;
+      }
+
       // Clamp to valid range
       smoothFrameRef.current = Math.max(0, Math.min(TOTAL_FRAMES - 1, smoothFrameRef.current));
-
-      // Crossfade: split into floor/ceil frame + fractional blend
-      const frameA = Math.floor(smoothFrameRef.current);
-      const frameB = Math.min(frameA + 1, TOTAL_FRAMES - 1);
-      const frac   = smoothFrameRef.current - frameA;
+      const frameIdx = Math.round(smoothFrameRef.current);
 
       // Mouse parallax — different magnitude per layer for depth
       const mx = voidState.mouseNX;
@@ -249,50 +256,32 @@ export default function CrystalCorridor() {
       offsetFrontX.current = lerp(offsetFrontX.current, mx * PARALLAX_FRONT * dpr, pLerp * 1.2);
       offsetFrontY.current = lerp(offsetFrontY.current, my * PARALLAX_FRONT * 0.5 * dpr, pLerp * 1.2);
 
-      // Skip redraw if spring has settled (velocity near zero, same frames)
-      const settled = Math.abs(springVelRef.current) < 0.05 && frac < 0.01;
-      const parallaxStable =
-        Math.abs(offsetBackX.current) < 0.3 &&
-        Math.abs(offsetFrontX.current) < 0.3;
-      if (settled && parallaxStable && frameA === currentFrameRef.current) return;
-      currentFrameRef.current = frameA;
+      // Skip redraw if spring has settled and same frame
+      const parallaxMoving =
+        Math.abs(offsetBackX.current) > 0.3 ||
+        Math.abs(offsetFrontX.current) > 0.3;
+      if (frameIdx === currentFrameRef.current && !parallaxMoving && springVelRef.current === 0) return;
+      currentFrameRef.current = frameIdx;
+
+      const backImg = backFramesRef.current[frameIdx];
+      const frontImg = frontFramesRef.current[frameIdx];
 
       const cw = canvas.width;
       const ch = canvas.height;
       ctx!.clearRect(0, 0, cw, ch);
 
-      // ── Crossfade rendering ──────────────────────────────────────────
-      // Draw both floor and ceil frames with alpha blending based on
-      // fractional position. This eliminates visible frame stepping —
-      // the eye sees a smooth blend between adjacent frames.
-
-      const backA  = backFramesRef.current[frameA];
-      const backB  = backFramesRef.current[frameB];
-      const frontA = frontFramesRef.current[frameA];
-      const frontB = frontFramesRef.current[frameB];
-
-      // Layer 1: Back smoke — depth atmosphere
-      if (backA) {
-        drawCover(backA, cw, ch,
+      // Layer 1: Back smoke — full alpha, no crossfade splitting
+      if (backImg) {
+        drawCover(backImg, cw, ch,
           offsetBackX.current, offsetBackY.current,
-          0.6 * (1 - frac), 1.12);
-      }
-      if (backB && frac > 0.01) {
-        drawCover(backB, cw, ch,
-          offsetBackX.current, offsetBackY.current,
-          0.6 * frac, 1.12);
+          0.6, 1.12);
       }
 
-      // Layer 2: Front smoke — foreground atmosphere
-      if (frontA) {
-        drawCover(frontA, cw, ch,
+      // Layer 2: Front smoke — full alpha
+      if (frontImg) {
+        drawCover(frontImg, cw, ch,
           offsetFrontX.current, offsetFrontY.current,
-          0.5 * (1 - frac), 1.14);
-      }
-      if (frontB && frac > 0.01) {
-        drawCover(frontB, cw, ch,
-          offsetFrontX.current, offsetFrontY.current,
-          0.5 * frac, 1.14);
+          0.5, 1.14);
       }
 
       ctx!.globalAlpha = 1;
