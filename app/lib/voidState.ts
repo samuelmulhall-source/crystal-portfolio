@@ -79,10 +79,4 @@ export const voidState = {
   // for one frame, teleporting the camera to the spline target instantly.
   snapCamera: false,
 
-  // ── Star layer rotation angles ────────────────────────────────────────
-  // Accumulated rotation applied in the star vertex shader (not on the group
-  // transform). Exposed here so StarHoverSystem and ShootingStars can apply
-  // the same rotation when projecting buffer positions to screen space.
-  starRotY: [0, 0, 0] as number[],
-  starRotX: [0, 0, 0] as number[],
 };

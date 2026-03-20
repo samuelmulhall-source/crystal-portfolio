@@ -44,14 +44,14 @@ export default function SmoothScroll({ children }: { children: React.ReactNode }
         const delta = Math.abs(window.scrollY - target);
 
         // Only snap if within station range but not already centered (>20px off)
-        if (delta > 20 && delta < maxScroll * 0.15) {
+        if (delta > 20 && delta < maxScroll * 0.10) {
           isSnappingRef.current = true;
           lenis.scrollTo(target, {
-            duration: 0.8,
+            duration: 0.6,
             onComplete: () => { isSnappingRef.current = false; },
           });
         }
-      }, 600); // 600ms idle = user stopped scrolling
+      }, 400); // 400ms idle = user stopped scrolling
     };
 
     window.addEventListener("scroll", onScroll, { passive: true });

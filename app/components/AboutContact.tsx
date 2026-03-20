@@ -59,6 +59,8 @@ export default function AboutContact() {
       style={{
         position: "relative",
         zIndex: 2,
+        // Subtle top divider connecting to the station journey aesthetic
+        borderTop: "1px solid rgba(184,240,255,0.06)",
         // Fade from transparent starfield into solid void
         background: "linear-gradient(180deg, rgba(5,7,15,0) 0%, rgba(5,7,15,0.7) 6%, rgba(5,7,15,0.95) 14%, #05070f 28%)",
         padding: "6rem 0 0",

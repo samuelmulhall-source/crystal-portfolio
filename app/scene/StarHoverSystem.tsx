@@ -4,8 +4,8 @@
  * Star hover detection system — finds nearest stars to cursor, projects
  * to screen coords, and writes to voidState.hoverSlots for EffectsOverlay.
  *
- * Extracted from VoidBackground.tsx lines 437-615.
- * No Three.js meshes rendered — purely computational.
+ * Stars are in world space (no shader rotation), so screen projection is
+ * straightforward: just project star positions with camera matrices.
  */
 
 import React, { useRef, useMemo } from "react";
@@ -87,32 +87,19 @@ export default function StarHoverSystem({
         if (!pObj) continue;
         const arr   = pObj.geometry.attributes.position.array as Float32Array;
         const count = arr.length / 3;
-        // Apply shader rotation (Y then X) to match visual star positions
-        const ry = voidState.starRotY[li] || 0;
-        const rx = voidState.starRotX[li] || 0;
-        const cy = Math.cos(ry), sy = Math.sin(ry);
-        const cxr = Math.cos(rx), sxr = Math.sin(rx);
+        // Stars are in world space — no rotation needed, project directly
         for (let i = 0; i < count; i++) {
-          let px = arr[i * 3], py = arr[i * 3 + 1], pz = arr[i * 3 + 2];
-          // Y rotation
-          const rx2 = cy * px + sy * pz;
-          const rz2 = -sy * px + cy * pz;
-          px = rx2; pz = rz2;
-          // X rotation
-          const ry2 = cxr * py - sxr * pz;
-          const rz3 = sxr * py + cxr * pz;
-          py = ry2; pz = rz3;
-          tmpV.set(px, py, pz);
-          const wx = tmpV.x, wy = tmpV.y, wz = tmpV.z;
-          const cdx = wx - camX, cdy = wy - camY, cdz = wz - camZ;
+          const px = arr[i * 3], py = arr[i * 3 + 1], pz = arr[i * 3 + 2];
+          const cdx = px - camX, cdy = py - camY, cdz = pz - camZ;
           if (cdx * cdx + cdy * cdy + cdz * cdz < MIN_D2) continue;
+          tmpV.set(px, py, pz);
           tmpV.project(camera);
           if (tmpV.z > 1) continue;
           const dist = Math.sqrt((tmpV.x - curNX) ** 2 + (tmpV.y - curNY) ** 2);
           if (dist < NDC_GLOW) {
-            glowCands.push({ dist, layerIdx: li, starIdx: i, wx, wy, wz });
+            glowCands.push({ dist, layerIdx: li, starIdx: i, wx: px, wy: py, wz: pz });
           } else if (dist < NDC_LINE) {
-            lineCands.push({ dist, layerIdx: li, starIdx: i, wx, wy, wz });
+            lineCands.push({ dist, layerIdx: li, starIdx: i, wx: px, wy: py, wz: pz });
           }
           if (glowCands.length + lineCands.length >= HOVER_POOL * 3) break;
         }
@@ -170,21 +157,10 @@ export default function StarHoverSystem({
         const pObj = pts[s.layerIdx].current;
         if (pObj) {
           const a = pObj.geometry.attributes.position.array as Float32Array;
-          let px2 = a[s.starIdx * 3], py2 = a[s.starIdx * 3 + 1], pz2 = a[s.starIdx * 3 + 2];
-          // Apply same shader rotation (Y then X) so screen projection matches visual
-          const ry2 = voidState.starRotY[s.layerIdx] || 0;
-          const rx2 = voidState.starRotX[s.layerIdx] || 0;
-          const cy2 = Math.cos(ry2), sy2 = Math.sin(ry2);
-          const cx2 = Math.cos(rx2), sx2 = Math.sin(rx2);
-          // Y rotation
-          const yrx = cy2 * px2 + sy2 * pz2;
-          const yrz = -sy2 * px2 + cy2 * pz2;
-          px2 = yrx; pz2 = yrz;
-          // X rotation
-          const xry = cx2 * py2 - sx2 * pz2;
-          const xrz = sx2 * py2 + cx2 * pz2;
-          py2 = xry; pz2 = xrz;
-          s.wx = px2; s.wy = py2; s.wz = pz2;
+          // Stars are in world space — read positions directly
+          s.wx = a[s.starIdx * 3];
+          s.wy = a[s.starIdx * 3 + 1];
+          s.wz = a[s.starIdx * 3 + 2];
         }
       }
 

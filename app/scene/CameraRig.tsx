@@ -120,7 +120,7 @@ export default function CameraRig() {
 
     // Near a station → aggressively kill spring velocity for locked presentation
     if (maxProx > 0.3) {
-      const dampFactor = Math.pow(1 - maxProx, 3); // 0.3→0.34, 0.5→0.125, 0.8→0.008, 1.0→0
+      const dampFactor = Math.pow(1 - maxProx, 5); // 0.3→0.17, 0.5→0.031, 0.8→0.00003, 1.0→0
       springVel.current.multiplyScalar(dampFactor);
       springLookVel.current.multiplyScalar(dampFactor);
     }

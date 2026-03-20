@@ -55,12 +55,15 @@ export default function Home() {
         ))}
 
         {/* Transit space between last station and about/contact */}
-        <div style={{ height: "60vh", background: "transparent", pointerEvents: "none" }} />
+        <div style={{ height: "30vh", background: "transparent", pointerEvents: "none" }} />
 
         {/* Work section — data source for model entries (needed for WeaponStations) */}
         <Suspense fallback={<div style={{ minHeight: "50vh", background: "transparent" }} />}>
           <WorkGrid />
         </Suspense>
+        {/* AboutContact is the terminal destination of the camera journey —
+            the camera descends into the void and this section fades in as the
+            final scene state, not a conventional page footer. */}
         <AboutContact />
       </main>
 

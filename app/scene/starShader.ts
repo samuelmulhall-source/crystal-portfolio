@@ -8,23 +8,11 @@
  * Twinkle: per-star aSeed attribute drives asynchronous brightness pulsing
  * via sin(uTime * rate + phase). Creates alive-feeling starfield.
  *
- * Rotation: applied via uRotY/uRotX uniforms in the vertex shader so that
- * geometry positions remain stable in world space (critical for recycling).
+ * Stars are positioned in world space — no shader-side rotation.
+ * Camera movement through the star volume creates natural parallax streaming.
  */
 
 import * as THREE from "three";
-
-// GLSL helper: apply Y then X rotation to a vec3 using uniforms
-const ROTATION_GLSL = /* glsl */`
-  // Rotate position by uRotY (Y axis) then uRotX (X axis)
-  float cy = cos(uRotY), sy = sin(uRotY);
-  float cx = cos(uRotX), sx = sin(uRotX);
-  vec3 rp = position;
-  // Y rotation
-  rp = vec3(cy * rp.x + sy * rp.z, rp.y, -sy * rp.x + cy * rp.z);
-  // X rotation
-  rp = vec3(rp.x, cx * rp.y - sx * rp.z, sx * rp.y + cx * rp.z);
-`;
 
 export function makeHoloStarMat(hasVelocity: boolean): THREE.ShaderMaterial {
   return new THREE.ShaderMaterial({
@@ -33,8 +21,6 @@ export function makeHoloStarMat(hasVelocity: boolean): THREE.ShaderMaterial {
       uOpacity: { value: 0.90 },
       uVH:      { value: 400.0 },
       uTime:    { value: 0.0 },
-      uRotY:    { value: 0.0 },
-      uRotX:    { value: 0.0 },
     },
     vertexShader: hasVelocity ? /* glsl */`
       attribute vec3 aVelocity;
@@ -47,8 +33,6 @@ export function makeHoloStarMat(hasVelocity: boolean): THREE.ShaderMaterial {
       uniform float uSize;
       uniform float uVH;
       uniform float uTime;
-      uniform float uRotY;
-      uniform float uRotX;
 
       void main() {
         vColor = color;
@@ -57,8 +41,7 @@ export function makeHoloStarMat(hasVelocity: boolean): THREE.ShaderMaterial {
         float phase = aSeed * 6.2832;
         vTwinkle = 0.72 + 0.28 * sin(uTime * rate + phase);
 
-        ${ROTATION_GLSL}
-        vec4 mv = modelViewMatrix * vec4(rp, 1.0);
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
         float nat = uSize * projectionMatrix[1][1] * uVH / (-mv.z);
         // Clamp: min 1.5px (no invisible sub-pixel), max 4.5px (no giant blobs)
         nat = clamp(nat, 1.5, 4.5);
@@ -73,12 +56,9 @@ export function makeHoloStarMat(hasVelocity: boolean): THREE.ShaderMaterial {
 
         gl_Position = projectionMatrix * mv;
 
-        // Rotate velocity endpoint too
+        // Velocity endpoint for motion blur trail
         vec3 vEnd = position + aVelocity * 0.045;
-        vec3 rvEnd = vEnd;
-        rvEnd = vec3(cy * rvEnd.x + sy * rvEnd.z, rvEnd.y, -sy * rvEnd.x + cy * rvEnd.z);
-        rvEnd = vec3(rvEnd.x, cx * rvEnd.y - sx * rvEnd.z, sx * rvEnd.y + cx * rvEnd.z);
-        vec4 mvEnd = modelViewMatrix * vec4(rvEnd, 1.0);
+        vec4 mvEnd = modelViewMatrix * vec4(vEnd, 1.0);
         vec4 clipEnd = projectionMatrix * mvEnd;
         vec2 screenStart = gl_Position.xy / gl_Position.w;
         vec2 screenEnd = clipEnd.xy / clipEnd.w;
@@ -101,8 +81,6 @@ export function makeHoloStarMat(hasVelocity: boolean): THREE.ShaderMaterial {
       uniform float uSize;
       uniform float uVH;
       uniform float uTime;
-      uniform float uRotY;
-      uniform float uRotX;
 
       void main() {
         vColor = color;
@@ -111,8 +89,7 @@ export function makeHoloStarMat(hasVelocity: boolean): THREE.ShaderMaterial {
         float phase = aSeed * 6.2832;
         vTwinkle = 0.72 + 0.28 * sin(uTime * rate + phase);
 
-        ${ROTATION_GLSL}
-        vec4 mv = modelViewMatrix * vec4(rp, 1.0);
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
         float nat = uSize * projectionMatrix[1][1] * uVH / (-mv.z);
         nat = clamp(nat, 1.5, 4.5);
         if (nat < 0.5) {
