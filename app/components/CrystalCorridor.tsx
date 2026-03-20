@@ -62,6 +62,8 @@ export default function CrystalCorridor() {
   const frontFramesRef = useRef<(FrameImage | null)[]>(new Array(TOTAL_FRAMES).fill(null));
   const currentFrameRef = useRef(-1);
   const smoothFrameRef = useRef(0);
+  const springVelRef = useRef(0);      // spring velocity for frame position
+  const lastTickRef = useRef(0);       // timestamp for dt calculation
   // Per-layer parallax offsets (smoothed independently)
   const offsetBackX = useRef(0);
   const offsetBackY = useRef(0);
@@ -191,8 +193,20 @@ export default function CrystalCorridor() {
       ctx!.drawImage(image, (cw - drawW) / 2 + ox, (ch - drawH) / 2 + oy, drawW, drawH);
     }
 
-    const tick = () => {
+    // ── Spring constants for silky frame interpolation ──────────────────
+    // Critically-damped spring: responsive to scroll input but settles
+    // without oscillation. dt-aware so it's framerate-independent.
+    const SPRING_K    = 90;   // stiffness — higher = faster response
+    const SPRING_DAMP = 19;   // damping — ~2*sqrt(K) for critical damping
+
+    lastTickRef.current = performance.now();
+
+    const tick = (now: number) => {
       rafRef.current = requestAnimationFrame(tick);
+
+      // dt-aware spring physics (capped to prevent explosion on tab-switch)
+      const dt = Math.min((now - lastTickRef.current) / 1000, 0.05);
+      lastTickRef.current = now;
 
       const p = voidState.scrollProgress;
 
@@ -203,52 +217,82 @@ export default function CrystalCorridor() {
       }
       if (containerRef.current) containerRef.current.style.display = "";
 
-      // Map scroll → frame index
+      // Map scroll → target frame (continuous, not quantized)
       const corridorP = Math.min(p / CORRIDOR_END, 1);
       const targetFrame = corridorP * (TOTAL_FRAMES - 1);
 
-      // Smooth interpolation for silky scrubbing
-      smoothFrameRef.current = lerp(smoothFrameRef.current, targetFrame, 0.16);
-      const frameIdx = Math.round(Math.max(0, Math.min(TOTAL_FRAMES - 1, smoothFrameRef.current)));
+      // Spring physics on frame position — gives momentum + settle
+      const displacement = targetFrame - smoothFrameRef.current;
+      const springForce  = displacement * SPRING_K;
+      const dampForce    = springVelRef.current * SPRING_DAMP;
+      springVelRef.current += (springForce - dampForce) * dt;
+      smoothFrameRef.current += springVelRef.current * dt;
+
+      // Clamp to valid range
+      smoothFrameRef.current = Math.max(0, Math.min(TOTAL_FRAMES - 1, smoothFrameRef.current));
+
+      // Crossfade: split into floor/ceil frame + fractional blend
+      const frameA = Math.floor(smoothFrameRef.current);
+      const frameB = Math.min(frameA + 1, TOTAL_FRAMES - 1);
+      const frac   = smoothFrameRef.current - frameA;
 
       // Mouse parallax — different magnitude per layer for depth
       const mx = voidState.mouseNX;
       const my = voidState.mouseNY;
 
-      // Back smoke: subtle, slow chase
-      offsetBackX.current = lerp(offsetBackX.current, mx * PARALLAX_BACK * dpr, 0.03);
-      offsetBackY.current = lerp(offsetBackY.current, my * PARALLAX_BACK * 0.5 * dpr, 0.03);
+      // Back smoke: subtle, slow chase (dt-aware lerp)
+      const pLerp = Math.min(dt * 4, 1);
+      offsetBackX.current = lerp(offsetBackX.current, mx * PARALLAX_BACK * dpr, pLerp * 0.5);
+      offsetBackY.current = lerp(offsetBackY.current, my * PARALLAX_BACK * 0.5 * dpr, pLerp * 0.5);
 
       // Front smoke: strong, fast chase
-      offsetFrontX.current = lerp(offsetFrontX.current, mx * PARALLAX_FRONT * dpr, 0.08);
-      offsetFrontY.current = lerp(offsetFrontY.current, my * PARALLAX_FRONT * 0.5 * dpr, 0.08);
+      offsetFrontX.current = lerp(offsetFrontX.current, mx * PARALLAX_FRONT * dpr, pLerp * 1.2);
+      offsetFrontY.current = lerp(offsetFrontY.current, my * PARALLAX_FRONT * 0.5 * dpr, pLerp * 1.2);
 
-      // Skip redraw if same frame and parallax stable
-      const parallaxMoving =
-        Math.abs(offsetBackX.current) > 0.3 ||
-        Math.abs(offsetFrontX.current) > 0.3;
-      if (frameIdx === currentFrameRef.current && !parallaxMoving) return;
-      currentFrameRef.current = frameIdx;
-
-      const backImg = backFramesRef.current[frameIdx];
-      const frontImg = frontFramesRef.current[frameIdx];
+      // Skip redraw if spring has settled (velocity near zero, same frames)
+      const settled = Math.abs(springVelRef.current) < 0.05 && frac < 0.01;
+      const parallaxStable =
+        Math.abs(offsetBackX.current) < 0.3 &&
+        Math.abs(offsetFrontX.current) < 0.3;
+      if (settled && parallaxStable && frameA === currentFrameRef.current) return;
+      currentFrameRef.current = frameA;
 
       const cw = canvas.width;
       const ch = canvas.height;
       ctx!.clearRect(0, 0, cw, ch);
 
+      // ── Crossfade rendering ──────────────────────────────────────────
+      // Draw both floor and ceil frames with alpha blending based on
+      // fractional position. This eliminates visible frame stepping —
+      // the eye sees a smooth blend between adjacent frames.
+
+      const backA  = backFramesRef.current[frameA];
+      const backB  = backFramesRef.current[frameB];
+      const frontA = frontFramesRef.current[frameA];
+      const frontB = frontFramesRef.current[frameB];
+
       // Layer 1: Back smoke — depth atmosphere
-      if (backImg) {
-        drawCover(backImg, cw, ch,
+      if (backA) {
+        drawCover(backA, cw, ch,
           offsetBackX.current, offsetBackY.current,
-          0.6, 1.12);
+          0.6 * (1 - frac), 1.12);
+      }
+      if (backB && frac > 0.01) {
+        drawCover(backB, cw, ch,
+          offsetBackX.current, offsetBackY.current,
+          0.6 * frac, 1.12);
       }
 
       // Layer 2: Front smoke — foreground atmosphere
-      if (frontImg) {
-        drawCover(frontImg, cw, ch,
+      if (frontA) {
+        drawCover(frontA, cw, ch,
           offsetFrontX.current, offsetFrontY.current,
-          0.5, 1.14);
+          0.5 * (1 - frac), 1.14);
+      }
+      if (frontB && frac > 0.01) {
+        drawCover(frontB, cw, ch,
+          offsetFrontX.current, offsetFrontY.current,
+          0.5 * frac, 1.14);
       }
 
       ctx!.globalAlpha = 1;
