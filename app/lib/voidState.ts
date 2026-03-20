@@ -21,6 +21,8 @@ export const voidState = {
   activeStationIndex: -1,          // -1 = transit, 0-4 = weapon index
   cameraProgress: 0,               // raw 0-1 scroll position on spline
   stationProximity: [0, 0, 0, 0, 0] as number[], // per-station proximity 0-1
+  stationFocus: [0, 0, 0, 0, 0] as number[],     // narrow focus band for hard lock-in
+  focusedStationIndex: -1,                         // -1 = no station fully in focus
 
   // ── Hover star screen positions ──────────────────────────────────────────
   // Written by StarHoverSystem (inside Three.js canvas, has camera access).
@@ -78,6 +80,7 @@ export const voidState = {
   // 0 = locked at a station (clean dots), 1 = full transit (hyperspeed streaks).
   // Written by CameraRig, read by Starfield for warp streak intensity.
   transitFactor: 0,
+  cameraSpeed: 0,                 // world-units / second after spring integration
 
   // ── Camera snap ──────────────────────────────────────────────────────
   // Set true by jumpToStation / model selection to skip spring physics

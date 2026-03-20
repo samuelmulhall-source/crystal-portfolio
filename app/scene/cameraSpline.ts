@@ -15,6 +15,7 @@ import {
   CAMERA_LOOKAT_POINTS,
   STATIONS,
   getStationProximity,
+  getStationFocusProximity,
 } from "../lib/journeyConfig";
 
 let _posSpline: THREE.CatmullRomCurve3 | null = null;
@@ -45,7 +46,7 @@ function getLookAtSpline(): THREE.CatmullRomCurve3 {
 }
 
 const FOV_TRANSIT = 50;
-const FOV_STATION = 38;
+const FOV_STATION = 34;
 
 export interface CameraState {
   position: THREE.Vector3;
@@ -69,13 +70,17 @@ export function getCamera(progress: number): CameraState {
   getPositionSpline().getPoint(t, _pos);
   getLookAtSpline().getPoint(t, _look);
 
-  // FOV: narrows near weapon stations for telephoto framing
+  // FOV: narrows sharply at the true station focus for a stronger lock-in.
   let maxProximity = 0;
+  let maxFocus = 0;
   for (const station of STATIONS) {
     const prox = getStationProximity(progress, station);
     if (prox > maxProximity) maxProximity = prox;
+    const focus = getStationFocusProximity(progress, station);
+    if (focus > maxFocus) maxFocus = focus;
   }
-  const fov = FOV_TRANSIT - maxProximity * (FOV_TRANSIT - FOV_STATION);
+  const fovBias = Math.max(maxProximity * 0.35, maxFocus);
+  const fov = FOV_TRANSIT - fovBias * (FOV_TRANSIT - FOV_STATION);
 
   return { position: _pos, lookAt: _look, fov };
 }

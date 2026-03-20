@@ -16,7 +16,7 @@ import * as THREE from "three";
 import { voidState } from "../lib/voidState";
 import { workModels } from "../lib/workModels";
 import { getCamera } from "./cameraSpline";
-import { STATIONS, findActiveStation, getStationProximity } from "../lib/journeyConfig";
+import { STATIONS, findActiveStation, getStationFocusProximity, getStationProximity } from "../lib/journeyConfig";
 
 const SPRING_K    = 10.0;
 const SPRING_DAMP = 7.0;
@@ -34,6 +34,7 @@ export default function CameraRig() {
   const springLookVel = useRef(new THREE.Vector3());
   // FOV smoothing
   const currentFov = useRef(50);
+  const lastCameraPos = useRef(new THREE.Vector3(0, 0, 14));
 
   const wasExpandedRef = useRef(false);
 
@@ -67,21 +68,27 @@ export default function CameraRig() {
     // Write journey state to voidState
     voidState.cameraProgress = voidState.scrollProgress;
     voidState.activeStationIndex = findActiveStation(voidState.scrollProgress);
+    voidState.focusedStationIndex = -1;
     for (let i = 0; i < STATIONS.length; i++) {
       voidState.stationProximity[i] = getStationProximity(voidState.scrollProgress, STATIONS[i]);
+      voidState.stationFocus[i] = getStationFocusProximity(voidState.scrollProgress, STATIONS[i]);
     }
 
     // Compute max proximity to any station (reduces parallax near weapons)
     let maxProx = 0;
+    let maxFocus = 0;
     for (let i = 0; i < voidState.stationProximity.length; i++) {
       if (voidState.stationProximity[i] > maxProx) maxProx = voidState.stationProximity[i];
+      if (voidState.stationFocus[i] > maxFocus) {
+        maxFocus = voidState.stationFocus[i];
+        voidState.focusedStationIndex = i;
+      }
     }
-    const parallaxScale = 1 - maxProx * 0.7;
+    const parallaxScale = 1 - maxFocus * 0.9;
 
-    // Transit factor: 0 at station (locked), 1 during transit (hyperspeed)
-    // Smooth cubic falloff for clean lock-in feel
-    const rawTransit = 1 - maxProx;
-    voidState.transitFactor = rawTransit * rawTransit; // quadratic for snappy lock
+    // Transit factor is driven by the narrow focus band, not the broad station window.
+    const rawTransit = 1 - maxFocus;
+    voidState.transitFactor = rawTransit * rawTransit * rawTransit;
 
     // Mouse parallax offset
     const px = voidState.mouseNX * MAX_PARALLAX_X * parallaxScale;
@@ -126,11 +133,14 @@ export default function CameraRig() {
     springLook.current.y += springLookVel.current.y * cdt;
     springLook.current.z += springLookVel.current.z * cdt;
 
-    // Near a station → aggressively kill spring velocity for locked presentation
-    if (maxProx > 0.3) {
-      const dampFactor = Math.pow(1 - maxProx, 5); // 0.3→0.17, 0.5→0.031, 0.8→0.00003, 1.0→0
+    // Near the focus band → aggressively kill spring velocity and pull onto the shot.
+    if (maxFocus > 0.02) {
+      const dampFactor = Math.pow(1 - maxFocus, 6);
       springVel.current.multiplyScalar(dampFactor);
       springLookVel.current.multiplyScalar(dampFactor);
+      const settle = Math.min(0.08 + maxFocus * 0.34, 0.42);
+      springPos.current.lerp(_targetPos, settle);
+      springLook.current.lerp(_targetLook, settle);
     }
 
     // Warp-speed distortion: FOV stretch during fast scrolling
@@ -146,6 +156,9 @@ export default function CameraRig() {
     camera.lookAt(springLook.current);
     (camera as THREE.PerspectiveCamera).fov = currentFov.current;
     (camera as THREE.PerspectiveCamera).updateProjectionMatrix();
+
+    voidState.cameraSpeed = lastCameraPos.current.distanceTo(springPos.current) / Math.max(cdt, 0.001);
+    lastCameraPos.current.copy(springPos.current);
   });
 
   return null;

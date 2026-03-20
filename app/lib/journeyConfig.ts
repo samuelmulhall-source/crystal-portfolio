@@ -289,8 +289,24 @@ export function getStationProximity(
 ): number {
   if (scrollProgress < station.scrollStart || scrollProgress > station.scrollEnd)
     return 0;
-  const mid = (station.scrollStart + station.scrollEnd) / 2;
+  const mid = station.scrollViewCenter;
   const halfRange = (station.scrollEnd - station.scrollStart) / 2;
   const dist = Math.abs(scrollProgress - mid) / halfRange;
-  return 1 - dist;
+  const t = Math.max(0, 1 - dist);
+  return t * t * (3 - 2 * t);
+}
+
+/**
+ * Narrow station focus used for "lock-in" behavior.
+ * Much tighter than general station proximity so arrival reads clearly.
+ */
+export function getStationFocusProximity(
+  scrollProgress: number,
+  station: WeaponStation,
+): number {
+  const halfRange = (station.scrollEnd - station.scrollStart) / 2;
+  const focusHalfRange = Math.max(halfRange * 0.3, 0.016);
+  const dist = Math.abs(scrollProgress - station.scrollViewCenter) / focusHalfRange;
+  const t = Math.max(0, 1 - dist);
+  return t * t * (3 - 2 * t);
 }

@@ -65,7 +65,7 @@ export function makeHoloStarMat(hasVelocity: boolean): THREE.ShaderMaterial {
 
         // Velocity endpoint for motion blur trail
         // uStreak amplifies the velocity scale: 0 = no trail, 1+ = hyperspeed
-        float velScale = 0.045 + uStreak * 0.35;
+        float velScale = 0.06 + uStreak * 0.48;
         vec3 vEnd = position + aVelocity * velScale;
         vec4 mvEnd = modelViewMatrix * vec4(vEnd, 1.0);
         vec4 clipEnd = projectionMatrix * mvEnd;
@@ -74,9 +74,9 @@ export function makeHoloStarMat(hasVelocity: boolean): THREE.ShaderMaterial {
         vec2 screenVel = (screenEnd - screenStart) * uVH;
 
         float velMag = length(screenVel);
-        // Max trail: 18px at rest, up to 90px during hyperspeed
-        float maxTrail = 18.0 + uStreak * 72.0;
-        float trailPx = min(velMag * (0.6 + uStreak * 2.4), maxTrail);
+        // Max trail: subtle at rest, aggressive during hyperspeed transit
+        float maxTrail = 20.0 + uStreak * 108.0;
+        float trailPx = min(velMag * (0.8 + uStreak * 3.2), maxTrail);
 
         float totalSize = max(2.0, nat + trailPx);
         gl_PointSize = totalSize;
@@ -129,20 +129,20 @@ export function makeHoloStarMat(hasVelocity: boolean): THREE.ShaderMaterial {
         float along = dot(uv, dir);
         float across = dot(uv, perp);
 
-        float stretch = 1.0 + vTrailLen * 3.0;
+        float stretch = 1.0 + vTrailLen * 4.2;
         float rx = along / stretch;
         float ry = across;
         float r = length(vec2(rx, ry));
         if (r > 1.0) discard;
 
-        float trailFade = 1.0 - max(0.0, -along) * vTrailLen * 1.8;
-        trailFade = max(trailFade, 0.15);
+        float trailFade = 1.0 - max(0.0, -along) * vTrailLen * 2.2;
+        trailFade = max(trailFade, 0.10);
 
-        float core = exp(-r * r * 7.0) * trailFade;
+        float core = exp(-r * r * 8.5) * trailFade;
 
         // During hyperspeed, boost brightness and shift color toward ice-blue
-        float warpBoost = 1.0 + vStreak * 0.6;
-        vec3 warpColor = mix(vColor, vec3(0.7, 0.9, 1.0), vStreak * 0.4);
+        float warpBoost = 1.0 + vStreak * 0.9;
+        vec3 warpColor = mix(vColor, vec3(0.72, 0.92, 1.0), min(vStreak * 0.55, 1.0));
 
         float a = uOpacity * core * vTwinkle * warpBoost;
         if (a < 0.004) discard;

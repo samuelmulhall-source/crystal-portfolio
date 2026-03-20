@@ -245,14 +245,22 @@ export default function WeaponStation({ station, entry }: Props) {
     const proximity = stationIdx >= 0 && voidState.stationProximity[stationIdx] !== undefined
       ? voidState.stationProximity[stationIdx]
       : 0;
+    const focus = stationIdx >= 0 && voidState.stationFocus[stationIdx] !== undefined
+      ? voidState.stationFocus[stationIdx]
+      : 0;
 
     // Also check if this weapon is the active or expanded one
     const isExpanded = workModels.expandedModelId === entry.id ||
                        workModels.expandedModelId === station.id;
-    const isNearCamera = proximity > 0.1 || isExpanded;
+    const visibility = proximity <= 0
+      ? 0
+      : Math.min(1, Math.max(0, (proximity - 0.06) / 0.52));
+    const isNearCamera = visibility > 0.02 || isExpanded;
 
     // Gate on shaderReady — don't show model until GPU shaders are compiled
-    const opTarget = (isNearCamera && shaderReady) ? 1 : 0;
+    const opTarget = (isNearCamera && shaderReady)
+      ? Math.max(visibility, focus * 0.95, isExpanded ? 1 : 0)
+      : 0;
     opacityRef.current += (opTarget - opacityRef.current) * Math.min(dt * 2.5, 1);
 
     // Reset entrance when fully faded
@@ -265,7 +273,7 @@ export default function WeaponStation({ station, entry }: Props) {
     if (scaleGroupRef.current) {
       const ep   = entranceRef.current;
       const ease = ep < 0.5 ? 2 * ep * ep : -1 + (4 - 2 * ep) * ep;
-      scaleGroupRef.current.scale.setScalar(0.94 + ease * 0.06);
+      scaleGroupRef.current.scale.setScalar(0.94 + ease * 0.06 + focus * 0.025);
     }
 
     // Apply opacity
@@ -304,15 +312,16 @@ export default function WeaponStation({ station, entry }: Props) {
         e.velY *= decay;
         e.rotX += e.velX;
         e.rotY += e.velY;
-        if (voidState.autoRotate) e.rotY += dt * 0.45;
+        if (voidState.autoRotate) e.rotY += dt * 0.45 * (1 - focus * 0.92);
       }
 
       const entranceSpin = (1 - op) * Math.PI * 0.15;
 
       // Camera-reactive tilt
       const lerpF = Math.min(dt * 2.5, 1);
-      tiltX.current += (-voidState.mouseNY * 0.10 - tiltX.current) * lerpF;
-      tiltY.current += ( voidState.mouseNX * 0.08 - tiltY.current) * lerpF;
+      const tiltScale = 1 - focus * 0.75;
+      tiltX.current += (-voidState.mouseNY * 0.10 * tiltScale - tiltX.current) * lerpF;
+      tiltY.current += ( voidState.mouseNX * 0.08 * tiltScale - tiltY.current) * lerpF;
 
       const e2 = workModels.entries.find((en) => en.id === entry.id);
       if (e2) {

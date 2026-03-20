@@ -95,7 +95,7 @@ export function StarLayer({
   // Smoothed streak intensity for buttery transitions
   const smoothStreak = useRef(0);
 
-  useFrame((s) => {
+  useFrame((s, dt) => {
     if (!pointsRef.current) return;
 
     const cam = s.camera.position;
@@ -107,17 +107,15 @@ export function StarLayer({
     const camDx = cam.x - lastCamPos.current.x;
     const camDy = cam.y - lastCamPos.current.y;
     const camDz = cam.z - lastCamPos.current.z;
-    const camSpeed = Math.sqrt(camDx * camDx + camDy * camDy + camDz * camDz);
+    const camSpeedFrame = Math.sqrt(camDx * camDx + camDy * camDy + camDz * camDz);
     const camDeltaZ = Math.abs(camDz);
 
     // Transit factor from voidState (0 at station, 1 during transit)
     const transit = voidState.transitFactor;
-    // Scroll speed drives streak intensity — need actual movement, not just being in transit
-    const scrollMag = Math.abs(voidState.scrollVel);
-    // Streak = transit openness * actual scroll velocity * amplifier
-    const targetStreak = transit * Math.min(scrollMag * 4.0, 1.0);
+    const travelSpeed = Math.min(Math.max((voidState.cameraSpeed - 0.6) / 7.0, 0), 1);
+    const scrollBoost = Math.min(Math.abs(voidState.scrollVel) * 10.0, 1.0);
+    const targetStreak = Math.pow(transit, 0.7) * Math.max(travelSpeed, scrollBoost * 0.75);
     // Smooth transition: fast ramp-up (warp engage), slower settle (station lock-in)
-    const dt = s.clock.getDelta() || 0.016;
     const rampSpeed = targetStreak > smoothStreak.current ? 8.0 : 3.0;
     smoothStreak.current += (targetStreak - smoothStreak.current) * Math.min(dt * rampSpeed, 1);
 
@@ -135,16 +133,20 @@ export function StarLayer({
     const rRange2 = cfg.rMax * cfg.rMax - rMin2;
 
     // ── Write velocity into aVelocity for motion blur (layers 0,1 only) ──
-    if (hasVel && camSpeed > 0.001) {
+    if (hasVel && camSpeedFrame > 0.0001) {
       const velAttr = pointsRef.current.geometry.getAttribute("aVelocity") as THREE.BufferAttribute;
       const velArr = velAttr.array as Float32Array;
 
-      // Camera velocity direction (world space, negated = stars appear to streak opposite)
-      // Normalized and scaled by camera speed for proportional streaking
-      const velScale = camSpeed * 60; // scale up for visible streaking at scroll speeds
-      const vx = -camDx / camSpeed * velScale;
-      const vy = -camDy / camSpeed * velScale;
-      const vz = -camDz / camSpeed * velScale;
+      const invDt = 1 / Math.max(dt, 0.001);
+      const camVX = -camDx * invDt;
+      const camVY = -camDy * invDt;
+      const camVZ = -camDz * invDt;
+      const velMag = Math.sqrt(camVX * camVX + camVY * camVY + camVZ * camVZ);
+      const safeVelMag = Math.max(velMag, 0.0001);
+      const velScale = Math.min(velMag * (0.22 + smoothStreak.current * 0.9), 28);
+      const vx = (camVX / safeVelMag) * velScale;
+      const vy = (camVY / safeVelMag) * velScale;
+      const vz = (camVZ / safeVelMag) * velScale;
 
       // Write same velocity to all stars (projection handles radial spread)
       for (let i = 0; i < cfg.count; i++) {

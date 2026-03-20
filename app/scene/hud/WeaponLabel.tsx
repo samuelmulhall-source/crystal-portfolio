@@ -50,7 +50,11 @@ export default function WeaponLabel({ station, stationIndex }: Props) {
 
     // Opacity driven by camera proximity
     const proximity = voidState.stationProximity?.[stationIndex] ?? 0;
-    const target = proximity > 0.15 ? Math.min(proximity * 1.5, 1) : 0;
+    const focus = voidState.stationFocus?.[stationIndex] ?? 0;
+    const target = Math.max(
+      proximity > 0.18 ? Math.min(proximity * 0.45, 0.35) : 0,
+      focus,
+    );
     opRef.current += (target - opRef.current) * Math.min(dt * 3, 1);
 
     // Billboard: face camera
