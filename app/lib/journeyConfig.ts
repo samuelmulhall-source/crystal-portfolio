@@ -79,7 +79,7 @@ export const STATIONS: WeaponStation[] = [
       normalMap: "/models/Torch/torch_normal.webp",
       roughnessMap: "/models/Torch/torch_roughness.webp",
     },
-    worldPosition: [5, 0, -20],
+    worldPosition: [0, 0, -20],
     loreName: "TORCH",
     loreTag: "Hand-crafted fantasy torch — layered metal wrap",
     loreSpec: "PBR PIPELINE: COLOUR · METALNESS · ROUGHNESS · NORMAL",
@@ -99,7 +99,7 @@ export const STATIONS: WeaponStation[] = [
       normalMap: "/models/Weapons/Ornate Dagger/ornate_dagger_normal.webp",
       roughnessMap: "/models/Weapons/Ornate Dagger/ornate_dagger_roughness.webp",
     },
-    worldPosition: [-5, 0, -45],
+    worldPosition: [0, 0, -45],
     loreName: "ORNATE DAGGER",
     loreTag: "Ceremonial dagger — filigree crossguard, gemstone pommel",
     loreSpec: "TEXTURE DENSITY: 4K MAPS · CHASED SURFACE DETAIL",
@@ -119,7 +119,7 @@ export const STATIONS: WeaponStation[] = [
       normalMap: "/models/Weapons/Shield/Shield_normal.webp",
       roughnessMap: "/models/Weapons/Shield/shield_roughness.webp",
     },
-    worldPosition: [4.5, 0, -70],
+    worldPosition: [0, 0, -70],
     loreName: "SHIELD",
     loreTag: "Kite shield — riveted iron rim, aged leather facing",
     loreSpec: "SURFACE: BAKED WEAR · NORMAL + ROUGHNESS CHANNELS",
@@ -140,7 +140,7 @@ export const STATIONS: WeaponStation[] = [
       roughnessMap: "/models/Weapons/Sword/sword_roughness.webp",
       transmissionMap: "/models/Weapons/Sword/sword_transmission.webp",
     },
-    worldPosition: [-4.5, 0, -95],
+    worldPosition: [0, 0, -95],
     loreName: "SWORD",
     loreTag: "Arming sword — glass-and-metal guard, translucent blade",
     loreSpec: "MATERIAL: TRANSMISSION MAP · CRYSTAL FULLER REFRACTION",
@@ -159,7 +159,7 @@ export const STATIONS: WeaponStation[] = [
       normalMap: "/models/Weapons/bow/bow_normal.webp",
       roughnessMap: "/models/Weapons/bow/bow_roughness.webp",
     },
-    worldPosition: [4, 0, -120],
+    worldPosition: [0, 0, -120],
     loreName: "BOW",
     loreTag: "Recurve longbow — laminated limbs, sinew wrapping",
     loreSpec: "TOPOLOGY: GAME-READY · HERO-ASSET RESOLUTION",
@@ -195,41 +195,41 @@ export const CAMERA_POSITION_POINTS: [number, number, number][] = [
   [0, 0, -5],
 
   // ── Station 1: Torch at [5, 0, -20] ───────────────────────────────────
-  [1.2, 0, -14],       // approach — gentle lean toward model
-  [1.2, 0.2, -20],     // viewing — 3.8 units from model
-  [0.4, 0, -26],       // exit — drift back to center
+  [0.0, 0.10, -12.5],  // approach — align to frontal presentation
+  [0.0, 0.18, -14.0],  // viewing — locked, centered frame
+  [0.0, 0.05, -26.0],  // exit — clear the model plane before transit
 
   // ── Transit to Station 2 ──────────────────────────────────────────────
-  [0, 0, -33],
+  [0, 0, -32],
 
   // ── Station 2: Dagger at [-5, 0, -45] ─────────────────────────────────
-  [-1.2, 0, -38],      // approach
-  [-1.2, 0.2, -45],    // viewing — 3.8 units from model
-  [-0.4, 0, -51],      // exit
+  [0.0, 0.10, -37.5],  // approach
+  [0.0, 0.18, -39.0],  // viewing — frontal frame
+  [0.0, 0.05, -51.0],  // exit
 
   // ── Transit to Station 3 ──────────────────────────────────────────────
-  [0, 0, -58],
+  [0, 0, -57],
 
   // ── Station 3: Shield at [4.5, 0, -70] ─────────────────────────────────
-  [1.0, 0, -64],       // approach
-  [1.0, 0.2, -70],     // viewing — 3.5 units from model
-  [0.3, 0, -76],       // exit
+  [0.0, 0.10, -62.5],  // approach
+  [0.0, 0.18, -64.0],  // viewing
+  [0.0, 0.05, -76.0],  // exit
 
   // ── Transit to Station 4 ──────────────────────────────────────────────
-  [0, 0, -83],
+  [0, 0, -82],
 
   // ── Station 4: Sword at [-4.5, 0, -95] ─────────────────────────────────
-  [-1.0, 0, -89],      // approach
-  [-1.0, 0.2, -95],    // viewing — 3.5 units from model
-  [-0.3, 0, -101],     // exit
+  [0.0, 0.10, -87.5],  // approach
+  [0.0, 0.18, -89.0],  // viewing
+  [0.0, 0.05, -101.0], // exit
 
   // ── Transit to Station 5 ──────────────────────────────────────────────
-  [0, 0, -108],
+  [0, 0, -107],
 
   // ── Station 5: Bow at [4, 0, -120] ─────────────────────────────────────
-  [0.5, 0, -114],      // approach
-  [0.5, 0.2, -120],    // viewing — 3.5 units from model
-  [0, 0, -125],        // exit
+  [0.0, 0.10, -112.5], // approach
+  [0.0, 0.18, -114.0], // viewing
+  [0.0, 0.00, -126.0], // exit
 
   // ── About / Contact zone ───────────────────────────────────────────────
   [0, -4, -126],       // start descending
@@ -250,41 +250,41 @@ export const CAMERA_LOOKAT_POINTS: [number, number, number][] = [
   [0, 0, -18],
 
   // ── Station 1: Torch at [5, 0, -20] ──────────────────────────────────
-  [5, 0, -20],
-  [5, 0, -20],
-  [1.5, 0, -30],      // blend toward next
+  [0, 0, -20],
+  [0, 0, -20],
+  [0, 0, -32],        // blend toward next
 
   // ── Transit ──────────────────────────────────────────────────────────
-  [-2.5, 0, -42],
+  [0, 0, -40],
 
   // ── Station 2: Dagger at [-5, 0, -45] ────────────────────────────────
-  [-5, 0, -45],
-  [-5, 0, -45],
-  [-1.5, 0, -55],
+  [0, 0, -45],
+  [0, 0, -45],
+  [0, 0, -57],
 
   // ── Transit ──────────────────────────────────────────────────────────
-  [2.5, 0, -66],
+  [0, 0, -65],
 
   // ── Station 3: Shield at [4.5, 0, -70] ──────────────────────────────
-  [4.5, 0, -70],
-  [4.5, 0, -70],
-  [1, 0, -80],
+  [0, 0, -70],
+  [0, 0, -70],
+  [0, 0, -82],
 
   // ── Transit ──────────────────────────────────────────────────────────
-  [-2.5, 0, -90],
+  [0, 0, -90],
 
   // ── Station 4: Sword at [-4.5, 0, -95] ──────────────────────────────
-  [-4.5, 0, -95],
-  [-4.5, 0, -95],
-  [-1, 0, -105],
+  [0, 0, -95],
+  [0, 0, -95],
+  [0, 0, -107],
 
   // ── Transit ──────────────────────────────────────────────────────────
-  [2, 0, -115],
+  [0, 0, -115],
 
   // ── Station 5: Bow at [4, 0, -120] ───────────────────────────────────
-  [4, 0, -120],
-  [4, 0, -120],
-  [1, -1, -125],
+  [0, 0, -120],
+  [0, 0, -120],
+  [0, -1, -127],
 
   // ── About zone ──────────────────────────────────────────────────────
   [0, -6, -128],

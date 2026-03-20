@@ -96,6 +96,8 @@ export default function WeaponHUD() {
     const station = STATIONS[index];
     const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
     const target = station.scrollViewCenter * maxScroll;
+    workModels.activeModelId = station.modelId;
+    workModels.version++;
     voidState.snapCamera = true;
     if (lenisInstance) {
       lenisInstance.scrollTo(target, { immediate: true });

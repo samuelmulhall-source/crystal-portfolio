@@ -12,7 +12,7 @@
  * only when the loaded set actually grows.
  */
 
-import { useState, useRef, useCallback, useEffect, Suspense } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo, Suspense } from "react";
 import { useFrame } from "@react-three/fiber";
 import { useFBX } from "@react-three/drei";
 import * as THREE from "three";
@@ -37,6 +37,26 @@ if (typeof window !== "undefined") {
 }
 import WeaponStation from "./WeaponStation";
 
+function createFallbackEntry(station: typeof STATIONS[number], index: number): WorkModelEntry {
+  return {
+    id: station.modelId,
+    modelPath: station.modelPath,
+    title: station.loreName,
+    category: "3D Model",
+    year: "2026",
+    textures: station.textures,
+    scrollProgress: station.scrollViewCenter,
+    hovered: false,
+    labelSet: index,
+    rotX: 0,
+    rotY: 0,
+    velX: 0,
+    velY: 0,
+    isDragging: false,
+    wasDragged: false,
+  };
+}
+
 // FBX preloading — DEFERRED until loading screen dismisses so FBX downloads
 // don't compete for bandwidth with critical smoke frame decoding.
 // Staggered to avoid concurrent FBX parses blocking the main thread.
@@ -55,44 +75,10 @@ export default function WeaponStations() {
   const versionRef = useRef(-1);
   const loadedRef = useRef<Set<string>>(new Set());
   const pendingUpdate = useRef(false);
-
-  // Grace period: don't mount ANY stations until either:
-  //   a) User scrolls past hero (scrollProgress > 0.05), OR
-  //   b) 3 seconds after loading screen dismisses (preloads have had time)
-  // This prevents FBX parsing + shader compilation from stuttering the hero.
-  const graceRef = useRef(false);
-
-  // Defer FBX preloading until loading screen dismisses — prevents FBX
-  // downloads from competing with critical smoke frame loading.
-  // Also starts the station-mounting grace timer.
-  useEffect(() => {
-    const startPreload = () => {
-      useFBX.preload(PRELOAD_PATHS[0]);
-      PRELOAD_PATHS.slice(1).forEach((path, i) => {
-        setTimeout(() => useFBX.preload(path), (i + 1) * 2000);
-      });
-    };
-
-    const startGraceTimer = () => {
-      setTimeout(() => { graceRef.current = true; }, 3000);
-    };
-
-    if (loadGate.dismissed) {
-      startPreload();
-      startGraceTimer();
-      return;
-    }
-
-    const unsub = loadGate.subscribe(() => {
-      if (loadGate.dismissed) {
-        unsub();
-        // Small delay to let loading screen fadeout finish and scene settle
-        setTimeout(startPreload, 400);
-        startGraceTimer();
-      }
-    });
-    return unsub;
-  }, []);
+  const fallbackEntries = useMemo(
+    () => STATIONS.map((station, index) => createFallbackEntry(station, index)),
+    [],
+  );
 
   const bump = useCallback(() => {
     if (!pendingUpdate.current) {
@@ -108,6 +94,46 @@ export default function WeaponStations() {
     }
   }, []);
 
+  // Defer FBX preloading until loading screen dismisses, but make the first
+  // stations available immediately so the user never reaches an empty hold.
+  useEffect(() => {
+    const startPreload = () => {
+      useFBX.preload(PRELOAD_PATHS[0]);
+      useFBX.preload(PRELOAD_PATHS[1]);
+      PRELOAD_PATHS.slice(2).forEach((path, i) => {
+        setTimeout(() => useFBX.preload(path), (i + 1) * 900);
+      });
+    };
+
+    const primeStations = () => {
+      let changed = false;
+      for (let i = 0; i < Math.min(3, STATIONS.length); i++) {
+        if (!loadedRef.current.has(STATIONS[i].id)) {
+          loadedRef.current.add(STATIONS[i].id);
+          changed = true;
+        }
+      }
+      if (changed) bump();
+    };
+
+    if (loadGate.dismissed) {
+      startPreload();
+      primeStations();
+      return;
+    }
+
+    const unsub = loadGate.subscribe(() => {
+      if (loadGate.dismissed) {
+        unsub();
+        setTimeout(() => {
+          startPreload();
+          primeStations();
+        }, 120);
+      }
+    });
+    return unsub;
+  }, [bump]);
+
   useFrame(() => {
     // Sync entries from workModels (only when version changes)
     if (workModels.version !== versionRef.current) {
@@ -116,10 +142,8 @@ export default function WeaponStations() {
       bump();
     }
 
-    // Don't mount stations until user scrolls past hero OR grace period elapsed.
-    // Prevents FBX parsing + shader compilation from causing frame drops
-    // during the hero presentation.
-    const shouldLoad = graceRef.current || voidState.scrollProgress > 0.05;
+    // Mount once the loading screen has cleared or the user is leaving the hero.
+    const shouldLoad = loadGate.dismissed || voidState.scrollProgress > 0.04;
     if (!shouldLoad) return;
 
     // Determine which stations to load
@@ -128,8 +152,8 @@ export default function WeaponStations() {
     const loaded = loadedRef.current;
     let changed = false;
 
-    // Always load first two stations so station 1 is ready before user scrolls
-    for (let i = 0; i < Math.min(2, STATIONS.length); i++) {
+    // Always keep the first three stations hot so early navigation never outruns loading.
+    for (let i = 0; i < Math.min(3, STATIONS.length); i++) {
       if (!loaded.has(STATIONS[i].id)) { loaded.add(STATIONS[i].id); changed = true; }
     }
 
@@ -154,7 +178,9 @@ export default function WeaponStations() {
   return (
     <>
       {STATIONS.filter(s => renderLoaded.has(s.id)).map(station => {
-        const entry = renderEntries.find(e => e.id === station.modelId);
+        const entry =
+          renderEntries.find(e => e.id === station.modelId) ??
+          fallbackEntries.find(e => e.id === station.modelId);
         if (!entry) return null;
         return (
           <Suspense key={station.id} fallback={null}>

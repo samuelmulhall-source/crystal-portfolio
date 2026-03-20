@@ -27,6 +27,14 @@ function getCachedStarGeom(n: number) {
   return _geomCache.get(n)!;
 }
 
+const _warpSeeds = Array.from({ length: 72 }, (_, i) => ({
+  angle: (i / 72) * Math.PI * 2 + ((i % 5) - 2) * 0.018,
+  radius: 0.08 + ((i * 37) % 100) / 100 * 0.9,
+  speed: 0.55 + ((i * 19) % 100) / 100 * 1.1,
+  width: 0.35 + ((i * 53) % 100) / 100 * 1.15,
+  alpha: 0.45 + ((i * 29) % 100) / 100 * 0.5,
+}));
+
 // ─── 3D geometry helpers ───────────────────────────────────────────────────
 type Vec3 = [number, number, number];
 type Face = [number, number, number]; // indices into vertex array
@@ -126,9 +134,53 @@ export default function EffectsOverlay() {
       const dt  = Math.min((now - lastT) * 0.001, 0.05);
       lastT     = now;
       const t   = (now - t0) * 0.001;
+      const warpMotion = Math.max(
+        Math.min(voidState.cameraSpeed / 2.6, 1),
+        Math.min(Math.abs(voidState.scrollVel) * 24, 1),
+      );
+      const warpStrength = voidState.transitFactor * Math.max(0.28, warpMotion);
 
       // Smooth loading fade (drives black hole vortex in section 5)
       loadFade += ((voidState.modelLoading ? 1 : 0) - loadFade) * Math.min(dt * 2.5, 1);
+
+      // ── 0. Hyperspace streak layer — explicit screen-space warp read ──────
+      if (warpStrength > 0.04) {
+        const cx = w * 0.5;
+        const cy = h * 0.5;
+        const maxR = Math.hypot(w, h) * 0.62;
+        const baseVelocity = 0.35 + warpStrength * 2.4;
+        ctx!.save();
+        ctx!.globalCompositeOperation = "lighter";
+
+        for (const seed of _warpSeeds) {
+          const travel = (t * seed.speed * baseVelocity) % 1;
+          const startR = 16 + travel * maxR * seed.radius;
+          const lineLen = (18 + seed.width * 120) * warpStrength * (0.45 + travel * 0.75);
+          const angle = seed.angle;
+          const cosA = Math.cos(angle);
+          const sinA = Math.sin(angle);
+          const x1 = cx + cosA * startR;
+          const y1 = cy + sinA * startR;
+          const x2 = cx + cosA * (startR + lineLen);
+          const y2 = cy + sinA * (startR + lineLen);
+
+          const grad = ctx!.createLinearGradient(x1, y1, x2, y2);
+          grad.addColorStop(0, `rgba(184,240,255,0)`);
+          grad.addColorStop(0.35, `rgba(184,240,255,${0.05 * warpStrength * seed.alpha})`);
+          grad.addColorStop(1, `rgba(232,247,255,${0.22 * warpStrength * seed.alpha})`);
+
+          ctx!.strokeStyle = grad;
+          ctx!.lineWidth = 0.6 + seed.width * 1.2 * warpStrength;
+          ctx!.shadowColor = `rgba(184,240,255,${0.16 * warpStrength})`;
+          ctx!.shadowBlur = 6 + 18 * warpStrength;
+          ctx!.beginPath();
+          ctx!.moveTo(x1, y1);
+          ctx!.lineTo(x2, y2);
+          ctx!.stroke();
+        }
+
+        ctx!.restore();
+      }
 
       const SPRING_K = 420;
       const SPRING_D = 26;

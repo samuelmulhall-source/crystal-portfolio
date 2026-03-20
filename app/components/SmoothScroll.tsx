@@ -44,14 +44,14 @@ export default function SmoothScroll({ children }: { children: React.ReactNode }
         const delta = Math.abs(window.scrollY - target);
 
         // Snap within the full station range — wider catch (15% stations)
-        if (delta > 20 && delta < maxScroll * 0.15) {
+        if (delta > 16 && delta < maxScroll * 0.16) {
           isSnappingRef.current = true;
           lenis.scrollTo(target, {
-            duration: 0.5,
+            duration: 0.32,
             onComplete: () => { isSnappingRef.current = false; },
           });
         }
-      }, 300); // 300ms idle = user stopped scrolling (faster catch)
+      }, 180); // grab the station quickly once wheel/touch input settles
     };
 
     window.addEventListener("scroll", onScroll, { passive: true });
