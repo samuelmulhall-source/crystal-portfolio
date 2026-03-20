@@ -326,14 +326,14 @@ export function getStationProximity(
 /**
  * Narrow station focus used for "lock-in" behavior.
  * Much tighter than general station proximity so arrival reads clearly.
- * With wider station windows (15%), this band covers the inner ~40%.
+ * This is aligned to the parked hold zone, not the full station range.
  */
 export function getStationFocusProximity(
   scrollProgress: number,
   station: WeaponStation,
 ): number {
   const halfRange = (station.scrollEnd - station.scrollStart) / 2;
-  const focusHalfRange = Math.max(halfRange * 0.4, 0.02);
+  const focusHalfRange = Math.max(halfRange * 0.56, 0.04);
   const dist = Math.abs(scrollProgress - station.scrollViewCenter) / focusHalfRange;
   const t = Math.max(0, 1 - dist);
   return t * t * (3 - 2 * t);

@@ -102,9 +102,11 @@ export function StarLayer({
 
     // ── Compute streak intensity from transit factor + camera speed ──────
     const transit = voidState.transitFactor;
-    const travelSpeed = Math.min(Math.max((voidState.cameraSpeed - 0.3) / 5.0, 0), 1);
-    const scrollBoost = Math.min(Math.abs(voidState.scrollVel) * 8.0, 1.0);
-    const targetStreak = transit * Math.max(travelSpeed, scrollBoost * 0.8);
+    const travelSpeed = Math.min(Math.max((voidState.cameraSpeed - 0.12) / 2.6, 0), 1);
+    const scrollBoost = Math.min(Math.abs(voidState.scrollVel) * 26.0, 1.0);
+    const motionSignal = Math.max(travelSpeed, scrollBoost);
+    const streakFloor = transit > 0.35 ? 0.45 : 0.0;
+    const targetStreak = transit * Math.max(streakFloor, motionSignal);
     // Fast ramp-up (warp engage), slower settle (station lock-in)
     const rampSpeed = targetStreak > smoothStreak.current ? 10.0 : 4.0;
     smoothStreak.current += (targetStreak - smoothStreak.current) * Math.min(dt * rampSpeed, 1);

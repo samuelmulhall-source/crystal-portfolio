@@ -52,50 +52,96 @@ function getLookAtSpline(): THREE.CatmullRomCurve3 {
 
 // ─── Scroll → Spline remap ─────────────────────────────────────────────────
 // Maps scroll progress (0-1) to spline parameter (0-1).
-// Transit segments: tiny scroll range → big spline jump (camera warps)
-// Station segments: wide scroll range → tiny spline change (camera parked)
 //
-// The spline has 25 control points (24 segments), each ~4.17% of T.
-// Station "viewing" positions are at roughly these spline-T values:
-//   Station 1 (Torch):  T ≈ 5/24 = 0.208
-//   Station 2 (Dagger): T ≈ 9/24 = 0.375
-//   Station 3 (Shield): T ≈ 13/24 = 0.542
-//   Station 4 (Sword):  T ≈ 17/24 = 0.708
-//   Station 5 (Bow):    T ≈ 21/24 = 0.875
+// Key requirement:
+// - transit should move quickly through space
+// - station should actually park on the model instead of gliding past it
 //
-// [scrollStart, scrollEnd, splineStart, splineEnd]
-const REMAP_TABLE: [number, number, number, number][] = [
-  [0.00, 0.07, 0.000, 0.125],  // hero — free camera travel
-  [0.07, 0.09, 0.125, 0.208],  // transit 1 → warp to station 1 viewing pos
-  [0.09, 0.24, 0.208, 0.260],  // STATION 1 — 15% scroll, 5.2% spline (barely moves)
-  [0.24, 0.26, 0.260, 0.375],  // transit 2 → warp to station 2
-  [0.26, 0.41, 0.375, 0.425],  // STATION 2
-  [0.41, 0.43, 0.425, 0.542],  // transit 3
-  [0.43, 0.58, 0.542, 0.590],  // STATION 3
-  [0.58, 0.60, 0.590, 0.708],  // transit 4
-  [0.60, 0.75, 0.708, 0.755],  // STATION 4
-  [0.75, 0.77, 0.755, 0.875],  // transit 5
-  [0.77, 0.90, 0.875, 0.920],  // STATION 5
-  [0.90, 1.00, 0.920, 1.000],  // about — gentle descent
-];
+// Each station therefore has three sub-phases:
+// - settle: camera eases into the framed viewing pose
+// - hold: camera stays effectively parked on the model
+// - release: camera eases out toward the next transit
+
+const HERO_SCROLL_END = 0.07;
+const HERO_SPLINE_END = 0.125;
+const ABOUT_SCROLL_START = 0.90;
+const ABOUT_SPLINE_START = 22 / 24;
+const STATION_SEGMENT = 1 / 24;
+const STATION_VIEW_SEGMENTS = [5, 9, 13, 17, 21].map((v) => v / 24);
+const STATION_SETTLE_FRACTION = 0.22;
+const STATION_RELEASE_FRACTION = 0.22;
+
+function clamp01(value: number): number {
+  return Math.max(0, Math.min(1, value));
+}
+
+function smoothstep01(value: number): number {
+  const t = clamp01(value);
+  return t * t * (3 - 2 * t);
+}
+
+function lerp(a: number, b: number, t: number): number {
+  return a + (b - a) * t;
+}
 
 /**
  * Remap scroll progress (0-1) to spline parameter (0-1).
- * Piecewise linear interpolation through the remap table.
+ * Transit zones move aggressively; station zones settle and then hold.
  */
 function remapScroll(scrollProgress: number): number {
   const t = Math.max(0, Math.min(1, scrollProgress));
-  for (const [ss, se, ts, te] of REMAP_TABLE) {
-    if (t <= se) {
-      const frac = se > ss ? (t - ss) / (se - ss) : 0;
-      return ts + Math.max(0, Math.min(1, frac)) * (te - ts);
-    }
+
+  if (t <= HERO_SCROLL_END) {
+    return lerp(0, HERO_SPLINE_END, smoothstep01(t / HERO_SCROLL_END));
   }
-  return 1;
+
+  let previousScrollEnd = HERO_SCROLL_END;
+  let previousSplineExit = HERO_SPLINE_END;
+
+  for (let i = 0; i < STATIONS.length; i++) {
+    const station = STATIONS[i];
+    const viewT = STATION_VIEW_SEGMENTS[i];
+    const approachT = viewT - STATION_SEGMENT;
+    const exitT = viewT + STATION_SEGMENT;
+
+    if (t < station.scrollStart) {
+      const transitSpan = station.scrollStart - previousScrollEnd;
+      const transitT = transitSpan > 0 ? (t - previousScrollEnd) / transitSpan : 1;
+      return lerp(previousSplineExit, approachT, smoothstep01(transitT));
+    }
+
+    if (t <= station.scrollEnd) {
+      const stationSpan = station.scrollEnd - station.scrollStart;
+      const settleEnd = station.scrollStart + stationSpan * STATION_SETTLE_FRACTION;
+      const releaseStart = station.scrollEnd - stationSpan * STATION_RELEASE_FRACTION;
+
+      if (t <= settleEnd) {
+        const settleT = (t - station.scrollStart) / Math.max(settleEnd - station.scrollStart, 0.0001);
+        return lerp(approachT, viewT, smoothstep01(settleT));
+      }
+
+      if (t >= releaseStart) {
+        const releaseT = (t - releaseStart) / Math.max(station.scrollEnd - releaseStart, 0.0001);
+        return lerp(viewT, exitT, smoothstep01(releaseT));
+      }
+
+      return viewT;
+    }
+
+    previousScrollEnd = station.scrollEnd;
+    previousSplineExit = exitT;
+  }
+
+  if (t <= ABOUT_SCROLL_START) {
+    return previousSplineExit;
+  }
+
+  const aboutT = (t - ABOUT_SCROLL_START) / Math.max(1 - ABOUT_SCROLL_START, 0.0001);
+  return lerp(ABOUT_SPLINE_START, 1, smoothstep01(aboutT));
 }
 
-const FOV_TRANSIT = 54; // wider during warp for speed sensation
-const FOV_STATION = 32; // tighter at station for model framing
+const FOV_TRANSIT = 58; // wider during warp for speed sensation
+const FOV_STATION = 28; // tighter at station for model framing
 
 export interface CameraState {
   position: THREE.Vector3;

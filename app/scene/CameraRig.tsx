@@ -134,20 +134,22 @@ export default function CameraRig() {
     springLook.current.z += springLookVel.current.z * cdt;
 
     // Near the focus band → aggressively kill spring velocity and lock onto the shot.
-    // With wider station windows (15%), this needs to be very strong to prevent drift.
+    // With the parked hold zone, this needs to clamp hard to avoid "sliding past".
     if (maxFocus > 0.01) {
       const dampFactor = Math.pow(1 - maxFocus, 8); // very aggressive damping
       springVel.current.multiplyScalar(dampFactor);
       springLookVel.current.multiplyScalar(dampFactor);
       // Hard settle: at full focus, camera snaps directly to target
-      const settle = Math.min(0.12 + maxFocus * 0.6, 0.72);
+      const settle = Math.min(0.18 + maxFocus * 0.68, 0.86);
       springPos.current.lerp(_targetPos, settle);
       springLook.current.lerp(_targetLook, settle);
     }
 
-    // Warp-speed distortion: FOV stretch during fast scrolling
+    // Warp-speed distortion: driven by actual camera travel, with scroll as a booster.
     const scrollSpeed = Math.abs(voidState.scrollVel);
-    const warpFov = scrollSpeed > 0.3 ? Math.min((scrollSpeed - 0.3) * 15, 12) : 0;
+    const travelWarp = voidState.transitFactor * Math.min(voidState.cameraSpeed / 3.2, 1) * 16;
+    const scrollWarp = voidState.transitFactor * Math.min(scrollSpeed * 22, 1) * 8;
+    const warpFov = Math.max(travelWarp, scrollWarp);
 
     // Smooth FOV (base + warp)
     const targetFov = fov + warpFov;

@@ -68,12 +68,14 @@ export function makeHoloStarMat(hasVelocity: boolean): THREE.ShaderMaterial {
           ? normalize(ndc)
           : vec2(0.0, 1.0);
 
-        // Trail length: dramatic at edges (dist~1), subtle at center (dist~0)
-        // Scaled by uStreak: 0 = no trail, 1 = full hyperspace
-        float trailPx = distFromCenter * uStreak * 220.0;
+        // Trail length: maintain a visible minimum through the center of frame,
+        // then stretch aggressively toward the edges for a proper hyperspace read.
+        float edgeBias = pow(clamp(distFromCenter, 0.0, 1.25), 0.65);
+        float baseTrail = mix(36.0, 320.0, edgeBias);
+        float trailPx = uStreak * baseTrail;
         // Per-star variation so not every streak is identical
-        trailPx *= (0.7 + aSeed * 0.6);
-        trailPx = min(trailPx, 240.0);
+        trailPx *= (0.8 + aSeed * 0.5);
+        trailPx = min(trailPx, 360.0);
 
         float totalSize = max(2.0, nat + trailPx);
         gl_PointSize = totalSize;
@@ -126,7 +128,7 @@ export function makeHoloStarMat(hasVelocity: boolean): THREE.ShaderMaterial {
         float across = dot(uv, perp);
 
         // Stretch ellipse along radial direction
-        float stretch = 1.0 + vTrailLen * 5.0;
+        float stretch = 1.0 + vTrailLen * 7.5;
         float rx = along / stretch;
         float ry = across;
         float r = length(vec2(rx, ry));

@@ -255,7 +255,7 @@ export default function WeaponStation({ station, entry }: Props) {
     // With wider station windows (15%), model should appear fast and stay solid
     const visibility = proximity <= 0
       ? 0
-      : Math.min(1, Math.max(0, (proximity - 0.03) / 0.30));
+      : Math.min(1, Math.max(0, (proximity - 0.015) / 0.22));
     const isNearCamera = visibility > 0.02 || isExpanded;
 
     // Gate on shaderReady — don't show model until GPU shaders are compiled
@@ -263,7 +263,7 @@ export default function WeaponStation({ station, entry }: Props) {
       ? Math.max(visibility, focus * 1.0, isExpanded ? 1 : 0)
       : 0;
     // Faster fade-in (dt * 4) for snappier model appearance
-    opacityRef.current += (opTarget - opacityRef.current) * Math.min(dt * 4.0, 1);
+    opacityRef.current += (opTarget - opacityRef.current) * Math.min(dt * 5.5, 1);
 
     // Reset entrance when fully faded
     if (opacityRef.current < 0.01) entranceRef.current = 0;
@@ -314,7 +314,7 @@ export default function WeaponStation({ station, entry }: Props) {
         e.velY *= decay;
         e.rotX += e.velX;
         e.rotY += e.velY;
-        if (voidState.autoRotate) e.rotY += dt * 0.45 * (1 - focus * 0.92);
+        if (voidState.autoRotate) e.rotY += dt * 0.28 * (1 - focus * 0.98);
       }
 
       const entranceSpin = (1 - op) * Math.PI * 0.15;
