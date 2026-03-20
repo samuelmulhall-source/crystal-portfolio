@@ -14,9 +14,6 @@ import { createPortal } from "react-dom";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { workModels, subscribePendingTab } from "../lib/workModels";
-import { voidState } from "../lib/voidState";
-import { STATIONS } from "../lib/journeyConfig";
-import { lenisInstance } from "./SmoothScroll";
 import { trackModelView } from "../lib/analytics";
 import { useIsMobile } from "../lib/useMediaQuery";
 import { usePortfolioData } from "../lib/usePortfolioData";
@@ -38,7 +35,7 @@ function WorkGridContent() {
   const sectionRef   = useRef<HTMLElement>(null);
   const dragZoneRef  = useRef<HTMLDivElement>(null);
   // headerRef removed — WeaponHUD replaced the old header panel
-  const modelListRef = useRef<HTMLDivElement>(null);
+  // modelListRef removed — WeaponHUD is the sole model navigation
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -50,8 +47,7 @@ function WorkGridContent() {
   const [loading,    setLoading]    = useState(true);
   const [activeTab,  setActiveTab]  = useState<WorkTab>('models');
   const isNarrow = useIsMobile();
-  // Anchor: when work section fills the viewport, fix UI elements to screen
-  const [inWorkView, setInWorkView] = useState(false);
+  // inWorkView removed — model list sidebar removed, WeaponHUD handles nav
 
   const dragRef      = useRef({ active: false, x: 0, y: 0, moved: false });
   const lastTouchRef = useRef(0); // for double-tap detection on mobile
@@ -175,9 +171,6 @@ function WorkGridContent() {
     const THRESHOLDS = Array.from({ length: 21 }, (_, i) => i / 20);
     const observer = new IntersectionObserver(([entry]) => {
       workModels.sectionRatio = entry.intersectionRatio;
-      // Anchor: fix UI to screen when section fills the viewport
-      // Fade in UI when section reaches ~30% visible; never switch position — always fixed
-      setInWorkView(entry.intersectionRatio >= 0.62);
       const ACTIVE_THRESH = 0.55;
       const DEACTIVE_THRESH = 0.35;
       if (entry.isIntersecting && entry.intersectionRatio >= ACTIVE_THRESH && activeTabRef.current === 'models') {
@@ -204,29 +197,7 @@ function WorkGridContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projects]);
 
-  // ── Model selection — scroll to weapon station to show the 3D model ─────
-  const selectModel = (id: string) => {
-    if (activeId && activeId !== id) {
-      const prev = workModels.entries.find(e => e.id === activeId);
-      if (prev) prev.hovered = false;
-    }
-    setActiveId(id);
-    workModels.activeModelId = id;
-    workModels.version++;
-
-    // Scroll camera to this model's weapon station
-    const station = STATIONS.find(s => s.modelId === id);
-    if (station) {
-      const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
-      const target = station.scrollViewCenter * maxScroll;
-      voidState.snapCamera = true;
-      if (lenisInstance) {
-        lenisInstance.scrollTo(target, { immediate: true });
-      } else {
-        window.scrollTo(0, target);
-      }
-    }
-  };
+  // Model selection removed — WeaponHUD is the sole navigation surface
 
   // ── Expand model to fullscreen viewer ────────────────────────────────────
   const handleExpand = useCallback(() => {
@@ -331,193 +302,48 @@ function WorkGridContent() {
 
       {/* ── Header + tab strip removed — WeaponHUD is the sole navigation element ── */}
 
-      {/* ── Models tab content ── */}
-      {activeTab === 'models' && (
+      {/* ── Models tab: control hints only (WeaponHUD handles navigation) ── */}
+      {activeTab === 'models' && activeId && !loading && (
         <>
-          {/* Model list: on narrow screens horizontal strip at bottom; on desktop left sidebar */}
-          <div
-            ref={modelListRef}
-            style={{
-              position:      "fixed",
-              pointerEvents: (inWorkView && activeTab === 'models') ? "auto" : "none",
-              opacity:       (inWorkView && activeTab === 'models') ? 1 : 0,
-              transition:    "opacity 0.42s cubic-bezier(0.22,1,0.36,1) 0.12s, transform 0.42s cubic-bezier(0.22,1,0.36,1) 0.12s",
-              zIndex:        4,
-              ...(isNarrow
-                ? {
-                    left: 0, right: 0,
-                    bottom: "calc(clamp(2.4rem, 6vh, 3rem) + clamp(1rem, 5vh, 2rem))",
-                    height: "auto",
-                    overflowX: "auto", overflowY: "hidden",
-                    display: "flex", flexDirection: "row", gap: 0, alignItems: "stretch", flexWrap: "nowrap",
-                    padding: "0 clamp(1rem, 4vw, 2.5rem)",
-                    transform: (inWorkView && activeTab === 'models') ? "translateX(0)" : "translateX(-18px)",
-                  }
-                : {
-                    left: "2.5rem",
-                    top: "50%",
-                    transform: (inWorkView && activeTab === 'models') ? "translateY(-50%)" : "translateY(-50%) translateX(-18px)",
-                    width: "clamp(160px, 18vw, 240px)",
-                    padding:       "0.5rem 0",
-                  }
-              ),
-            }}
-          >
-            {loading ? (
-              <span className="label" style={{ opacity: 0.4 }}>Loading…</span>
-            ) : isNarrow ? (
-              <div style={{ display: "flex", gap: "0.5rem", paddingBottom: "0.5rem" }}>
-                {projects.map((p) => {
-                  const active = activeId === p.id;
-                  return (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => selectModel(p.id)}
-                      style={{
-                        cursor: "pointer",
-                        flexShrink: 0,
-                        padding: "0.6rem 0.9rem",
-                        border: `1px solid rgba(184,240,255,${active ? 0.35 : 0.12})`,
-                        borderRadius: "3px",
-                        background: active ? "rgba(184,240,255,0.06)" : "transparent",
-                        textAlign: "left",
-                        opacity: active ? 1 : 0.7,
-                        transition: "opacity 0.2s, border-color 0.2s, background 0.2s",
-                      }}
-                    >
-                      <div>
-                        <div style={{
-                          fontFamily: "var(--font-geist-sans), sans-serif",
-                          fontSize: "0.8rem", fontWeight: active ? 500 : 400,
-                          color: active ? "rgba(220,248,255,0.98)" : "rgba(184,240,255,0.75)",
-                          marginBottom: "0.15rem",
-                        }}>{p.title}</div>
-                        <div style={{ ...MON, fontSize: "0.6rem", letterSpacing: "0.12em", color: active ? "rgba(184,240,255,0.6)" : "rgba(184,240,255,0.45)" }}>{p.year}</div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            ) : (
-              projects.map((p, i) => {
-                const active = activeId === p.id;
-                return (
-                  <div
-                    key={p.id}
-                    onClick={() => selectModel(p.id)}
-                    style={{
-                      cursor: "pointer", padding: "0.8rem 0.4rem",
-                      borderTop: `1px solid rgba(184,240,255,${active ? 0.14 : 0.05})`,
-                      display: "flex", alignItems: "center", gap: "0.85rem",
-                      opacity: active ? 1 : 0.72,
-                      transition: "opacity 0.22s cubic-bezier(0.22,1,0.36,1), transform 0.22s cubic-bezier(0.22,1,0.36,1)",
-                    }}
-                    onMouseEnter={e => {
-                      const el = e.currentTarget as HTMLDivElement;
-                      if (!active) {
-                        el.style.opacity   = "0.90";
-                        el.style.transform = "translateX(3px)";
-                      }
-                    }}
-                    onMouseLeave={e => {
-                      const el = e.currentTarget as HTMLDivElement;
-                      if (!active) {
-                        el.style.opacity   = "0.72";
-                        el.style.transform = "";
-                      }
-                    }}
-                  >
-                    {/* Active bracket — L-shape: vertical bar + top/bottom caps */}
-                    <div style={{ position: "relative", width: "10px", height: "28px", flexShrink: 0 }}>
-                      {/* Vertical bar */}
-                      <div style={{
-                        position: "absolute", left: 0, top: 0, bottom: 0, width: "1px",
-                        background: active ? "rgba(184,240,255,0.80)" : "rgba(184,240,255,0.12)",
-                        boxShadow: active ? "0 0 7px rgba(184,240,255,0.55)" : "none",
-                        transition: "background 0.3s ease, box-shadow 0.3s ease",
-                      }} />
-                      {/* Top cap */}
-                      <div style={{
-                        position: "absolute", left: 0, top: 0, height: "1px",
-                        width: active ? "7px" : "3px",
-                        background: active ? "rgba(184,240,255,0.80)" : "rgba(184,240,255,0.12)",
-                        transition: "width 0.3s ease, background 0.3s ease",
-                      }} />
-                      {/* Bottom cap */}
-                      <div style={{
-                        position: "absolute", left: 0, bottom: 0, height: "1px",
-                        width: active ? "7px" : "3px",
-                        background: active ? "rgba(184,240,255,0.80)" : "rgba(184,240,255,0.12)",
-                        transition: "width 0.3s ease, background 0.3s ease",
-                      }} />
-                    </div>
-                    <span style={{ ...MON, fontSize: "0.52rem", letterSpacing: "0.28em", color: "rgba(184,240,255,0.60)", flexShrink: 0, minWidth: "1.2rem" }}>
-                      {String(i + 1).padStart(2, "0")}
-                    </span>
-                    <div style={{ flex: 1 }}>
-                      <div style={{
-                        fontFamily: "var(--font-geist-sans), sans-serif",
-                        fontSize: "clamp(0.8rem, 1.2vw, 0.92rem)", fontWeight: active ? 400 : 300,
-                        letterSpacing: "0.03em",
-                        color: active ? "rgba(220,248,255,0.95)" : "rgba(184,240,255,0.88)",
-                        textShadow: active ? "0 0 16px rgba(184,240,255,0.30)" : "none",
-                        transition: "color 0.25s ease, text-shadow 0.25s ease", marginBottom: "0.2rem",
-                      }}>{p.title}</div>
-                      <div style={{ ...MON, fontSize: "0.62rem", letterSpacing: "0.16em", color: active ? "rgba(184,240,255,0.62)" : "rgba(184,240,255,0.58)", transition: "color 0.22s ease" }}>
-                        {p.year}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })
-            )}
+          {/* Drag hint: single line, bottom-center */}
+          <div style={{
+            position:   "absolute",
+            bottom:     isNarrow ? "3.2rem" : "2.2rem",
+            left:       "50%",
+            transform:  "translateX(-50%)",
+            zIndex:     3,
+            pointerEvents: "none",
+            opacity:    isHovered && !isDragging ? 1 : 0,
+            transition: "opacity 0.5s cubic-bezier(0.22,1,0.36,1)",
+          }}>
+            <span style={{ ...MON, fontSize: "0.44rem", letterSpacing: "0.28em", color: "rgba(184,240,255,0.38)", whiteSpace: "nowrap" }}>
+              — drag to orbit —
+            </span>
           </div>
 
-          {/* ── Control hints — igloo-style minimal text ── */}
-          {activeId && !loading && (
-            <>
-              {/* Drag hint: single line, bottom-center */}
-              <div style={{
-                position:   "absolute",
-                bottom:     isNarrow ? "calc(clamp(2.4rem, 6vh, 3rem) + clamp(1rem, 5vh, 2rem) + 4rem)" : "2.2rem",
-                left:       "50%",
-                transform:  "translateX(-50%)",
-                zIndex:     3,
-                pointerEvents: "none",
-                opacity:    isHovered && !isDragging ? 1 : 0,
-                transition: "opacity 0.5s cubic-bezier(0.22,1,0.36,1)",
-              }}>
-                <span style={{ ...MON, fontSize: "0.44rem", letterSpacing: "0.28em", color: "rgba(184,240,255,0.38)", whiteSpace: "nowrap" }}>
-                  — drag to orbit —
-                </span>
-              </div>
-
-              {/* View CTA: bottom-right corner, single click */}
-              <button
-                onClick={(e) => { e.stopPropagation(); if (!loading) handleExpand(); }}
-                onPointerDown={(e) => e.stopPropagation()}
-                style={{
-                  position:    "absolute",
-                  bottom:      isNarrow ? "calc(clamp(2.4rem, 6vh, 3rem) + clamp(1rem, 5vh, 2rem) + 3.8rem)" : "1.9rem",
-                  right:       "clamp(1.2rem, 3.5vw, 2.5rem)",
-                  zIndex:      3,
-                  background:  "transparent",
-                  border:      "none",
-                  cursor:      "pointer",
-                  padding:     "0.6rem",
-                  margin:      "-0.6rem",
-                  opacity:     isHovered ? 1 : 0,
-                  transition:  "opacity 0.5s cubic-bezier(0.22,1,0.36,1)",
-                  pointerEvents: isHovered ? "auto" : "none",
-                }}
-              >
-                <span style={{ ...MON, fontSize: "0.44rem", letterSpacing: "0.22em", color: "rgba(184,240,255,0.52)" }}>
-                  view ↗
-                </span>
-              </button>
-            </>
-          )}
+          {/* View CTA: bottom-right corner, single click */}
+          <button
+            onClick={(e) => { e.stopPropagation(); if (!loading) handleExpand(); }}
+            onPointerDown={(e) => e.stopPropagation()}
+            style={{
+              position:    "absolute",
+              bottom:      isNarrow ? "3rem" : "1.9rem",
+              right:       "clamp(1.2rem, 3.5vw, 2.5rem)",
+              zIndex:      3,
+              background:  "transparent",
+              border:      "none",
+              cursor:      "pointer",
+              padding:     "0.6rem",
+              margin:      "-0.6rem",
+              opacity:     isHovered ? 1 : 0,
+              transition:  "opacity 0.5s cubic-bezier(0.22,1,0.36,1)",
+              pointerEvents: isHovered ? "auto" : "none",
+            }}
+          >
+            <span style={{ ...MON, fontSize: "0.44rem", letterSpacing: "0.22em", color: "rgba(184,240,255,0.52)" }}>
+              view ↗
+            </span>
+          </button>
         </>
       )}
 
