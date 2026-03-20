@@ -22,6 +22,10 @@ const METEOR_COUNT  = 5;
 const TRAIL_LEN     = 2.5;
 const TRAIL_POINTS  = 12;
 
+// Reference frustum half-width for speed normalization.
+// Computed at hero view: fov=50°, spawn depth≈6, aspect≈1.78
+const REF_HALF_W = Math.tan(25 * Math.PI / 180) * 6 * 1.78;
+
 interface MeteorState {
   active:  boolean;
   t:       number;
@@ -95,7 +99,19 @@ export default function ShootingStars({
     const W       = typeof window !== "undefined" ? window.innerWidth  : 1920;
     const H       = typeof window !== "undefined" ? window.innerHeight : 1080;
 
-    // Spawn
+    // ── Camera basis vectors (from matrixWorld columns) ──────────────────
+    // These define the camera's local coordinate system in world space.
+    // Using matrix elements directly avoids Vector3 allocations.
+    const mw = camera.matrixWorld.elements;
+    const rX = mw[0], rY = mw[1], rZ = mw[2];     // camera right
+    const uX = mw[4], uY = mw[5], uZ = mw[6];     // camera up
+    const fX = -mw[8], fY = -mw[9], fZ = -mw[10];  // camera forward (into screen)
+    const cpx = camera.position.x, cpy = camera.position.y, cpz = camera.position.z;
+
+    const camFov    = (camera as THREE.PerspectiveCamera).fov ?? 50;
+    const camAspect = (camera as THREE.PerspectiveCamera).aspect ?? 1.78;
+
+    // Spawn — camera-relative so meteors look consistent at any scroll depth
     const maxActive = isMobile ? 3 : METEOR_COUNT;
     if (t >= nextSpawnRef.current) {
       const burst = 1 + Math.floor(sr(Math.floor(t * 1000) % 99999) * 3);
@@ -108,21 +124,36 @@ export default function ShootingStars({
           met.t      = 0;
           met.phase  = Math.random() * Math.PI * 2;
           met.maxLife = 2.5 + Math.random() * 1.0;
-          met.pz = -(4 + Math.random() * 4);
-          const camPosZ   = (camera as THREE.PerspectiveCamera).position?.z ?? 12;
-          const viewZ     = camPosZ - met.pz;
-          const camFov    = (camera as THREE.PerspectiveCamera).fov ?? 50;
-          const camAspect = (camera as THREE.PerspectiveCamera).aspect ?? 1.78;
-          const halfH  = Math.tan((camFov / 2) * Math.PI / 180) * viewZ;
+
+          // Frustum dimensions at spawn depth (in camera space)
+          const spawnDepth = 4 + Math.random() * 4;
+          const halfH  = Math.tan((camFov / 2) * Math.PI / 180) * spawnDepth;
           const halfW  = halfH * camAspect;
-          met.px = -(halfW * 1.05 + 1.5 + Math.random() * 3.0);
-          met.py = (-halfH * 0.3) + Math.random() * (halfH * 1.6);
-          const sx  = 26 + Math.random() * 8;
-          const sy  = -(5 + Math.random() * 4);
-          const sz  = -(0.5 + Math.random() * 1.5);
-          const len = Math.sqrt(sx * sx + sy * sy + sz * sz);
-          met.dx = sx / len; met.dy = sy / len; met.dz = sz / len;
-          met.speed = 8 + Math.random() * 5;
+
+          // Spawn at left edge of frustum, random Y — in camera space
+          const offRight = -(halfW * 1.05 + 1.5 + Math.random() * 3.0);
+          const offUp    = (-halfH * 0.3) + Math.random() * (halfH * 1.6);
+
+          // Convert to world space: camera pos + depth*forward + offsets
+          met.px = cpx + fX * spawnDepth + rX * offRight + uX * offUp;
+          met.py = cpy + fY * spawnDepth + rY * offRight + uY * offUp;
+          met.pz = cpz + fZ * spawnDepth + rZ * offRight + uZ * offUp;
+
+          // Direction in camera space (mostly right + slight down + slight forward)
+          const rawDx = 26 + Math.random() * 8;
+          const rawDy = -(5 + Math.random() * 4);
+          const rawDz = -(0.5 + Math.random() * 1.5);
+          const len = Math.sqrt(rawDx * rawDx + rawDy * rawDy + rawDz * rawDz);
+          const cdx = rawDx / len, cdy = rawDy / len, cdz = rawDz / len;
+
+          // Transform direction to world space
+          met.dx = rX * cdx + uX * cdy + fX * cdz;
+          met.dy = rY * cdx + uY * cdy + fY * cdz;
+          met.dz = rZ * cdx + uZ * cdy + fZ * cdz;
+
+          // Scale speed to frustum width — consistent screen-space crossing time
+          met.speed = (8 + Math.random() * 5) * (halfW / REF_HALF_W);
+
           // Reset trail ring buffer — fill with spawn position
           met.trailHead = 0;
           for (let ti = 0; ti < TRAIL_POINTS; ti++) {
@@ -152,6 +183,10 @@ export default function ShootingStars({
       const lifeNorm = Math.min(met.t / met.maxLife, 1);
       if (lifeNorm >= 1) { met.active = false; continue; }
 
+      // Kill meteors that are too far from camera (user scrolled away)
+      const toCamDist2 = (met.px - cpx) ** 2 + (met.py - cpy) ** 2 + (met.pz - cpz) ** 2;
+      if (toCamDist2 > 2500) { met.active = false; continue; }
+
       const fadeIn  = Math.min(met.t / (met.maxLife * 0.10), 1);
       const fadeOut = Math.max(1 - (lifeNorm - 0.65) / 0.35, 0);
       const env     = fadeIn * fadeOut;
@@ -171,10 +206,13 @@ export default function ShootingStars({
       vMet.hsx = (tmpV.x + 1) / 2 * W;
       vMet.hsy = (1 - tmpV.y) / 2 * H;
 
+      // Scale trail length to match speed scaling (consistent screen-space length)
+      const trailScale = met.speed / 11; // 11 ≈ midpoint of base speed range (8-13)
+      const scaledTrailLen = TRAIL_LEN * trailScale;
       tmpV.set(
-        met.px - met.dx * TRAIL_LEN,
-        met.py - met.dy * TRAIL_LEN,
-        met.pz - met.dz * TRAIL_LEN,
+        met.px - met.dx * scaledTrailLen,
+        met.py - met.dy * scaledTrailLen,
+        met.pz - met.dz * scaledTrailLen,
       ).project(camera);
       vMet.tsx = (tmpV.x + 1) / 2 * W;
       vMet.tsy = (1 - tmpV.y) / 2 * H;
