@@ -4,7 +4,7 @@
  * Shooting stars system — fully camera-relative meteor spawning with trails.
  *
  * Decoupled from starfield: no disruption color flash, no star buffer access.
- * Active throughout the entire journey. Spawn and pathing are relative to the
+ * Active in hero/transit phases. Spawn and pathing are relative to the
  * camera's current position/orientation so they look identical regardless of
  * scroll position. Meteor screen positions written to voidState.meteorSlots
  * for EffectsOverlay to render comet trail + head spark.
@@ -57,22 +57,33 @@ export default function ShootingStars() {
 
   const { isMobile } = useContext(VoidContext);
 
-  const lights = useMemo(() =>
+  const lightsRef = useRef(
     Array.from({ length: METEOR_COUNT }, () => new THREE.PointLight("#4488ff", 0, 16)),
-  []);
+  );
 
   useEffect(() => {
     const g = groupRef.current;
     if (!g) return;
+    const lights = lightsRef.current;
     lights.forEach((l) => g.add(l));
     return () => lights.forEach((l) => g.remove(l));
-  }, [lights]);
+  }, []);
 
   useFrame((state, dt) => {
     const t       = state.clock.elapsedTime;
     const meteors = meteorsRef.current;
     const W       = typeof window !== "undefined" ? window.innerWidth  : 1920;
     const H       = typeof window !== "undefined" ? window.innerHeight : 1080;
+
+    if (voidState.journeyMode === "station") {
+      for (let m = 0; m < METEOR_COUNT; m++) {
+        meteors[m].active = false;
+        voidState.meteorSlots[m].active = false;
+        voidState.meteorSlots[m].env = 0;
+        lightsRef.current[m].intensity = 0;
+      }
+      return;
+    }
 
     // Extract camera basis vectors from matrixWorld (zero alloc)
     const mw = camera.matrixWorld.elements;
@@ -145,12 +156,11 @@ export default function ShootingStars() {
     for (let m = 0; m < METEOR_COUNT; m++) {
       const met  = meteors[m];
       const vMet = voidState.meteorSlots[m];
-      const light = lights[m];
+      const light = lightsRef.current[m];
 
       if (!met.active) {
         vMet.env     = Math.max(vMet.env - dt * 6, 0);
         vMet.active  = false;
-        // eslint-disable-next-line react-hooks/immutability -- Three.js light intensity per-frame update
         light.intensity = Math.max(light.intensity - dt * 18, 0);
         continue;
       }

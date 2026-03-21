@@ -38,7 +38,8 @@ export default function WeaponStation({ station, entry }: Props) {
   const entranceRef   = useRef(0);
   const tiltX         = useRef(0);
   const tiltY         = useRef(0);
-  const tmpMp         = useMemo(() => new THREE.Vector3(), []);
+  const showcasePos   = useMemo(() => new THREE.Vector3(), []);
+  const showcaseOff   = useMemo(() => new THREE.Vector3(), []);
 
   // Shader compilation gate — model stays invisible until shaders are compiled
   const [shaderReady, setShaderReady] = useState(false);
@@ -260,7 +261,7 @@ export default function WeaponStation({ station, entry }: Props) {
     if (scaleGroupRef.current) {
       const ep   = entranceRef.current;
       const ease = ep < 0.5 ? 2 * ep * ep : -1 + (4 - 2 * ep) * ep;
-      scaleGroupRef.current.scale.setScalar(0.98 + ease * 0.02);
+      scaleGroupRef.current.scale.setScalar(1.04 + ease * 0.10);
     }
 
     // Apply opacity
@@ -285,9 +286,16 @@ export default function WeaponStation({ station, entry }: Props) {
     // Position is fixed at station world position
     if (posGroupRef.current) {
       const [wx, wy, wz] = station.worldPosition;
-      const isExp = isExpanded;
-      const expandedX = isExp && !isMobile ? 1.8 : 0;
-      posGroupRef.current.position.set(wx + expandedX, wy, wz);
+      if (isExpanded) {
+        const expandedX = !isMobile ? 1.8 : 0;
+        posGroupRef.current.position.set(wx + expandedX, wy, wz);
+      } else if (isActiveStation) {
+        showcaseOff.set(0, -0.18, -5.8).applyQuaternion(camera.quaternion);
+        showcasePos.copy(camera.position).add(showcaseOff);
+        posGroupRef.current.position.copy(showcasePos);
+      } else {
+        posGroupRef.current.position.set(wx, wy, wz);
+      }
     }
 
     // Rotation: auto-spin + camera-reactive tilt
@@ -319,6 +327,7 @@ export default function WeaponStation({ station, entry }: Props) {
       if (e2) {
         rotGroupRef.current.rotation.x = e2.rotX + tiltX.current;
         rotGroupRef.current.rotation.y = e2.rotY + entranceSpin + tiltY.current;
+        rotGroupRef.current.rotation.z = 0;
       }
     }
 
@@ -330,13 +339,11 @@ export default function WeaponStation({ station, entry }: Props) {
     });
 
     // Write model screen region for hover suppression
-    if (op > 0.08 && posGroupRef.current && isActiveStation) {
-      posGroupRef.current.getWorldPosition(tmpMp);
-      tmpMp.project(s.camera);
+    if (op > 0.08 && isActiveStation) {
       const W = s.size.width, H = s.size.height;
-      voidState.modelRegion.x   = (tmpMp.x + 1) / 2 * W;
-      voidState.modelRegion.y   = (1 - tmpMp.y) / 2 * H;
-      voidState.modelRegion.rPx = Math.min(W, H) * 0.26 * Math.min(op, 1);
+      voidState.modelRegion.x   = W * 0.5;
+      voidState.modelRegion.y   = H * 0.52;
+      voidState.modelRegion.rPx = Math.min(W, H) * 0.30 * Math.min(op, 1);
     }
   });
 

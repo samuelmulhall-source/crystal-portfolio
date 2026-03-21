@@ -7,7 +7,7 @@
  * Provides VoidContext for shared isMobile/layers config.
  */
 
-import React, { Suspense, createContext, useRef } from "react";
+import React, { createContext, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { loadGate } from "../lib/loadingOrchestrator";
@@ -16,11 +16,8 @@ import { StarLayer } from "./Starfield";
 import DustParticles from "./DustParticles";
 import CameraRig, { VoidMotion } from "./CameraRig";
 import ExpandedViewer from "./ExpandedViewer";
-import StarHoverSystem from "./StarHoverSystem";
 import ShootingStars from "./ShootingStars";
 import WeaponStations from "./WeaponStations";
-import StationInfo from "./hud/StationInfo";
-import { STATIONS } from "../lib/journeyConfig";
 
 // ─── Star layer config ─────────────────────────────────────────────────────
 // Radii enlarged + stars offset to Z=-55 to cover the full Z-forward corridor
@@ -84,20 +81,9 @@ export default function VoidScene({ isMobile }: { isMobile: boolean }) {
       <ExpandedViewer />
       <VoidMotion />
 
-      {/* Skip hover system on mobile — no mouse cursor */}
-      {!isMobile && <StarHoverSystem pts={[pts0, pts1, pts2]} />}
       {!isMobile && <ShootingStars />}
 
       <WeaponStations />
-
-      {/* In-world HUD: floating labels + scan lines per station (Suspense for font loading) */}
-      {!isMobile && (
-        <Suspense fallback={null}>
-          {STATIONS.map((station, i) => (
-            <StationInfo key={station.id} station={station} stationIndex={i} />
-          ))}
-        </Suspense>
-      )}
     </VoidContext.Provider>
   );
 }
