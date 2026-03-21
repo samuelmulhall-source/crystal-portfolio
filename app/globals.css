@@ -61,6 +61,7 @@
 html {
   scroll-behavior: auto;
   background: #000005;
+  scroll-snap-type: y mandatory;
 }
 
 body {
@@ -76,6 +77,35 @@ body {
 main {
   position: relative;
   z-index: 2;
+}
+
+#journey {
+  position: relative;
+}
+
+#hero,
+.phase-section {
+  min-height: 100vh;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+
+.phase-section {
+  position: relative;
+  background: transparent;
+  pointer-events: none;
+}
+
+.phase-transit {
+  min-height: 100vh;
+}
+
+.phase-station {
+  min-height: 100vh;
+}
+
+.phase-about {
+  min-height: 100vh;
 }
 
 /* ─── Scrollbar ───────────────────────────────────────────────────────────── */

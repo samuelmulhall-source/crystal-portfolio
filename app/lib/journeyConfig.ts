@@ -56,27 +56,28 @@ export interface JourneyPhase {
   phaseProgress: number;
 }
 
-export const HERO_SCROLL_END = 0.07;
-export const ABOUT_SCROLL_START = 0.90;
+const JOURNEY_PHASES = 12;
+export const HERO_SCROLL_END = 1 / JOURNEY_PHASES;
+export const ABOUT_SCROLL_START = 11 / JOURNEY_PHASES;
 
 /**
  * Five weapon stations placed along the Z-forward corridor.
  * Each station gets 15% of scroll — wide locked-in viewing windows.
  * Transits between are compressed to 2% — dramatic warp travel.
  *
- * Layout:
- *   Hero:      0.00 – 0.07  (7%)
- *   Transit 1: 0.07 – 0.09  (2%)
- *   Station 1: 0.09 – 0.24  (15%)  ← TORCH
- *   Transit 2: 0.24 – 0.26  (2%)
- *   Station 2: 0.26 – 0.41  (15%)  ← DAGGER
- *   Transit 3: 0.41 – 0.43  (2%)
- *   Station 3: 0.43 – 0.58  (15%)  ← SHIELD
- *   Transit 4: 0.58 – 0.60  (2%)
- *   Station 4: 0.60 – 0.75  (15%)  ← SWORD
- *   Transit 5: 0.75 – 0.77  (2%)
- *   Station 5: 0.77 – 0.90  (13%)  ← BOW
- *   About:     0.90 – 1.00  (10%)
+ * Layout is now viewport-snapped:
+ *   Hero      0/12 → 1/12
+ *   Transit   1/12 → 2/12
+ *   Station 1 2/12 → 3/12
+ *   Transit   3/12 → 4/12
+ *   Station 2 4/12 → 5/12
+ *   Transit   5/12 → 6/12
+ *   Station 3 6/12 → 7/12
+ *   Transit   7/12 → 8/12
+ *   Station 4 8/12 → 9/12
+ *   Transit   9/12 → 10/12
+ *   Station 5 10/12 → 11/12
+ *   About     11/12 → 1
  */
 export const STATIONS: WeaponStation[] = [
   {
@@ -95,9 +96,9 @@ export const STATIONS: WeaponStation[] = [
     loreTag: "Hand-crafted fantasy torch — layered metal wrap",
     loreSpec: "PBR PIPELINE: COLOUR · METALNESS · ROUGHNESS · NORMAL",
     designation: "STATION 01",
-    scrollStart: 0.09,
-    scrollEnd: 0.24,
-    scrollViewCenter: 0.165,
+    scrollStart: 2 / JOURNEY_PHASES,
+    scrollEnd: 3 / JOURNEY_PHASES,
+    scrollViewCenter: 2.5 / JOURNEY_PHASES,
   },
   {
     id: "ornate-dagger",
@@ -115,9 +116,9 @@ export const STATIONS: WeaponStation[] = [
     loreTag: "Ceremonial dagger — filigree crossguard, gemstone pommel",
     loreSpec: "TEXTURE DENSITY: 4K MAPS · CHASED SURFACE DETAIL",
     designation: "STATION 02",
-    scrollStart: 0.26,
-    scrollEnd: 0.41,
-    scrollViewCenter: 0.335,
+    scrollStart: 4 / JOURNEY_PHASES,
+    scrollEnd: 5 / JOURNEY_PHASES,
+    scrollViewCenter: 4.5 / JOURNEY_PHASES,
   },
   {
     id: "shield",
@@ -135,9 +136,9 @@ export const STATIONS: WeaponStation[] = [
     loreTag: "Kite shield — riveted iron rim, aged leather facing",
     loreSpec: "SURFACE: BAKED WEAR · NORMAL + ROUGHNESS CHANNELS",
     designation: "STATION 03",
-    scrollStart: 0.43,
-    scrollEnd: 0.58,
-    scrollViewCenter: 0.505,
+    scrollStart: 6 / JOURNEY_PHASES,
+    scrollEnd: 7 / JOURNEY_PHASES,
+    scrollViewCenter: 6.5 / JOURNEY_PHASES,
   },
   {
     id: "sword",
@@ -156,9 +157,9 @@ export const STATIONS: WeaponStation[] = [
     loreTag: "Arming sword — glass-and-metal guard, translucent blade",
     loreSpec: "MATERIAL: TRANSMISSION MAP · CRYSTAL FULLER REFRACTION",
     designation: "STATION 04",
-    scrollStart: 0.60,
-    scrollEnd: 0.75,
-    scrollViewCenter: 0.675,
+    scrollStart: 8 / JOURNEY_PHASES,
+    scrollEnd: 9 / JOURNEY_PHASES,
+    scrollViewCenter: 8.5 / JOURNEY_PHASES,
   },
   {
     id: "bow",
@@ -175,14 +176,24 @@ export const STATIONS: WeaponStation[] = [
     loreTag: "Recurve longbow — laminated limbs, sinew wrapping",
     loreSpec: "TOPOLOGY: GAME-READY · HERO-ASSET RESOLUTION",
     designation: "STATION 05",
-    scrollStart: 0.77,
-    scrollEnd: 0.90,
-    scrollViewCenter: 0.835,
+    scrollStart: 10 / JOURNEY_PHASES,
+    scrollEnd: 11 / JOURNEY_PHASES,
+    scrollViewCenter: 10.5 / JOURNEY_PHASES,
   },
 ];
 
-/** Total page height in viewport units — increased for more physical scroll room */
-export const TOTAL_SCROLL_VH = 900;
+/** Total scroll height in viewport units for the snapped journey track. */
+export const TOTAL_SCROLL_VH = JOURNEY_PHASES * 100;
+
+export function getJourneyScrollMetrics() {
+  if (typeof window === "undefined" || typeof document === "undefined") return null;
+  const journey = document.getElementById("journey");
+  if (!journey) return null;
+  const rect = journey.getBoundingClientRect();
+  const start = window.scrollY + rect.top;
+  const max = Math.max(journey.offsetHeight - window.innerHeight, 1);
+  return { start, max };
+}
 
 /**
  * Camera position spline control points.

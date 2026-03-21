@@ -11,7 +11,7 @@ import AboutContact      from "./components/AboutContact";
 import Nav               from "./components/Nav";
 import WeaponHUD         from "./components/WeaponHUD";
 import ScrollTracker     from "./components/ScrollTracker";
-import { STATIONS, TOTAL_SCROLL_VH } from "./lib/journeyConfig";
+import { STATIONS } from "./lib/journeyConfig";
 
 export default function Home() {
   return (
@@ -35,27 +35,30 @@ export default function Home() {
       {/* ── Scrollable page content ── */}
       <main role="main" aria-label="Portfolio content">
         <Nav />
-        <Hero />
+        <div id="journey">
+          <Hero />
 
-        {/* Corridor transit space — camera pushes through crystal stairway */}
-        <div style={{ height: "18vh", background: "transparent", pointerEvents: "none" }} />
+          {STATIONS.map((station, index) => (
+            <Suspense key={station.id} fallback={null}>
+              <section
+                id={`transit-${index + 1}`}
+                className="phase-section phase-transit"
+                aria-hidden="true"
+              />
+              <section
+                id={`station-${station.id}`}
+                className="phase-section phase-station"
+                aria-label={`${station.loreName} — ${station.loreTag}`}
+              />
+            </Suspense>
+          ))}
 
-        {/* Weapon station scroll anchors — provide scroll height for camera journey */}
-        {STATIONS.map((station) => (
           <section
-            key={station.id}
-            id={`station-${station.id}`}
-            style={{
-              height: `${(station.scrollEnd - station.scrollStart) * TOTAL_SCROLL_VH}vh`,
-              background: "transparent",
-              pointerEvents: "none",
-            }}
-            aria-label={`${station.loreName} — ${station.loreTag}`}
+            id="journey-about"
+            className="phase-section phase-about"
+            aria-hidden="true"
           />
-        ))}
-
-        {/* Transit space between last station and about/contact */}
-        <div style={{ height: "30vh", background: "transparent", pointerEvents: "none" }} />
+        </div>
 
         {/* Work section — data source for model entries (needed for WeaponStations) */}
         <Suspense fallback={<div style={{ minHeight: "50vh", background: "transparent" }} />}>

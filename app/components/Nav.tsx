@@ -10,7 +10,7 @@
 import { useEffect, useRef, useState } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { STATIONS } from "../lib/journeyConfig";
+import { STATIONS, getJourneyScrollMetrics } from "../lib/journeyConfig";
 import { voidState } from "../lib/voidState";
 import { lenisInstance } from "./SmoothScroll";
 
@@ -67,11 +67,12 @@ export default function Nav() {
     if (href === "#work") {
       // Scroll to first weapon station
       const station = STATIONS[0];
-      const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
-      const target = station.scrollViewCenter * maxScroll;
+      const metrics = getJourneyScrollMetrics();
+      if (!metrics) return;
+      const target = metrics.start + station.scrollViewCenter * metrics.max;
       voidState.snapCamera = true;
       if (lenisInstance) {
-        lenisInstance.scrollTo(target, { duration: 1.2 });
+        lenisInstance.scrollTo(target);
       } else {
         window.scrollTo({ top: target, behavior: "smooth" });
       }

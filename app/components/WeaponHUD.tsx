@@ -12,7 +12,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { voidState } from "../lib/voidState";
 import { workModels, subscribePendingTab } from "../lib/workModels";
-import { STATIONS } from "../lib/journeyConfig";
+import { STATIONS, getJourneyScrollMetrics } from "../lib/journeyConfig";
 import { trackStationVisit, trackKeyboardNav } from "../lib/analytics";
 import { usePortfolioData } from "../lib/usePortfolioData";
 import { lenisInstance } from "./SmoothScroll";
@@ -94,8 +94,9 @@ export default function WeaponHUD() {
 
   const jumpToStation = useCallback((index: number) => {
     const station = STATIONS[index];
-    const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
-    const target = station.scrollViewCenter * maxScroll;
+    const metrics = getJourneyScrollMetrics();
+    if (!metrics) return;
+    const target = metrics.start + station.scrollViewCenter * metrics.max;
     workModels.activeModelId = station.modelId;
     workModels.version++;
     voidState.snapCamera = true;

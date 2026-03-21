@@ -15,6 +15,7 @@ import * as THREE from "three";
 import { voidState } from "../lib/voidState";
 import { workModels, subscribeExpanded } from "../lib/workModels";
 import { getDeviceProfile } from "../lib/deviceTier";
+import { getJourneyScrollMetrics } from "../lib/journeyConfig";
 import VoidScene from "../scene/VoidScene";
 
 // SSR-safe mount detection via useSyncExternalStore
@@ -73,8 +74,10 @@ export default function VoidBackground() {
       voidState.mouseVel = 0;
     };
     const onScroll = () => {
-      const max  = document.documentElement.scrollHeight - window.innerHeight;
-      const newP = max > 0 ? window.scrollY / max : 0;
+      const metrics = getJourneyScrollMetrics();
+      const newP = metrics
+        ? Math.max(0, Math.min(1, (window.scrollY - metrics.start) / metrics.max))
+        : 0;
       const now  = performance.now();
       const dt   = Math.max(now - prevST, 8) * 0.001;
       const raw  = Math.min(Math.abs(newP - prevSP) / dt, 5);
@@ -105,6 +108,7 @@ export default function VoidBackground() {
     document.addEventListener("touchmove",  onTouchMove,  { passive: true });
     document.addEventListener("touchend",   onTouchEnd);
     window.addEventListener("scroll",       onScroll, { passive: true });
+    onScroll();
     return () => {
       document.removeEventListener("mousemove",  onMove);
       document.removeEventListener("mouseleave", onLeave);
