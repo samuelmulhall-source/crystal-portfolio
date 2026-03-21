@@ -48,6 +48,17 @@ export interface WeaponStation {
   scrollViewCenter: number;
 }
 
+export type JourneyMode = "hero" | "transit" | "station" | "about";
+
+export interface JourneyPhase {
+  mode: JourneyMode;
+  stationIndex: number;
+  phaseProgress: number;
+}
+
+export const HERO_SCROLL_END = 0.07;
+export const ABOUT_SCROLL_START = 0.90;
+
 /**
  * Five weapon stations placed along the Z-forward corridor.
  * Each station gets 15% of scroll — wide locked-in viewing windows.
@@ -295,46 +306,74 @@ export const CAMERA_LOOKAT_POINTS: [number, number, number][] = [
  * Find which station the camera is nearest to (or -1 during transit).
  */
 export function findActiveStation(scrollProgress: number): number {
-  for (let i = 0; i < STATIONS.length; i++) {
-    const s = STATIONS[i];
-    if (scrollProgress >= s.scrollStart && scrollProgress <= s.scrollEnd) {
-      return i;
-    }
+  const phase = getJourneyPhase(scrollProgress);
+  return phase.mode === "station" ? phase.stationIndex : -1;
+}
+
+export function getJourneyPhase(scrollProgress: number): JourneyPhase {
+  const t = Math.max(0, Math.min(1, scrollProgress));
+
+  if (t <= HERO_SCROLL_END) {
+    return {
+      mode: "hero",
+      stationIndex: -1,
+      phaseProgress: t / Math.max(HERO_SCROLL_END, 0.0001),
+    };
   }
-  return -1;
+
+  let previousEnd = HERO_SCROLL_END;
+  for (let i = 0; i < STATIONS.length; i++) {
+    const station = STATIONS[i];
+    if (t < station.scrollStart) {
+      return {
+        mode: "transit",
+        stationIndex: i,
+        phaseProgress: (t - previousEnd) / Math.max(station.scrollStart - previousEnd, 0.0001),
+      };
+    }
+    if (t <= station.scrollEnd) {
+      return {
+        mode: "station",
+        stationIndex: i,
+        phaseProgress: (t - station.scrollStart) / Math.max(station.scrollEnd - station.scrollStart, 0.0001),
+      };
+    }
+    previousEnd = station.scrollEnd;
+  }
+
+  if (t < ABOUT_SCROLL_START) {
+    return {
+      mode: "transit",
+      stationIndex: STATIONS.length,
+      phaseProgress: (t - previousEnd) / Math.max(ABOUT_SCROLL_START - previousEnd, 0.0001),
+    };
+  }
+
+  return {
+    mode: "about",
+    stationIndex: -1,
+    phaseProgress: (t - ABOUT_SCROLL_START) / Math.max(1 - ABOUT_SCROLL_START, 0.0001),
+  };
 }
 
 /**
  * Compute proximity (0-1) of scrollProgress to a given station.
- * 1.0 = at the centre of the station's range.
- * 0.0 = outside the station's range.
- * Uses smoothstep for clean transitions.
+ * Station state is binary by design: either locked on the model or not.
  */
 export function getStationProximity(
   scrollProgress: number,
   station: WeaponStation,
 ): number {
-  if (scrollProgress < station.scrollStart || scrollProgress > station.scrollEnd)
-    return 0;
-  const mid = station.scrollViewCenter;
-  const halfRange = (station.scrollEnd - station.scrollStart) / 2;
-  const dist = Math.abs(scrollProgress - mid) / halfRange;
-  const t = Math.max(0, 1 - dist);
-  return t * t * (3 - 2 * t);
+  const phase = getJourneyPhase(scrollProgress);
+  return phase.mode === "station" && STATIONS[phase.stationIndex]?.id === station.id ? 1 : 0;
 }
 
 /**
- * Narrow station focus used for "lock-in" behavior.
- * Much tighter than general station proximity so arrival reads clearly.
- * This is aligned to the parked hold zone, not the full station range.
+ * Focus matches station lock. There is no soft focus band anymore.
  */
 export function getStationFocusProximity(
   scrollProgress: number,
   station: WeaponStation,
 ): number {
-  const halfRange = (station.scrollEnd - station.scrollStart) / 2;
-  const focusHalfRange = Math.max(halfRange * 0.56, 0.04);
-  const dist = Math.abs(scrollProgress - station.scrollViewCenter) / focusHalfRange;
-  const t = Math.max(0, 1 - dist);
-  return t * t * (3 - 2 * t);
+  return getStationProximity(scrollProgress, station);
 }

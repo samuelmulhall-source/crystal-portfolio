@@ -238,44 +238,29 @@ export default function WeaponStation({ station, entry }: Props) {
   }, [scene]);
 
   useFrame((s, dt) => {
-    // Opacity: driven by station proximity to camera
-    const stationIdx = voidState.stationProximity
-      ? STATIONS_IDS.indexOf(station.id)
-      : -1;
-    const proximity = stationIdx >= 0 && voidState.stationProximity[stationIdx] !== undefined
-      ? voidState.stationProximity[stationIdx]
-      : 0;
-    const focus = stationIdx >= 0 && voidState.stationFocus[stationIdx] !== undefined
-      ? voidState.stationFocus[stationIdx]
-      : 0;
+    const stationIdx = STATIONS_IDS.indexOf(station.id);
+    const isActiveStation =
+      stationIdx >= 0 &&
+      voidState.journeyMode === "station" &&
+      voidState.activeStationIndex === stationIdx;
 
     // Also check if this weapon is the active or expanded one
     const isExpanded = workModels.expandedModelId === entry.id ||
                        workModels.expandedModelId === station.id;
-    // With wider station windows (15%), model should appear fast and stay solid
-    const visibility = proximity <= 0
-      ? 0
-      : Math.min(1, Math.max(0, (proximity - 0.015) / 0.22));
-    const isNearCamera = visibility > 0.02 || isExpanded;
-
-    // Gate on shaderReady — don't show model until GPU shaders are compiled
-    const opTarget = (isNearCamera && shaderReady)
-      ? Math.max(visibility, focus * 1.0, isExpanded ? 1 : 0)
-      : 0;
-    // Faster fade-in (dt * 4) for snappier model appearance
-    opacityRef.current += (opTarget - opacityRef.current) * Math.min(dt * 5.5, 1);
+    const opTarget = shaderReady && (isActiveStation || isExpanded) ? 1 : 0;
+    opacityRef.current += (opTarget - opacityRef.current) * Math.min(dt * 16, 1);
 
     // Reset entrance when fully faded
     if (opacityRef.current < 0.01) entranceRef.current = 0;
 
     // Entrance scale
     if (opacityRef.current > 0.04 && entranceRef.current < 1) {
-      entranceRef.current = Math.min(entranceRef.current + dt / 0.8, 1);
+      entranceRef.current = Math.min(entranceRef.current + dt / 0.25, 1);
     }
     if (scaleGroupRef.current) {
       const ep   = entranceRef.current;
       const ease = ep < 0.5 ? 2 * ep * ep : -1 + (4 - 2 * ep) * ep;
-      scaleGroupRef.current.scale.setScalar(0.94 + ease * 0.06 + focus * 0.025);
+      scaleGroupRef.current.scale.setScalar(0.98 + ease * 0.02);
     }
 
     // Apply opacity
@@ -292,7 +277,7 @@ export default function WeaponStation({ station, entry }: Props) {
     }
 
     // Write model opacity for loading animation
-    if (voidState.activeStationIndex >= 0 && STATIONS_IDS[voidState.activeStationIndex] === station.id) {
+    if (isActiveStation) {
       voidState.modelOpacity = op;
       workModels.activeModelId = entry.id;
     }
@@ -314,14 +299,19 @@ export default function WeaponStation({ station, entry }: Props) {
         e.velY *= decay;
         e.rotX += e.velX;
         e.rotY += e.velY;
-        if (voidState.autoRotate) e.rotY += dt * 0.28 * (1 - focus * 0.98);
+        if (isActiveStation) {
+          e.rotX += (0 - e.rotX) * Math.min(dt * 7, 1);
+          e.rotY += (0 - e.rotY) * Math.min(dt * 7, 1);
+        } else if (voidState.autoRotate) {
+          e.rotY += dt * 0.18;
+        }
       }
 
-      const entranceSpin = (1 - op) * Math.PI * 0.15;
+      const entranceSpin = (1 - op) * Math.PI * 0.04;
 
       // Camera-reactive tilt
       const lerpF = Math.min(dt * 2.5, 1);
-      const tiltScale = 1 - focus * 0.75;
+      const tiltScale = voidState.journeyMode === "hero" ? 1 : voidState.journeyMode === "transit" ? 0.25 : 0;
       tiltX.current += (-voidState.mouseNY * 0.10 * tiltScale - tiltX.current) * lerpF;
       tiltY.current += ( voidState.mouseNX * 0.08 * tiltScale - tiltY.current) * lerpF;
 
@@ -340,14 +330,13 @@ export default function WeaponStation({ station, entry }: Props) {
     });
 
     // Write model screen region for hover suppression
-    if (op > 0.08 && posGroupRef.current && voidState.activeStationIndex >= 0 &&
-        STATIONS_IDS[voidState.activeStationIndex] === station.id) {
+    if (op > 0.08 && posGroupRef.current && isActiveStation) {
       posGroupRef.current.getWorldPosition(tmpMp);
       tmpMp.project(s.camera);
       const W = s.size.width, H = s.size.height;
       voidState.modelRegion.x   = (tmpMp.x + 1) / 2 * W;
       voidState.modelRegion.y   = (1 - tmpMp.y) / 2 * H;
-      voidState.modelRegion.rPx = Math.min(W, H) * 0.22 * Math.min(op, 1);
+      voidState.modelRegion.rPx = Math.min(W, H) * 0.26 * Math.min(op, 1);
     }
   });
 

@@ -79,6 +79,7 @@ export const voidState = {
   // ── Transit state ─────────────────────────────────────────────────
   // 0 = locked at a station (clean dots), 1 = full transit (hyperspeed streaks).
   // Written by CameraRig, read by Starfield for warp streak intensity.
+  journeyMode: "hero" as "hero" | "transit" | "station" | "about",
   transitFactor: 0,
   cameraSpeed: 0,                 // world-units / second after spring integration
 

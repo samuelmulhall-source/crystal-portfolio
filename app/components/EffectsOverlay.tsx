@@ -27,12 +27,12 @@ function getCachedStarGeom(n: number) {
   return _geomCache.get(n)!;
 }
 
-const _warpSeeds = Array.from({ length: 72 }, (_, i) => ({
-  angle: (i / 72) * Math.PI * 2 + ((i % 5) - 2) * 0.018,
-  radius: 0.08 + ((i * 37) % 100) / 100 * 0.9,
-  speed: 0.55 + ((i * 19) % 100) / 100 * 1.1,
-  width: 0.35 + ((i * 53) % 100) / 100 * 1.15,
-  alpha: 0.45 + ((i * 29) % 100) / 100 * 0.5,
+const _warpSeeds = Array.from({ length: 180 }, (_, i) => ({
+  angle: (i / 180) * Math.PI * 2 + ((i % 7) - 3) * 0.012,
+  radius: 0.02 + ((i * 37) % 100) / 100 * 1.18,
+  speed: 0.8 + ((i * 19) % 100) / 100 * 1.7,
+  width: 0.4 + ((i * 53) % 100) / 100 * 1.6,
+  alpha: 0.45 + ((i * 29) % 100) / 100 * 0.55,
 }));
 
 // ─── 3D geometry helpers ───────────────────────────────────────────────────
@@ -111,6 +111,7 @@ export default function EffectsOverlay() {
     const t0 = performance.now();
     let lastT = performance.now();
     let loadFade = 0; // smoothed opacity for black hole loading vortex
+    let warpLevel = 0;
 
     const resize = () => {
       canvas.width  = window.innerWidth;
@@ -134,28 +135,27 @@ export default function EffectsOverlay() {
       const dt  = Math.min((now - lastT) * 0.001, 0.05);
       lastT     = now;
       const t   = (now - t0) * 0.001;
-      const warpMotion = Math.max(
-        Math.min(voidState.cameraSpeed / 2.6, 1),
-        Math.min(Math.abs(voidState.scrollVel) * 24, 1),
-      );
-      const warpStrength = voidState.transitFactor * Math.max(0.28, warpMotion);
+      const warpTarget = voidState.journeyMode === "transit" ? 1 : 0;
+      const warpRate = warpTarget > warpLevel ? 10 : 7;
+      warpLevel += (warpTarget - warpLevel) * Math.min(dt * warpRate, 1);
+      const warpStrength = warpLevel;
 
       // Smooth loading fade (drives black hole vortex in section 5)
       loadFade += ((voidState.modelLoading ? 1 : 0) - loadFade) * Math.min(dt * 2.5, 1);
 
       // ── 0. Hyperspace streak layer — explicit screen-space warp read ──────
-      if (warpStrength > 0.04) {
+      if (warpStrength > 0.02) {
         const cx = w * 0.5;
         const cy = h * 0.5;
-        const maxR = Math.hypot(w, h) * 0.62;
-        const baseVelocity = 0.35 + warpStrength * 2.4;
+        const maxR = Math.hypot(w, h) * 0.76;
+        const baseVelocity = 0.85 + warpStrength * 4.2;
         ctx!.save();
         ctx!.globalCompositeOperation = "lighter";
 
         for (const seed of _warpSeeds) {
           const travel = (t * seed.speed * baseVelocity) % 1;
-          const startR = 16 + travel * maxR * seed.radius;
-          const lineLen = (18 + seed.width * 120) * warpStrength * (0.45 + travel * 0.75);
+          const startR = 4 + travel * maxR * seed.radius;
+          const lineLen = (90 + seed.width * 320) * warpStrength * (0.75 + travel * 0.9);
           const angle = seed.angle;
           const cosA = Math.cos(angle);
           const sinA = Math.sin(angle);
@@ -166,13 +166,14 @@ export default function EffectsOverlay() {
 
           const grad = ctx!.createLinearGradient(x1, y1, x2, y2);
           grad.addColorStop(0, `rgba(184,240,255,0)`);
-          grad.addColorStop(0.35, `rgba(184,240,255,${0.05 * warpStrength * seed.alpha})`);
-          grad.addColorStop(1, `rgba(232,247,255,${0.22 * warpStrength * seed.alpha})`);
+          grad.addColorStop(0.2, `rgba(184,240,255,${0.12 * warpStrength * seed.alpha})`);
+          grad.addColorStop(0.65, `rgba(196,244,255,${0.24 * warpStrength * seed.alpha})`);
+          grad.addColorStop(1, `rgba(244,250,255,${0.48 * warpStrength * seed.alpha})`);
 
           ctx!.strokeStyle = grad;
-          ctx!.lineWidth = 0.6 + seed.width * 1.2 * warpStrength;
-          ctx!.shadowColor = `rgba(184,240,255,${0.16 * warpStrength})`;
-          ctx!.shadowBlur = 6 + 18 * warpStrength;
+          ctx!.lineWidth = 0.8 + seed.width * 2.1 * warpStrength;
+          ctx!.shadowColor = `rgba(184,240,255,${0.24 * warpStrength})`;
+          ctx!.shadowBlur = 12 + 26 * warpStrength;
           ctx!.beginPath();
           ctx!.moveTo(x1, y1);
           ctx!.lineTo(x2, y2);

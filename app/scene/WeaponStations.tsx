@@ -12,11 +12,10 @@
  * only when the loaded set actually grows.
  */
 
-import { useState, useRef, useCallback, useEffect, useMemo, Suspense } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo, useSyncExternalStore, Suspense } from "react";
 import { useFrame } from "@react-three/fiber";
 import { useFBX } from "@react-three/drei";
 import * as THREE from "three";
-import { voidState } from "../lib/voidState";
 import { workModels, type WorkModelEntry } from "../lib/workModels";
 import { STATIONS } from "../lib/journeyConfig";
 import { loadGate } from "../lib/loadingOrchestrator";
@@ -70,11 +69,14 @@ const PRELOAD_PATHS = [
 
 export default function WeaponStations() {
   const [renderEntries, setRenderEntries] = useState<WorkModelEntry[]>([]);
-  const [renderLoaded, setRenderLoaded] = useState<Set<string>>(new Set());
   const entriesRef = useRef<WorkModelEntry[]>([]);
   const versionRef = useRef(-1);
-  const loadedRef = useRef<Set<string>>(new Set());
   const pendingUpdate = useRef(false);
+  const sceneActive = useSyncExternalStore(
+    loadGate.subscribe.bind(loadGate),
+    () => loadGate.dismissed,
+    () => false,
+  );
   const fallbackEntries = useMemo(
     () => STATIONS.map((station, index) => createFallbackEntry(station, index)),
     [],
@@ -83,56 +85,33 @@ export default function WeaponStations() {
   const bump = useCallback(() => {
     if (!pendingUpdate.current) {
       pendingUpdate.current = true;
-      // Use setTimeout to yield to the browser between the decision to load
-      // and the actual React re-render. queueMicrotask runs before paint,
-      // which can stack FBX parse into an already-busy frame.
       setTimeout(() => {
         pendingUpdate.current = false;
         setRenderEntries([...entriesRef.current]);
-        setRenderLoaded(new Set(loadedRef.current));
       }, 0);
     }
   }, []);
 
-  // Defer FBX preloading until loading screen dismisses, but make the first
-  // stations available immediately so the user never reaches an empty hold.
+  // Once the loading screen has cleared, start all model fetches immediately.
+  // There are only five stations and the user needs deterministic availability.
   useEffect(() => {
     const startPreload = () => {
-      useFBX.preload(PRELOAD_PATHS[0]);
-      useFBX.preload(PRELOAD_PATHS[1]);
-      PRELOAD_PATHS.slice(2).forEach((path, i) => {
-        setTimeout(() => useFBX.preload(path), (i + 1) * 900);
-      });
-    };
-
-    const primeStations = () => {
-      let changed = false;
-      for (let i = 0; i < Math.min(3, STATIONS.length); i++) {
-        if (!loadedRef.current.has(STATIONS[i].id)) {
-          loadedRef.current.add(STATIONS[i].id);
-          changed = true;
-        }
-      }
-      if (changed) bump();
+      PRELOAD_PATHS.forEach((path) => useFBX.preload(path));
     };
 
     if (loadGate.dismissed) {
       startPreload();
-      primeStations();
       return;
     }
 
     const unsub = loadGate.subscribe(() => {
       if (loadGate.dismissed) {
         unsub();
-        setTimeout(() => {
-          startPreload();
-          primeStations();
-        }, 120);
+        startPreload();
       }
     });
     return unsub;
-  }, [bump]);
+  }, []);
 
   useFrame(() => {
     // Sync entries from workModels (only when version changes)
@@ -141,43 +120,13 @@ export default function WeaponStations() {
       entriesRef.current = [...workModels.entries];
       bump();
     }
-
-    // Mount once the loading screen has cleared or the user is leaving the hero.
-    const shouldLoad = loadGate.dismissed || voidState.scrollProgress > 0.04;
-    if (!shouldLoad) return;
-
-    // Determine which stations to load
-    const current = voidState.activeStationIndex;
-    const expanded = workModels.expandedModelId;
-    const loaded = loadedRef.current;
-    let changed = false;
-
-    // Always keep the first three stations hot so early navigation never outruns loading.
-    for (let i = 0; i < Math.min(3, STATIONS.length); i++) {
-      if (!loaded.has(STATIONS[i].id)) { loaded.add(STATIONS[i].id); changed = true; }
-    }
-
-    // Load current + next 2 stations (mount cost happens before user arrives)
-    if (current >= 0) {
-      for (let i = current; i < Math.min(current + 3, STATIONS.length); i++) {
-        if (!loaded.has(STATIONS[i].id)) { loaded.add(STATIONS[i].id); changed = true; }
-      }
-    }
-
-    // Load expanded station
-    if (expanded) {
-      const es = STATIONS.find(s => s.modelId === expanded || s.id === expanded);
-      if (es && !loaded.has(es.id)) { loaded.add(es.id); changed = true; }
-    }
-
-    if (changed) bump();
   });
 
-  if (renderEntries.length === 0) return null;
+  if (!sceneActive) return null;
 
   return (
     <>
-      {STATIONS.filter(s => renderLoaded.has(s.id)).map(station => {
+      {STATIONS.map(station => {
         const entry =
           renderEntries.find(e => e.id === station.modelId) ??
           fallbackEntries.find(e => e.id === station.modelId);
