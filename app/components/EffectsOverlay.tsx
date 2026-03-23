@@ -14,12 +14,8 @@
 
 import { useEffect, useRef } from "react";
 import { voidState } from "../lib/voidState";
-import { loadGate } from "../lib/loadingOrchestrator";
 
-// Per-slot spring state (lives outside React render cycle).
-// Size matches the maximum hoverSlotLimit that will be passed in.
-// Springs beyond the active limit are never iterated, preventing
-// stale ghost effects from unmanaged slots.
+// Per-slot spring state (lives outside React render cycle)
 const _springs: Array<{ pos: number; vel: number }> =
   Array.from({ length: 14 }, () => ({ pos: 0, vel: 0 }));
 
@@ -29,14 +25,6 @@ function getCachedStarGeom(n: number) {
   if (!_geomCache.has(n)) _geomCache.set(n, getStarGeom(n));
   return _geomCache.get(n)!;
 }
-
-const _warpSeeds = Array.from({ length: 180 }, (_, i) => ({
-  angle: (i / 180) * Math.PI * 2 + ((i % 7) - 3) * 0.012,
-  radius: 0.02 + ((i * 37) % 100) / 100 * 1.18,
-  speed: 0.8 + ((i * 19) % 100) / 100 * 1.7,
-  width: 0.4 + ((i * 53) % 100) / 100 * 1.6,
-  alpha: 0.45 + ((i * 29) % 100) / 100 * 0.55,
-}));
 
 // ─── 3D geometry helpers ───────────────────────────────────────────────────
 type Vec3 = [number, number, number];
@@ -60,6 +48,7 @@ function getStarGeom(n: number): { verts: Vec3[]; faces: Face[] } {
   // Build triangular faces: top cap and bottom cap
   for (let i = 0; i < n; i++) {
     const o  = 2 + i * 2;       // outer[i]
+    const ni = 2 + i * 2 + 2;   // inner[i]   (wraps)
     const o2 = 2 + ((i + 1) % n) * 2; // outer[i+1]
 
     const inner  = o + 1;
@@ -101,17 +90,7 @@ function faceNormal(a: Vec3, b: Vec3, c: Vec3): Vec3 {
   return [uy*vz - uz*vy, uz*vx - ux*vz, ux*vy - uy*vx];
 }
 
-export default function EffectsOverlay({
-  bypassLoadGate = false,
-  hoverSlotLimit = 14,
-  glowSlotLimit = 8,
-  lineDistanceLimit = 700,
-}: {
-  bypassLoadGate?: boolean;
-  hoverSlotLimit?: number;
-  glowSlotLimit?: number;
-  lineDistanceLimit?: number;
-}) {
+export default function EffectsOverlay() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -123,94 +102,34 @@ export default function EffectsOverlay({
     let raf: number;
     const t0 = performance.now();
     let lastT = performance.now();
-    let loadFade = 0; // smoothed opacity for black hole loading vortex
-    let warpLevel = 0;
-    let dpr = Math.min(window.devicePixelRatio || 1, 2); // cap at 2 for perf
+    let loadFade = 0; // smoothed loading opacity for HUD text
 
     const resize = () => {
-      dpr = Math.min(window.devicePixelRatio || 1, 2);
-      canvas.width  = Math.round(window.innerWidth * dpr);
-      canvas.height = Math.round(window.innerHeight * dpr);
-      canvas.style.width  = window.innerWidth + "px";
-      canvas.style.height = window.innerHeight + "px";
+      canvas.width  = window.innerWidth;
+      canvas.height = window.innerHeight;
     };
     resize();
     window.addEventListener("resize", resize);
 
     function draw() {
       raf = requestAnimationFrame(draw);
-
-      // Skip all rendering while loading screen is visible — nothing to draw
-      // and we avoid competing for CPU time during critical loading phase.
-      if (!bypassLoadGate && !loadGate.dismissed) return;
-
-      // Clear at device-pixel resolution, then set DPR transform so all
-      // drawing uses logical (CSS) pixel coordinates automatically.
-      ctx!.setTransform(1, 0, 0, 1, 0, 0);
-      ctx!.clearRect(0, 0, canvas!.width, canvas!.height);
-      ctx!.setTransform(dpr, 0, 0, dpr, 0, 0);
-      const w   = window.innerWidth;
-      const h   = window.innerHeight;
+      const w   = canvas!.width;
+      const h   = canvas!.height;
+      ctx!.clearRect(0, 0, w, h);
 
       const now = performance.now();
       const dt  = Math.min((now - lastT) * 0.001, 0.05);
       lastT     = now;
       const t   = (now - t0) * 0.001;
-      const warpTarget = voidState.journeyMode === "transit" ? 1 : 0;
-      const warpRate = warpTarget > warpLevel ? 10 : 7;
-      warpLevel += (warpTarget - warpLevel) * Math.min(dt * warpRate, 1);
-      const warpStrength = warpLevel;
 
-      // Smooth loading fade (drives black hole vortex in section 5)
+      // Smooth loading fade (used for HUD text below)
       loadFade += ((voidState.modelLoading ? 1 : 0) - loadFade) * Math.min(dt * 2.5, 1);
-
-      // ── 0. Hyperspace streak layer — explicit screen-space warp read ──────
-      if (warpStrength > 0.02) {
-        const cx = w * 0.5;
-        const cy = h * 0.5;
-        const maxR = Math.hypot(w, h) * 0.76;
-        const baseVelocity = 0.85 + warpStrength * 4.2;
-        ctx!.save();
-        ctx!.globalCompositeOperation = "lighter";
-
-        for (const seed of _warpSeeds) {
-          const travel = (t * seed.speed * baseVelocity) % 1;
-          const startR = 4 + travel * maxR * seed.radius;
-          const lineLen = (90 + seed.width * 320) * warpStrength * (0.75 + travel * 0.9);
-          const angle = seed.angle;
-          const cosA = Math.cos(angle);
-          const sinA = Math.sin(angle);
-          const x1 = cx + cosA * startR;
-          const y1 = cy + sinA * startR;
-          const x2 = cx + cosA * (startR + lineLen);
-          const y2 = cy + sinA * (startR + lineLen);
-
-          const grad = ctx!.createLinearGradient(x1, y1, x2, y2);
-          grad.addColorStop(0, `rgba(184,240,255,0)`);
-          grad.addColorStop(0.2, `rgba(184,240,255,${0.12 * warpStrength * seed.alpha})`);
-          grad.addColorStop(0.65, `rgba(196,244,255,${0.24 * warpStrength * seed.alpha})`);
-          grad.addColorStop(1, `rgba(244,250,255,${0.48 * warpStrength * seed.alpha})`);
-
-          ctx!.strokeStyle = grad;
-          ctx!.lineWidth = 0.8 + seed.width * 2.1 * warpStrength;
-          ctx!.shadowColor = `rgba(184,240,255,${0.24 * warpStrength})`;
-          ctx!.shadowBlur = 12 + 26 * warpStrength;
-          ctx!.beginPath();
-          ctx!.moveTo(x1, y1);
-          ctx!.lineTo(x2, y2);
-          ctx!.stroke();
-        }
-
-        ctx!.restore();
-      }
 
       const SPRING_K = 420;
       const SPRING_D = 26;
 
       // ── 1. 3D Holographic star hover ──────────────────────────────────────
-      // Only iterate managed slots (hoverSlotLimit), not the full 14-slot array.
-      // This prevents stale spring data in unmanaged slots from producing ghost effects.
-      for (let i = 0; i < Math.min(hoverSlotLimit, voidState.hoverSlots.length); i++) {
+      for (let i = 0; i < voidState.hoverSlots.length; i++) {
         const slot   = voidState.hoverSlots[i];
         const spring = _springs[i];
 
@@ -221,13 +140,13 @@ export default function EffectsOverlay({
         spring.pos   = Math.max(0, Math.min(spring.pos, 1.0));
         if (spring.pos < 0.005 && target < 0.01) { spring.pos = 0; spring.vel = 0; }
         if (spring.pos < 0.005) continue;
-        if (i >= glowSlotLimit) continue; // line-only slots: spring advances but no geometry
+        if (i >= 8) continue; // line-only slots: spring advances but no geometry
 
         const ease = Math.min(spring.pos, 1.0);
         const { sx, sy } = slot;
 
-        // Scale: visible accent around each star
-        const scale = ease * 14;
+        // Scale kept small — accent, not a large graphic
+        const scale = ease * 5;
         const FOV   = 6;
 
         // n morphs slowly per slot (4–7), giving a unique feel per star
@@ -282,44 +201,41 @@ export default function EffectsOverlay({
         }
 
         // Outer glow halo — soft bloom around the whole star
-        const glowR = 22 * ease;
-        const glow = ctx!.createRadialGradient(sx, sy, 0, sx, sy, glowR);
-        glow.addColorStop(0,   `rgba(184,240,255,${ease * 0.12})`);
-        glow.addColorStop(0.4, `rgba(140,210,255,${ease * 0.06})`);
+        const glow = ctx!.createRadialGradient(sx, sy, 0, sx, sy, 9 * ease);
+        glow.addColorStop(0,   `rgba(184,240,255,${ease * 0.14})`);
+        glow.addColorStop(0.5, `rgba(140,210,255,${ease * 0.06})`);
         glow.addColorStop(1,   "rgba(0,0,0,0)");
         ctx!.fillStyle = glow;
         ctx!.beginPath();
-        ctx!.arc(sx, sy, glowR, 0, Math.PI * 2);
+        ctx!.arc(sx, sy, 9 * ease, 0, Math.PI * 2);
         ctx!.fill();
 
         // Chromatic aberration fringes — cyan left, magenta right
-        const aberr = ease * 4.5;
-        const fringeR = 6 * ease;
-        const fL = ctx!.createRadialGradient(sx - aberr, sy, 0, sx - aberr, sy, fringeR);
-        fL.addColorStop(0, `rgba(0,255,240,${ease * 0.28})`);
+        const aberr = ease * 2.2;
+        const fL = ctx!.createRadialGradient(sx - aberr, sy, 0, sx - aberr, sy, 3 * ease);
+        fL.addColorStop(0, `rgba(0,255,240,${ease * 0.32})`);
         fL.addColorStop(1, "rgba(0,0,0,0)");
         ctx!.fillStyle = fL;
         ctx!.beginPath();
-        ctx!.arc(sx - aberr, sy, fringeR, 0, Math.PI * 2);
+        ctx!.arc(sx - aberr, sy, 3 * ease, 0, Math.PI * 2);
         ctx!.fill();
 
-        const fR = ctx!.createRadialGradient(sx + aberr, sy, 0, sx + aberr, sy, fringeR);
-        fR.addColorStop(0, `rgba(255,80,180,${ease * 0.20})`);
+        const fR = ctx!.createRadialGradient(sx + aberr, sy, 0, sx + aberr, sy, 3 * ease);
+        fR.addColorStop(0, `rgba(255,80,180,${ease * 0.22})`);
         fR.addColorStop(1, "rgba(0,0,0,0)");
         ctx!.fillStyle = fR;
         ctx!.beginPath();
-        ctx!.arc(sx + aberr, sy, fringeR, 0, Math.PI * 2);
+        ctx!.arc(sx + aberr, sy, 3 * ease, 0, Math.PI * 2);
         ctx!.fill();
 
-        // Ice-white core at star centre
-        const coreR = 4 * ease;
-        const anchor = ctx!.createRadialGradient(sx, sy, 0, sx, sy, coreR);
-        anchor.addColorStop(0,   `rgba(240,250,255,${ease * 0.90})`);
-        anchor.addColorStop(0.4, `rgba(180,230,255,${ease * 0.45})`);
+        // Tiny ice-white core at star centre
+        const anchor = ctx!.createRadialGradient(sx, sy, 0, sx, sy, 2.2 * ease);
+        anchor.addColorStop(0,   `rgba(240,250,255,${ease * 0.95})`);
+        anchor.addColorStop(0.5, `rgba(180,230,255,${ease * 0.45})`);
         anchor.addColorStop(1,   "rgba(0,0,0,0)");
         ctx!.fillStyle = anchor;
         ctx!.beginPath();
-        ctx!.arc(sx, sy, coreR, 0, Math.PI * 2);
+        ctx!.arc(sx, sy, 2.2 * ease, 0, Math.PI * 2);
         ctx!.fill();
 
         ctx!.restore();
@@ -327,7 +243,7 @@ export default function EffectsOverlay({
 
       // ── 2. Constellation paths between active hover stars ─────────────────
       const active: Array<{ sx: number; sy: number; ease: number }> = [];
-      for (let i = 0; i < Math.min(voidState.hoverSlots.length, hoverSlotLimit); i++) {
+      for (let i = 0; i < voidState.hoverSlots.length; i++) {
         if (_springs[i].pos > 0.12) {
           const s = voidState.hoverSlots[i];
           active.push({ sx: s.sx, sy: s.sy, ease: _springs[i].pos });
@@ -341,10 +257,10 @@ export default function EffectsOverlay({
           for (let b = a + 1; b < active.length; b++) {
             const sa = active[a], sb = active[b];
             const dist = Math.hypot(sa.sx - sb.sx, sa.sy - sb.sy);
-            if (dist > lineDistanceLimit || dist < 8) continue;
+            if (dist > 560 || dist < 6) continue;
 
             const minE     = Math.min(sa.ease, sb.ease);
-            const distFade = Math.max(0, 1 - dist / lineDistanceLimit);
+            const distFade = Math.max(0, 1 - dist / 560);
             const alpha    = minE * distFade * 0.55;
 
             const dashLen    = 8 + dist * 0.06;
@@ -367,80 +283,99 @@ export default function EffectsOverlay({
         ctx!.restore();
       }
 
-      // (Section 3 removed: model entrance scan-line sweep)
+      // ── 3. Model entrance scan-line sweep ────────────────────────────────
+      {
+        const ep = voidState.modelEntranceProgress;
+        const mr = voidState.modelRegion;
+        if (ep < 0.98 && mr.rPx > 30) {
+          const scanY = mr.y + mr.rPx * (1 - ep * 2);
+          const alpha = Math.sin(ep * Math.PI) * 0.55;
 
-      // ── 4. Meteor trails — multi-segment tapered polylines ──────────────
+          const grad = ctx!.createLinearGradient(mr.x - mr.rPx, scanY, mr.x + mr.rPx, scanY);
+          grad.addColorStop(0,    "rgba(0,0,0,0)");
+          grad.addColorStop(0.25, `rgba(184,240,255,${(alpha * 0.6).toFixed(3)})`);
+          grad.addColorStop(0.5,  `rgba(220,255,255,${alpha.toFixed(3)})`);
+          grad.addColorStop(0.75, `rgba(184,240,255,${(alpha * 0.6).toFixed(3)})`);
+          grad.addColorStop(1,    "rgba(0,0,0,0)");
+
+          ctx!.beginPath();
+          ctx!.moveTo(mr.x - mr.rPx, scanY);
+          ctx!.lineTo(mr.x + mr.rPx, scanY);
+          ctx!.strokeStyle = grad;
+          ctx!.lineWidth = 1.5;
+          ctx!.stroke();
+
+          // Tiny vertical sparkle at midpoint
+          ctx!.beginPath();
+          ctx!.moveTo(mr.x, scanY - 3);
+          ctx!.lineTo(mr.x, scanY + 3);
+          ctx!.strokeStyle = `rgba(255,255,255,${(alpha * 0.8).toFixed(3)})`;
+          ctx!.lineWidth = 0.75;
+          ctx!.stroke();
+        }
+      }
+
+      // ── 4. Meteor trails ──────────────────────────────────────────────────
       for (let m = 0; m < voidState.meteorSlots.length; m++) {
         const met = voidState.meteorSlots[m];
         if (!met.active || met.env < 0.01) continue;
 
-        const { hsx, hsy, env, trail, trailLen } = met;
-        const segCount = Math.max(trailLen, 2);
+        const { hsx, hsy, tsx, tsy, env } = met;
 
         ctx!.save();
         ctx!.globalCompositeOperation = "lighter";
         ctx!.lineCap  = "round";
         ctx!.lineJoin = "round";
 
-        // Draw tapered trail segments (head → tail, decreasing width + opacity)
-        for (let si = 0; si < segCount - 1; si++) {
-          const frac = si / (segCount - 1); // 0 at head, 1 at tail
-          const p0 = trail[si];
-          const p1 = trail[si + 1];
-          if (!p0 || !p1) break;
+        // Glow pass: blue/ice
+        const gGlow = ctx!.createLinearGradient(tsx, tsy, hsx, hsy);
+        gGlow.addColorStop(0.00, "rgba(0,0,0,0)");
+        gGlow.addColorStop(0.25, `rgba(20,  50, 180, ${env * 0.42})`);
+        gGlow.addColorStop(0.60, `rgba(70, 140, 255, ${env * 0.68})`);
+        gGlow.addColorStop(0.85, `rgba(180,220, 255, ${env * 0.84})`);
+        gGlow.addColorStop(1.00, `rgba(255,255, 255, ${env * 0.92})`);
 
-          const segAlpha = env * (1 - frac * 0.92);
-          const segWidth = (1.2 - frac * 1.1) * env;
-          if (segAlpha < 0.005 || segWidth < 0.05) break;
+        ctx!.filter      = "blur(0.8px)";
+        ctx!.strokeStyle = gGlow;
+        ctx!.lineWidth   = 1.3 * env;
+        ctx!.shadowColor = `rgba(80, 150, 255, ${env * 0.60})`;
+        ctx!.shadowBlur  = 3 * env;
+        ctx!.beginPath();
+        ctx!.moveTo(tsx, tsy);
+        ctx!.lineTo(hsx, hsy);
+        ctx!.stroke();
 
-          // Glow pass — use shadowBlur only (no ctx.filter which is 10x slower)
-          ctx!.strokeStyle = `rgba(${Math.round(80 + 175 * (1 - frac))}, ${Math.round(140 + 115 * (1 - frac))}, 255, ${(segAlpha * 0.55).toFixed(3)})`;
-          ctx!.lineWidth = segWidth + 1.2 * env * (1 - frac);
-          ctx!.shadowColor = `rgba(80, 150, 255, ${(segAlpha * 0.5).toFixed(3)})`;
-          ctx!.shadowBlur = 3 * env * (1 - frac);
-          ctx!.beginPath();
-          ctx!.moveTo(p0.sx, p0.sy);
-          ctx!.lineTo(p1.sx, p1.sy);
-          ctx!.stroke();
-
-          // Core pass
-          ctx!.shadowBlur = 0;
-          ctx!.strokeStyle = `rgba(${Math.round(210 + 45 * (1 - frac))}, ${Math.round(235 + 20 * (1 - frac))}, 255, ${(segAlpha * 0.85).toFixed(3)})`;
-          ctx!.lineWidth = segWidth * 0.5;
-          ctx!.beginPath();
-          ctx!.moveTo(p0.sx, p0.sy);
-          ctx!.lineTo(p1.sx, p1.sy);
-          ctx!.stroke();
-        }
-
-        // Head spark — bright radial burst
-        const sparkR = 1.65 * env;
+        // Core pass: ice-white
+        ctx!.filter = "none";
         ctx!.shadowBlur = 0;
-        const spark = ctx!.createRadialGradient(hsx, hsy, 0, hsx, hsy, sparkR * 2.5);
+
+        const gCore = ctx!.createLinearGradient(tsx, tsy, hsx, hsy);
+        gCore.addColorStop(0.00, "rgba(0,0,0,0)");
+        gCore.addColorStop(0.35, `rgba( 80, 140, 255, ${env * 0.65})`);
+        gCore.addColorStop(0.75, `rgba(210, 235, 255, ${env * 0.88})`);
+        gCore.addColorStop(1.00, `rgba(255, 255, 255, ${env})`);
+
+        ctx!.strokeStyle = gCore;
+        ctx!.lineWidth   = 0.6 * env;
+        ctx!.beginPath();
+        ctx!.moveTo(tsx, tsy);
+        ctx!.lineTo(hsx, hsy);
+        ctx!.stroke();
+
+        // Head spark
+        const sparkR = 1.65 * env;
+        const spark  = ctx!.createRadialGradient(hsx, hsy, 0, hsx, hsy, sparkR * 2.5);
         spark.addColorStop(0.00, `rgba(255, 255, 255, ${env})`);
         spark.addColorStop(0.30, `rgba(200, 230, 255, ${env * 0.80})`);
         spark.addColorStop(0.65, `rgba(100, 160, 255, ${env * 0.45})`);
         spark.addColorStop(1.00, "rgba(0,0,0,0)");
-        ctx!.fillStyle = spark;
+
+        ctx!.fillStyle   = spark;
         ctx!.shadowColor = "rgba(160, 210, 255, 0.72)";
-        ctx!.shadowBlur = 2.5 * env;
+        ctx!.shadowBlur  = 2.5 * env;
         ctx!.beginPath();
         ctx!.arc(hsx, hsy, sparkR * 2.5, 0, Math.PI * 2);
         ctx!.fill();
-
-        // Tiny scattered sparks near head
-        for (let sp = 0; sp < 3; sp++) {
-          const angle = (t * 3 + m * 2.1 + sp * 2.09) % (Math.PI * 2);
-          const dist = 1.5 + Math.sin(t * 5 + sp * 1.3) * 1.2;
-          const spx = hsx + Math.cos(angle) * dist * env;
-          const spy = hsy + Math.sin(angle) * dist * env;
-          const spAlpha = env * (0.4 + Math.sin(t * 8 + sp * 2.5) * 0.3);
-          ctx!.fillStyle = `rgba(220, 240, 255, ${spAlpha.toFixed(3)})`;
-          ctx!.shadowBlur = 0;
-          ctx!.beginPath();
-          ctx!.arc(spx, spy, 0.6 * env, 0, Math.PI * 2);
-          ctx!.fill();
-        }
 
         ctx!.restore();
       }
@@ -528,7 +463,7 @@ export default function EffectsOverlay({
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", resize);
     };
-  }, [bypassLoadGate, glowSlotLimit, hoverSlotLimit, lineDistanceLimit]);
+  }, []);
 
   return (
     <canvas
@@ -539,6 +474,8 @@ export default function EffectsOverlay({
         position:      "fixed",
         top:           0,
         left:          0,
+        width:         "100%",
+        height:        "100%",
         pointerEvents: "none",
         zIndex:        1,
       }}

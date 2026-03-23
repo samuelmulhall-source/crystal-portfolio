@@ -59,7 +59,7 @@ export default function HomePage() {
                 <p className="eyebrow" data-hero-entrance="eyebrow">{home.hero.eyebrow}</p>
                 <p className="hero-kicker" data-hero-entrance="kicker">Australia studio / hero assets / motion / realtime</p>
               </div>
-              <h1 className="hero-title" data-hero-entrance="title">
+              <h1 className="hero-title--content" data-hero-entrance="title">
                 {heroTitleLines.map((line) => (
                   <span key={line} className="hero-title__line">
                     {line}

@@ -10,18 +10,18 @@ import { getDeviceProfile } from "../../lib/deviceTier";
 import DustParticles from "../../scene/DustParticles";
 import { StarLayer } from "../../scene/Starfield";
 import StarHoverSystem from "../../scene/StarHoverSystem";
-import { VoidContext } from "../../scene/VoidScene";
+import { VoidContext } from "../../scene/VoidContext";
 
 const LAYERS_DESKTOP = [
-  { count: 2200, rMin: 18, rMax: 55, size: 0.18, seed: 11111 },
-  { count: 1600, rMin: 35, rMax: 70, size: 0.22, seed: 22222 },
-  { count: 950, rMin: 50, rMax: 92, size: 0.26, seed: 33333 },
+  { count: 2200, rMin: 18, rMax: 55, rotSpd: 0.007, size: 0.18, seed: 11111 },
+  { count: 1600, rMin: 35, rMax: 70, rotSpd: 0.011, size: 0.22, seed: 22222 },
+  { count: 950, rMin: 50, rMax: 92, rotSpd: 0.017, size: 0.26, seed: 33333 },
 ] as const;
 
 const LAYERS_REDUCED = [
-  { count: 700, rMin: 18, rMax: 52, size: 0.2, seed: 11111 },
-  { count: 520, rMin: 34, rMax: 68, size: 0.24, seed: 22222 },
-  { count: 340, rMin: 48, rMax: 86, size: 0.28, seed: 33333 },
+  { count: 700, rMin: 18, rMax: 52, rotSpd: 0.008, size: 0.2, seed: 11111 },
+  { count: 520, rMin: 34, rMax: 68, rotSpd: 0.012, size: 0.24, seed: 22222 },
+  { count: 340, rMin: 48, rMax: 86, rotSpd: 0.018, size: 0.28, seed: 33333 },
 ] as const;
 
 function BackgroundCameraRig({
@@ -54,7 +54,7 @@ function BackgroundCameraRig({
 
     lookAt.set(x * 0.08, y * 0.06, -36);
     state.camera.lookAt(lookAt);
-    voidState.journeyMode = "hero";
+    voidState.journeyMode = "hero";  // content-first hero mode
     voidState.transitFactor = 0;
   });
 
@@ -83,11 +83,6 @@ function BackgroundScene({
       {interactive ? (
         <StarHoverSystem
           pts={[pts0, pts1, pts2]}
-          hoverPool={3}
-          glowPool={1}
-          glowThreshold={0.055}
-          lineThreshold={0.11}
-          idleScanDivisor={5}
         />
       ) : null}
       <BackgroundCameraRig interactive={interactive} />
@@ -199,12 +194,7 @@ export function StarfieldBackground() {
         </Canvas>
       </div>
       {interactive ? (
-        <EffectsOverlay
-          bypassLoadGate
-          hoverSlotLimit={3}
-          glowSlotLimit={1}
-          lineDistanceLimit={180}
-        />
+        <EffectsOverlay />
       ) : null}
     </>
   );

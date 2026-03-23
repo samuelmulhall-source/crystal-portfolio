@@ -21,6 +21,10 @@ export const voidState = {
   activeStationIndex: -1,          // -1 = transit, 0-4 = weapon index
   cameraProgress: 0,               // raw 0-1 scroll position on spline
   stationProximity: [0, 0, 0, 0, 0] as number[], // per-station proximity 0-1
+  journeyMode: "" as string,       // "" = off, "cinematic" = journey active
+  transitFactor: 0,                // 0-1 blending factor during station transitions
+  snapCamera: false as boolean,    // true to request camera snap to nearest station
+  cameraSpeed: 0,                  // camera movement speed along spline
 
   // ── Hover star screen positions ──────────────────────────────────────────
   // Written by StarHoverSystem (inside Three.js canvas, has camera access).
@@ -43,14 +47,19 @@ export const voidState = {
     hsy:    0,    // head screen Y px
     tsx:    0,    // tail screen X px
     tsy:    0,    // tail screen Y px
-    trail:  Array.from({ length: 12 }, () => ({ sx: 0, sy: 0 })), // multi-segment trail
-    trailLen: 0,  // how many trail points are valid
+    trail:  [] as { sx: number; sy: number }[],  // trail positions for multi-segment rendering
+    trailLen: 0,  // number of active trail points
   })),
 
   // ── Active model screen region ────────────────────────────────────────────
   // Written by the active VoidModel each frame. EffectsOverlay and
   // StarHoverSystem suppress hover effects inside this circle.
   modelRegion: { x: 0, y: 0, rPx: 0 },
+
+  // ── Model entrance progress ───────────────────────────────────────────────
+  // Written by VoidModel's useFrame as the model materialises (0=start, 1=done).
+  // Read by EffectsOverlay to draw the scan-line sweep.
+  modelEntranceProgress: 0,
 
   // ── Model loading state ───────────────────────────────────────────────────
   // True when the active model is loading / hasn't materialised yet.
@@ -73,17 +82,4 @@ export const voidState = {
   // wireframe edge overlay opacity.
   showWireframe: false,
   autoRotate: true,
-
-  // ── Transit state ─────────────────────────────────────────────────
-  // 0 = locked at a station (clean dots), 1 = full transit (hyperspeed streaks).
-  // Written by CameraRig, read by Starfield for warp streak intensity.
-  journeyMode: "hero" as "hero" | "transit" | "station" | "about",
-  transitFactor: 0,
-  cameraSpeed: 0,                 // world-units / second after spring integration
-
-  // ── Camera snap ──────────────────────────────────────────────────────
-  // Set true by jumpToStation / model selection to skip spring physics
-  // for one frame, teleporting the camera to the spline target instantly.
-  snapCamera: false,
-
 };

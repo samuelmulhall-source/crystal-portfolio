@@ -1,12 +1,9 @@
 /**
- * Star point sprite shader with radial hyperspace streaking and twinkle.
+ * Star point sprite shader with per-star velocity motion blur and twinkle.
  *
- * During transit (uStreak > 0), stars streak radially outward from screen
- * center — classic hyperspace jump effect. Stars near screen center get
- * short streaks (coming at you), stars at edges get long streaks (flying past).
- * All computed in screen-space in the vertex shader, zero CPU overhead.
- *
- * At stations (uStreak = 0), stars render as clean round dots.
+ * Each star streaks along its velocity vector: the point is enlarged to contain
+ * the trail and the fragment shader applies a directional Gaussian with a
+ * bright leading edge and fading tail. Stars at rest render as clean round dots.
  *
  * Twinkle: per-star aSeed attribute drives asynchronous brightness pulsing
  * via sin(uTime * rate + phase). Creates alive-feeling starfield.
@@ -21,33 +18,28 @@ export function makeHoloStarMat(hasVelocity: boolean): THREE.ShaderMaterial {
       uOpacity: { value: 0.90 },
       uVH:      { value: 400.0 },
       uTime:    { value: 0.0 },
-      uStreak:  { value: 0.0 },   // 0 = clean dots, 1 = full hyperspace streaks
     },
     vertexShader: hasVelocity ? /* glsl */`
+      attribute vec3 aVelocity;
       attribute float aSeed;
       varying vec3 vColor;
       varying vec2 vVelDir;
       varying float vTrailLen;
       varying float vBaseR;
       varying float vTwinkle;
-      varying float vStreak;
       uniform float uSize;
       uniform float uVH;
       uniform float uTime;
-      uniform float uStreak;
 
       void main() {
         vColor = color;
-        vStreak = uStreak;
-
-        // Per-star twinkle
+        // Per-star twinkle: async brightness pulse
         float rate = 1.5 + aSeed * 2.5;
         float phase = aSeed * 6.2832;
         vTwinkle = 0.72 + 0.28 * sin(uTime * rate + phase);
 
         vec4 mv = modelViewMatrix * vec4(position, 1.0);
         float nat = uSize * projectionMatrix[1][1] * uVH / (-mv.z);
-        nat = clamp(nat, 1.5, 4.5);
         if (nat < 0.5) {
           gl_Position = vec4(10.0, 10.0, 10.0, 1.0);
           gl_PointSize = 1.0;
@@ -59,28 +51,19 @@ export function makeHoloStarMat(hasVelocity: boolean): THREE.ShaderMaterial {
 
         gl_Position = projectionMatrix * mv;
 
-        // ── Radial hyperspace streaking ──────────────────────────────
-        // Stars streak radially outward from screen center.
-        // Length proportional to distance from center * uStreak.
-        vec2 ndc = gl_Position.xy / gl_Position.w;
-        float distFromCenter = length(ndc);
-        vec2 radialDir = distFromCenter > 0.01
-          ? normalize(ndc)
-          : vec2(0.0, 1.0);
+        vec4 mvEnd = modelViewMatrix * vec4(position + aVelocity * 0.045, 1.0);
+        vec4 clipEnd = projectionMatrix * mvEnd;
+        vec2 screenStart = gl_Position.xy / gl_Position.w;
+        vec2 screenEnd = clipEnd.xy / clipEnd.w;
+        vec2 screenVel = (screenEnd - screenStart) * uVH;
 
-        // Trail length: maintain a visible minimum through the center of frame,
-        // then stretch aggressively toward the edges for a proper hyperspace read.
-        float edgeBias = pow(clamp(distFromCenter, 0.0, 1.25), 0.65);
-        float baseTrail = mix(36.0, 320.0, edgeBias);
-        float trailPx = uStreak * baseTrail;
-        // Per-star variation so not every streak is identical
-        trailPx *= (0.8 + aSeed * 0.5);
-        trailPx = min(trailPx, 360.0);
+        float velMag = length(screenVel);
+        float trailPx = min(velMag * 0.6, 18.0);
 
         float totalSize = max(2.0, nat + trailPx);
         gl_PointSize = totalSize;
 
-        vVelDir = radialDir;
+        vVelDir = velMag > 0.1 ? screenVel / velMag : vec2(0.0, 1.0);
         vTrailLen = trailPx / totalSize;
         vBaseR = nat / totalSize;
       }
@@ -94,13 +77,13 @@ export function makeHoloStarMat(hasVelocity: boolean): THREE.ShaderMaterial {
 
       void main() {
         vColor = color;
+        // Per-star twinkle: async brightness pulse
         float rate = 1.5 + aSeed * 2.5;
         float phase = aSeed * 6.2832;
         vTwinkle = 0.72 + 0.28 * sin(uTime * rate + phase);
 
         vec4 mv = modelViewMatrix * vec4(position, 1.0);
         float nat = uSize * projectionMatrix[1][1] * uVH / (-mv.z);
-        nat = clamp(nat, 1.5, 4.5);
         if (nat < 0.5) {
           gl_Position = vec4(10.0, 10.0, 10.0, 1.0);
           gl_PointSize = 1.0;
@@ -117,7 +100,6 @@ export function makeHoloStarMat(hasVelocity: boolean): THREE.ShaderMaterial {
       varying float vTrailLen;
       varying float vBaseR;
       varying float vTwinkle;
-      varying float vStreak;
 
       void main() {
         vec2 uv = gl_PointCoord * 2.0 - 1.0;
@@ -127,26 +109,19 @@ export function makeHoloStarMat(hasVelocity: boolean): THREE.ShaderMaterial {
         float along = dot(uv, dir);
         float across = dot(uv, perp);
 
-        // Stretch ellipse along radial direction
-        float stretch = 1.0 + vTrailLen * 7.5;
+        float stretch = 1.0 + vTrailLen * 3.0;
         float rx = along / stretch;
         float ry = across;
         float r = length(vec2(rx, ry));
         if (r > 1.0) discard;
 
-        // Bright leading edge, fading tail
-        float trailFade = 1.0 - max(0.0, -along) * vTrailLen * 2.5;
-        trailFade = max(trailFade, 0.08);
+        float trailFade = 1.0 - max(0.0, -along) * vTrailLen * 1.8;
+        trailFade = max(trailFade, 0.15);
 
-        float core = exp(-r * r * 9.0) * trailFade;
-
-        // Hyperspace color shift: boost brightness, shift toward ice-blue/white
-        float warpBoost = 1.0 + vStreak * 1.2;
-        vec3 warpColor = mix(vColor, vec3(0.75, 0.92, 1.0), min(vStreak * 0.65, 1.0));
-
-        float a = uOpacity * core * vTwinkle * warpBoost;
-        if (a < 0.003) discard;
-        gl_FragColor = vec4(warpColor * core * vTwinkle * warpBoost, a);
+        float core = exp(-r * r * 7.0) * trailFade;
+        float a = uOpacity * core * vTwinkle;
+        if (a < 0.004) discard;
+        gl_FragColor = vec4(vColor * core * vTwinkle, a);
       }
     ` : /* glsl */`
       uniform float uOpacity;

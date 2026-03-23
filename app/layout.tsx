@@ -2,12 +2,12 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
-import { StarfieldBackground } from "./components/site/StarfieldBackground";
+import VoidBackground from "./components/VoidBackground";
+import EffectsOverlay from "./components/EffectsOverlay";
 import { DisplayModeProvider } from "./components/site/DisplayModeProvider";
 import { DisplayModeScript } from "./components/site/DisplayModeScript";
 import SmoothScroll from "./components/SmoothScroll";
 import CursorFollower from "./components/CursorFollower";
-import { ScanLine } from "./components/site/ScanLine";
 import { getSiteSettings } from "./lib/content";
 
 const geistSans = Geist({
@@ -75,8 +75,9 @@ export default function RootLayout({
           enhancedMinDeviceMemory={siteSettings.qualityPresets.enhancedMinDeviceMemory}
           enhancedMinHardwareConcurrency={siteSettings.qualityPresets.enhancedMinHardwareConcurrency}
         >
-          <StarfieldBackground />
-          <ScanLine />
+          <VoidBackground />
+          <EffectsOverlay />
+          <div className="scan-line" aria-hidden="true" />
           <SmoothScroll>
             {children}
           </SmoothScroll>

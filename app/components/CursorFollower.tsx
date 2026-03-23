@@ -36,20 +36,9 @@ export default function CursorFollower() {
   useEffect(() => {
     if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
 
-    // Use a class on <html> to hide cursor. If JS errors, a watchdog re-enables it.
-    const htmlEl = document.documentElement;
     const styleTag = document.createElement("style");
-    styleTag.textContent = "html.cursor-hidden *, html.cursor-hidden *::before, html.cursor-hidden *::after { cursor: none !important; }";
+    styleTag.textContent = "*, *::before, *::after { cursor: none !important; }";
     document.head.appendChild(styleTag);
-    htmlEl.classList.add("cursor-hidden");
-
-    // Watchdog: if the render loop hasn't ticked in 2s, restore system cursor
-    let lastTickTime = performance.now();
-    const watchdog = setInterval(() => {
-      if (performance.now() - lastTickTime > 2000) {
-        htmlEl.classList.remove("cursor-hidden");
-      }
-    }, 2000);
 
     // ── Canvas setup ─────────────────────────────────────────────────────────
     const cv  = cvRef.current!;
@@ -134,7 +123,6 @@ export default function CursorFollower() {
 
     function tick(now: number) {
       raf = requestAnimationFrame(tick);
-      lastTickTime = now; // feed watchdog
       const dt = Math.min((now - lastT) / 1000, 0.05);
       lastT = now;
       const f = Math.min(dt * 60, 6);
@@ -155,8 +143,8 @@ export default function CursorFollower() {
       // Saturation lerps: 0 (white at rest) → 100 (full spectrum on hover)
       holoSat += ((hovering ? 100 : 0) - holoSat) * Math.min(0.14 * f, 1);
 
-      if (holoStops.length >= 5 && holoSat > 0.3) {
-        // Skip gradient updates when at rest (sat ≈ 0 = pure white, no visible change)
+      if (holoStops.length >= 5) {
+        // Faster sweep (100°/s) + stronger shimmer wobble = clearly visible iridescence
         const phase = t * 100 + Math.sin(t * 2.3) * 22;
         const sat   = holoSat;                     // 0% → 100% full saturation
         const lgt   = 100 - (holoSat / 100) * 38; // 100% (white) → 62% (vivid spectral)
@@ -183,8 +171,9 @@ export default function CursorFollower() {
         }
       }
 
-      // Drag overrides model hover — velocity tilt ±18°
+      // Drag overrides model hover
       if (isDragging) {
+        dragVX += 0; // keep drag vel live
         tRotX = Math.max(-18, Math.min(18, -dragVY * 0.05));
         tRotY = Math.max(-18, Math.min(18,  dragVX * 0.05));
       } else {
@@ -232,8 +221,6 @@ export default function CursorFollower() {
     raf = requestAnimationFrame(tick);
     return () => {
       cancelAnimationFrame(raf);
-      clearInterval(watchdog);
-      htmlEl.classList.remove("cursor-hidden");
       document.head.removeChild(styleTag);
       window.removeEventListener("resize", resize);
       document.removeEventListener("mousemove",   onMove);

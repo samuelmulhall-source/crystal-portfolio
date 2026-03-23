@@ -12,7 +12,7 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { makeDustMat } from "./dustShader";
 import { sr } from "../lib/seededRandom";
-import { VoidContext } from "./VoidScene";
+import { VoidContext } from "./VoidContext";
 
 export default function DustParticles() {
   const { isMobile } = useContext(VoidContext);
@@ -28,7 +28,7 @@ export default function DustParticles() {
     for (let i = 0; i < count; i++) {
       const theta = sr(seed + i * 5 + 0) * Math.PI * 2;
       const phi   = Math.acos(2 * sr(seed + i * 5 + 1) - 1);
-      const r     = 12 + sr(seed + i * 5 + 2) * 68;
+      const r     = 8 + sr(seed + i * 5 + 2) * 30;
       pos[i * 3]     = r * Math.sin(phi) * Math.cos(theta);
       pos[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
       pos[i * 3 + 2] = r * Math.cos(phi);
