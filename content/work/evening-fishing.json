@@ -1,0 +1,111 @@
+{
+  "slug": "evening-fishing",
+  "title": "Evening Fishing",
+  "sortOrder": 2,
+  "year": "2026",
+  "featured": true,
+  "format": "Motion",
+  "discipline": "Environment mood and atmosphere study",
+  "client": "Self initiated R&D",
+  "engagement": "Environment lookdev study",
+  "summary": "A short environment render built around dusk light, layered fog, and quiet motion to test how much mood could be carried by restraint instead of spectacle.",
+  "tags": [
+    "Environment",
+    "Lighting",
+    "Mood",
+    "Motion"
+  ],
+  "role": [
+    "Environment lookdev",
+    "Lighting direction",
+    "Render composition"
+  ],
+  "tools": [
+    "Blender",
+    "Geometry Nodes",
+    "Cycles",
+    "DaVinci Resolve"
+  ],
+  "thumbnail": {
+    "kind": "image",
+    "src": "/images/posters/evening-fishing.svg",
+    "alt": "Evening Fishing poster with a deep blue dusk horizon",
+    "width": 1200,
+    "height": 900
+  },
+  "heroMedia": {
+    "kind": "video",
+    "src": "/Video renders/Evening Fishing.mp4",
+    "poster": "/images/posters/evening-fishing.svg",
+    "alt": "Evening Fishing environment loop"
+  },
+  "gallery": [
+    {
+      "kind": "video",
+      "src": "/Video renders/Evening Fishing.mp4",
+      "poster": "/images/posters/evening-fishing.svg",
+      "alt": "Evening Fishing environment loop"
+    },
+    {
+      "kind": "image",
+      "src": "/Image renders/fourteenth_image.webp",
+      "alt": "Supporting still study with similar restrained lighting",
+      "width": 2048,
+      "height": 1152,
+      "variants": [
+        {
+          "label": "png",
+          "src": "/Image renders/fourteenth_image.png"
+        }
+      ]
+    }
+  ],
+  "seo": {
+    "title": "Evening Fishing case study",
+    "description": "Environment look development study centered on dusk light, volumetrics, and slow observational motion.",
+    "ogImage": "/images/posters/evening-fishing.svg"
+  },
+  "interactive": {
+    "available": false,
+    "note": "This study is presented as motion and still frames in the current site build."
+  },
+  "caseStudy": {
+    "hook": "This piece was built to prove that a quiet frame can still feel authored when the lighting structure and motion hierarchy are doing the heavy lifting.",
+    "brief": [
+      "The goal was not to build a large environment for its own sake. It was to construct a small scene with enough depth, fog, and movement to feel inhabited.",
+      "Everything from the water motion to the volumetric light was tuned toward patience and stillness."
+    ],
+    "sections": [
+      {
+        "title": "Mood before detail",
+        "body": [
+          "The scene works because the value structure is simple. The sky, water, and silhouettes separate cleanly before any fine detail enters the frame.",
+          "That makes the piece more useful as a visual-development reference because the atmosphere lands immediately."
+        ]
+      },
+      {
+        "title": "Environmental motion",
+        "body": [
+          "Subtle movement in the water and fog keeps the render alive without turning the scene into a effects demo.",
+          "The motion design is there to support the light and composition, not compete with them."
+        ]
+      },
+      {
+        "title": "Application",
+        "body": [
+          "This kind of study is most relevant when a brief needs tonal confidence early, whether for a pitch frame, a launch teaser, or a worldbuilding reference.",
+          "It is also a useful indicator of how I approach restraint when the subject needs to feel premium instead of loud."
+        ]
+      }
+    ],
+    "deliverables": [
+      "Environment motion loop",
+      "Lighting and atmosphere study",
+      "Presentation-ready still frames"
+    ],
+    "outcomes": [
+      "A reusable dusk-light workflow for future environment briefs",
+      "A compact reference for restrained environmental storytelling"
+    ]
+  }
+}

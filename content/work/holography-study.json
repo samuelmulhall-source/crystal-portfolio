@@ -1,0 +1,122 @@
+{
+  "slug": "holography-study",
+  "title": "Holography Study",
+  "sortOrder": 3,
+  "year": "2026",
+  "featured": true,
+  "format": "Still",
+  "discipline": "Material and shader exploration",
+  "client": "Self initiated R&D",
+  "engagement": "Material lookdev study",
+  "summary": "A focused material study exploring layered iridescence, thin-film color shifts, and how a highly stylized surface can stay readable under controlled lighting.",
+  "tags": [
+    "Shader study",
+    "Material lookdev",
+    "Still render"
+  ],
+  "role": [
+    "Material research",
+    "Look development",
+    "Lighting direction"
+  ],
+  "tools": [
+    "Blender",
+    "Cycles",
+    "Custom shader setup"
+  ],
+  "thumbnail": {
+    "kind": "image",
+    "src": "/Image renders/holography_scaled.webp",
+    "alt": "Iridescent holography material study",
+    "width": 2048,
+    "height": 1152,
+    "variants": [
+      {
+        "label": "png",
+        "src": "/Image renders/holography_scaled.png"
+      }
+    ]
+  },
+  "heroMedia": {
+    "kind": "image",
+    "src": "/Image renders/holography_scaled.webp",
+    "alt": "Iridescent holography material study",
+    "width": 2048,
+    "height": 1152,
+    "variants": [
+      {
+        "label": "png",
+        "src": "/Image renders/holography_scaled.png"
+      }
+    ]
+  },
+  "gallery": [
+    {
+      "kind": "image",
+      "src": "/Image renders/holography_scaled.webp",
+      "alt": "Primary holography material frame",
+      "width": 2048,
+      "height": 1152,
+      "variants": [
+        {
+          "label": "png",
+          "src": "/Image renders/holography_scaled.png"
+        }
+      ]
+    },
+    {
+      "kind": "image",
+      "src": "/Image renders/cam_icon_fullscale_medium-dark-lightrim.webp",
+      "alt": "Supporting icon render showing controlled rim-light treatment",
+      "width": 2048,
+      "height": 1152,
+      "variants": [
+        {
+          "label": "png",
+          "src": "/Image renders/cam_icon_fullscale_medium-dark-lightrim.png"
+        }
+      ]
+    }
+  ],
+  "seo": {
+    "title": "Holography Study case study",
+    "description": "Material exploration focused on iridescence, readable highlights, and stylized surface response.",
+    "ogImage": "/Image renders/holography_scaled.png"
+  },
+  "interactive": {
+    "available": false,
+    "note": "This study is intentionally presented as a still-image reference."
+  },
+  "caseStudy": {
+    "hook": "Not every brief needs a large scene. Sometimes the fastest way to establish a visual direction is to isolate the material language and make it undeniable.",
+    "brief": [
+      "This study focused on surface behavior rather than object complexity.",
+      "The intent was to develop a stylized iridescent read that could feel premium and controlled instead of noisy."
+    ],
+    "sections": [
+      {
+        "title": "Controlling a loud material",
+        "body": [
+          "Highly chromatic materials can fall apart quickly when the hue shifts are stronger than the lighting structure. The setup here keeps the palette concentrated and the highlight paths deliberate.",
+          "That balance makes the result more useful for real design work because the material still reads as a designed choice instead of a novelty effect."
+        ]
+      },
+      {
+        "title": "Lighting as part of the shader",
+        "body": [
+          "The lighting was tuned alongside the material rather than after it. That was important because iridescence changes meaning once the highlights move.",
+          "The final frame is less about a single technical trick and more about coordinating several subtle ones."
+        ]
+      }
+    ],
+    "deliverables": [
+      "Primary still frame",
+      "Supporting material references",
+      "Palette and highlight behavior benchmark"
+    ],
+    "outcomes": [
+      "A reusable reference for stylized premium surfaces",
+      "A stronger basis for future product and concept-facing shader work"
+    ]
+  }
+}

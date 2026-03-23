@@ -1,0 +1,81 @@
+{
+  "hero": {
+    "eyebrow": "Clients-first portfolio",
+    "title": "Atmospheric 3D\ndirection for hero\nassets and motion-led\npresentation.",
+    "intro": "I design hero assets, motion-led presentation pieces, and visual studies that give products, worlds, and ideas a stronger sense of atmosphere before they ever reach production.",
+    "primaryCta": {
+      "label": "View selected work",
+      "href": "/work"
+    },
+    "secondaryCta": {
+      "label": "Discuss a project",
+      "href": "#contact"
+    },
+    "featuredSlug": "soulbound-lantern",
+    "meta": [
+      "Blender, Houdini, EmberGen, Substance Painter",
+      "Hero assets, motion loops, realtime presentation",
+      "Available for commissions and collaborative R&D"
+    ]
+  },
+  "selectedWork": {
+    "heading": "Selected work",
+    "intro": "A tight cross-section of hero props, environment mood studies, and material experiments designed to show how I frame detail, lighting, and presentation.",
+    "featuredSlugs": [
+      "soulbound-lantern",
+      "evening-fishing",
+      "holography-study"
+    ]
+  },
+  "spotlight": {
+    "heading": "Spotlight case study",
+    "intro": "One project in depth, with enough context to explain the artistic decisions instead of just showing the result.",
+    "slug": "soulbound-lantern",
+    "ctaLabel": "Open case study"
+  },
+  "capabilities": {
+    "heading": "What I bring to a brief",
+    "intro": "The common thread across the work is controlled atmosphere: clear silhouettes, readable materials, and motion that sells intent without overcomplicating the frame.",
+    "items": [
+      {
+        "title": "Hero asset development",
+        "body": "Game-ready or presentation-ready assets with strong silhouettes, material separation, and client-facing polish."
+      },
+      {
+        "title": "Lighting and look development",
+        "body": "Mood-first composition work for environments, props, and still frames where the image has to sell tone immediately."
+      },
+      {
+        "title": "Motion and presentation",
+        "body": "Short-form loops, render turnarounds, and cinematic product framing that translate well to decks, launches, and social edits."
+      },
+      {
+        "title": "Interactive exploration",
+        "body": "Realtime presentation prototypes for teams that want to test how 3D work reads beyond a flat gallery."
+      }
+    ]
+  },
+  "archivePreview": {
+    "heading": "Archive preview",
+    "intro": "The broader library includes personal studies, icon work, and supporting 3D assets that show range without diluting the main case studies.",
+    "limit": 6,
+    "ctaLabel": "See the full archive",
+    "ctaHref": "/work"
+  },
+  "contact": {
+    "heading": "Need a piece to feel more deliberate?",
+    "intro": "If the brief calls for atmosphere, material confidence, or a stronger sense of world, I can help shape the visuals and the presentation around them.",
+    "notes": [
+      "Best fit: hero props, atmospheric stills, motion studies, and presentation visuals.",
+      "Typical collaborations start with references, deliverables, and where the image or sequence needs to be used."
+    ],
+    "primaryCta": {
+      "label": "Start the conversation",
+      "href": "https://x.com/multiscatter"
+    },
+    "secondaryCta": {
+      "label": "Review the archive",
+      "href": "/work"
+    }
+  }
+}

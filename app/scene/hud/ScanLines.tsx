@@ -91,11 +91,9 @@ export default function ScanLines({ station, stationIndex }: Props) {
     if (!groupRef.current) return;
 
     const proximity = voidState.stationProximity?.[stationIndex] ?? 0;
-    const focus = voidState.stationFocus?.[stationIndex] ?? 0;
-    const target = Math.max(
-      proximity > 0.24 ? Math.min((proximity - 0.18) * 0.55, 0.18) : 0,
-      focus * 0.7,
-    );
+    const target = proximity > 0.24
+      ? Math.min((proximity - 0.18) * 0.55, 0.18)
+      : proximity * 0.7;
     opRef.current += (target - opRef.current) * Math.min(dt * 3, 1);
 
     const op = opRef.current;

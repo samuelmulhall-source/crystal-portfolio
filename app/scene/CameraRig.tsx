@@ -40,13 +40,11 @@ export default function CameraRig() {
     voidState.cameraProgress = voidState.scrollProgress;
     voidState.journeyMode = phase.mode;
     voidState.activeStationIndex = phase.mode === "station" ? phase.stationIndex : -1;
-    voidState.focusedStationIndex = phase.mode === "station" ? phase.stationIndex : -1;
     voidState.transitFactor = phase.mode === "transit" ? 1 : 0;
 
     for (let i = 0; i < STATIONS.length; i++) {
       const active = phase.mode === "station" && phase.stationIndex === i ? 1 : 0;
       voidState.stationProximity[i] = active;
-      voidState.stationFocus[i] = active;
     }
 
     const parallaxScale = phase.mode === "hero" ? 0.45 : phase.mode === "transit" ? 0.12 : 0;

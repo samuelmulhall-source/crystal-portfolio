@@ -1,0 +1,77 @@
+{
+  "slug": "torch",
+  "title": "Torch",
+  "sortOrder": 10,
+  "year": "2026",
+  "featured": false,
+  "format": "Game Asset",
+  "discipline": "Fantasy prop asset",
+  "client": "Self initiated asset build",
+  "engagement": "Prop material study",
+  "summary": "A fantasy torch asset used to study layered wood, metal, and weathered surface treatment inside a compact prop format.",
+  "tags": [
+    "Game asset",
+    "Fantasy prop",
+    "PBR"
+  ],
+  "role": [
+    "Modeling",
+    "Texturing"
+  ],
+  "tools": [
+    "Blender",
+    "Substance Painter"
+  ],
+  "thumbnail": {
+    "kind": "image",
+    "src": "/models/Torch/thumb.webp",
+    "alt": "Torch thumbnail render",
+    "width": 120,
+    "height": 120
+  },
+  "heroMedia": {
+    "kind": "image",
+    "src": "/models/Torch/thumb.webp",
+    "alt": "Torch thumbnail render",
+    "width": 120,
+    "height": 120
+  },
+  "gallery": [
+    {
+      "kind": "image",
+      "src": "/models/Torch/thumb.webp",
+      "alt": "Torch thumbnail render",
+      "width": 120,
+      "height": 120
+    }
+  ],
+  "seo": {
+    "title": "Torch asset",
+    "description": "Fantasy torch prop study focused on layered material treatment and readable shape.",
+    "ogImage": "/Image renders/holography_scaled.png"
+  },
+  "interactive": {
+    "available": false,
+    "sourcePath": "/models/Torch/torch.fbx"
+  },
+  "caseStudy": {
+    "hook": "A compact prop where material contrast had to do more than the silhouette alone.",
+    "brief": [
+      "The torch was built as a small but useful study in wood, metal, and wear language."
+    ],
+    "sections": [
+      {
+        "title": "Layered surface read",
+        "body": [
+          "Because the form is simple, the asset depends on clean transitions between the wood and metal treatment."
+        ]
+      }
+    ],
+    "deliverables": [
+      "Realtime-ready fantasy prop"
+    ],
+    "outcomes": [
+      "A practical prop reference for future environment and inventory sets"
+    ]
+  }
+}

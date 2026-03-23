@@ -120,6 +120,7 @@ export function getCamera(progress: number): CameraState {
 
   _pos.copy(fromPos).lerp(toPos, transitT);
   _look.copy(fromLook).lerp(toLook, transitT);
+  // Gentle vertical arc during transit for cinematic feel
   _pos.y += Math.sin(transitT * Math.PI) * 0.08;
 
   return { position: _pos, lookAt: _look, fov: FOV_TRANSIT };

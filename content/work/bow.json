@@ -1,0 +1,77 @@
+{
+  "slug": "bow",
+  "title": "Bow",
+  "sortOrder": 9,
+  "year": "2026",
+  "featured": false,
+  "format": "Game Asset",
+  "discipline": "Game-ready weapon asset",
+  "client": "Self initiated asset build",
+  "engagement": "Topology and material study",
+  "summary": "A recurve bow asset focused on clean silhouette, natural material breakup, and a build that stays readable as a hero object.",
+  "tags": [
+    "Game asset",
+    "Topology",
+    "Hero prop"
+  ],
+  "role": [
+    "Modeling",
+    "Texturing"
+  ],
+  "tools": [
+    "Blender",
+    "Substance Painter"
+  ],
+  "thumbnail": {
+    "kind": "image",
+    "src": "/models/Weapons/bow/thumb.webp",
+    "alt": "Bow thumbnail render",
+    "width": 120,
+    "height": 120
+  },
+  "heroMedia": {
+    "kind": "image",
+    "src": "/models/Weapons/bow/thumb.webp",
+    "alt": "Bow thumbnail render",
+    "width": 120,
+    "height": 120
+  },
+  "gallery": [
+    {
+      "kind": "image",
+      "src": "/models/Weapons/bow/thumb.webp",
+      "alt": "Bow thumbnail render",
+      "width": 120,
+      "height": 120
+    }
+  ],
+  "seo": {
+    "title": "Bow asset",
+    "description": "Game-ready bow asset study focused on clean silhouette and natural material breakup.",
+    "ogImage": "/Image renders/fourteenth_image.png"
+  },
+  "interactive": {
+    "available": false,
+    "sourcePath": "/models/Weapons/bow/Bow.fbx"
+  },
+  "caseStudy": {
+    "hook": "A game-ready asset study with an emphasis on calm, readable form.",
+    "brief": [
+      "The main objective was to keep the limb shape and wrapping detail from competing with one another."
+    ],
+    "sections": [
+      {
+        "title": "Readable structure",
+        "body": [
+          "The strongest part of the asset is its clear profile, which lets the smaller surface decisions stay legible."
+        ]
+      }
+    ],
+    "deliverables": [
+      "Realtime-ready bow asset"
+    ],
+    "outcomes": [
+      "A dependable benchmark for organic hard-surface prop balance"
+    ]
+  }
+}

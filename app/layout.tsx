@@ -1,110 +1,83 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
-import SmoothScroll from "./components/SmoothScroll";
-import ConsoleFilter from "./components/ConsoleFilter";
 import { Analytics } from "@vercel/analytics/next";
+import "./globals.css";
+import { StarfieldBackground } from "./components/site/StarfieldBackground";
+import { DisplayModeProvider } from "./components/site/DisplayModeProvider";
+import { DisplayModeScript } from "./components/site/DisplayModeScript";
+import SmoothScroll from "./components/SmoothScroll";
+import { getSiteSettings } from "./lib/content";
 
-const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
-const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
+const geistSans = Geist({
+  subsets: ["latin"],
+  variable: "--font-space-grotesk",
+});
 
-// ── Update SITE_URL to your production domain ──────────────────────────────
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://multiscatter.com";
+const plexMono = Geist_Mono({
+  subsets: ["latin"],
+  variable: "--font-plex-mono",
+});
+
+const siteSettings = getSiteSettings();
 
 export const metadata: Metadata = {
-  metadataBase: new URL(SITE_URL),
-  title: "Multiscatter | 3D Artist & WebGPU Portfolio — Interactive 3D Developer",
-  description:
-    "Multiscatter is a 3D artist and interactive developer working across Blender, " +
-    "Houdini, WebGPU and React Three Fiber. Environments, animated intros, " +
-    "game assets, product visualisation, and experimental real-time experiences.",
-  keywords: [
-    "Blender artist", "3D artist", "WebGPU portfolio", "Three.js portfolio",
-    "interactive 3D developer", "React Three Fiber", "procedural 3D",
-    "game asset artist", "product visualisation", "motion graphics",
-    "Houdini artist", "Substance Painter", "multiscatter",
-  ],
-  authors: [{ name: "Multiscatter", url: "https://x.com/multiscatter" }],
-  creator: "Multiscatter",
+  metadataBase: new URL(siteSettings.deployment.siteUrl),
+  title: {
+    default: siteSettings.seo.defaultTitle,
+    template: siteSettings.seo.titleTemplate,
+  },
+  description: siteSettings.seo.description,
+  keywords: siteSettings.seo.keywords,
+  authors: [{ name: siteSettings.brand.name, url: siteSettings.social.xUrl }],
+  alternates: {
+    canonical: siteSettings.deployment.siteUrl,
+  },
   openGraph: {
-    type:        "website",
-    url:         SITE_URL,
-    title:       "Multiscatter | 3D Artist & WebGPU Portfolio",
-    description:
-      "Full-pipeline 3D artist: environments, animated intros, game assets, " +
-      "and real-time WebGPU experiences. Open for commissions and collaborations.",
-    siteName:    "Multiscatter",
-    // Add a 1200×630 render to /public/og-image.jpg for rich social previews
-    images: [{ url: "/og-image.jpg", width: 1200, height: 630, alt: "Multiscatter 3D Portfolio" }],
+    type: "website",
+    url: siteSettings.deployment.siteUrl,
+    title: siteSettings.seo.defaultTitle,
+    description: siteSettings.seo.description,
+    siteName: siteSettings.brand.name,
+    images: [
+      {
+        url: siteSettings.seo.defaultOgImage,
+        alt: `${siteSettings.brand.name} portfolio preview`,
+      },
+    ],
   },
   twitter: {
-    card:        "summary_large_image",
-    site:        "@multiscatter",
-    creator:     "@multiscatter",
-    title:       "Multiscatter | 3D Artist & WebGPU Portfolio",
-    description:
-      "Full-pipeline 3D artist: environments, animated intros, game assets, " +
-      "and real-time WebGPU experiences.",
-    images:      ["/og-image.jpg"],
+    card: "summary_large_image",
+    title: siteSettings.seo.defaultTitle,
+    description: siteSettings.seo.description,
+    site: siteSettings.social.xHandle,
+    creator: siteSettings.social.xHandle,
+    images: [siteSettings.seo.defaultOgImage],
   },
-  robots: {
-    index:   true,
-    follow:  true,
-    googleBot: { index: true, follow: true, "max-image-preview": "large" },
-  },
-  alternates: { canonical: SITE_URL },
-};
-
-// ── JSON-LD structured data ────────────────────────────────────────────────
-const jsonLd = {
-  "@context": "https://schema.org",
-  "@graph": [
-    {
-      "@type": "Person",
-      "@id":   `${SITE_URL}/#person`,
-      name:    "Multiscatter",
-      url:     SITE_URL,
-      sameAs:  ["https://x.com/multiscatter"],
-      jobTitle: "3D Artist",
-      description:
-        "Full-pipeline 3D artist working with Blender, Houdini, WebGPU, and " +
-        "React Three Fiber. Specialising in environments, animated intros, game " +
-        "assets, product visualisation, and experimental real-time experiences.",
-      knowsAbout: [
-        "Blender", "3D Modeling", "Procedural Geometry", "WebGPU",
-        "Three.js", "React Three Fiber", "Houdini", "Substance Painter",
-        "Motion Graphics", "Game Asset Creation",
-      ],
-    },
-    {
-      "@type": "WebSite",
-      "@id":   `${SITE_URL}/#website`,
-      url:     SITE_URL,
-      name:    "Multiscatter",
-      description: "Interactive 3D artist portfolio with live WebGPU model viewer",
-      author:  { "@id": `${SITE_URL}/#person` },
-    },
-  ],
 };
 
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
-      <head>
-        {/* Preload first model + key texture for instant first frame */}
-        <link rel="preload" href="/models/Torch/torch.fbx" as="fetch" crossOrigin="anonymous" />
-        <link rel="preload" href="/models/Torch/Torch_color.webp" as="image" type="image/webp" />
-        <link rel="preload" href="/data.json" as="fetch" crossOrigin="anonymous" />
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+    <html
+      lang="en"
+      className={`${geistSans.variable} ${plexMono.variable}`}
+      suppressHydrationWarning
+    >
+      <body>
+        <DisplayModeScript
+          enhancedMinDeviceMemory={siteSettings.qualityPresets.enhancedMinDeviceMemory}
+          enhancedMinHardwareConcurrency={siteSettings.qualityPresets.enhancedMinHardwareConcurrency}
         />
-      </head>
-      <body suppressHydrationWarning>
-        <ConsoleFilter />
-        <SmoothScroll>{children}</SmoothScroll>
+        <DisplayModeProvider
+          enhancedMinDeviceMemory={siteSettings.qualityPresets.enhancedMinDeviceMemory}
+          enhancedMinHardwareConcurrency={siteSettings.qualityPresets.enhancedMinHardwareConcurrency}
+        >
+          <StarfieldBackground />
+          <SmoothScroll>
+            {children}
+          </SmoothScroll>
+        </DisplayModeProvider>
         <Analytics />
       </body>
     </html>

@@ -1,0 +1,89 @@
+{
+  "slug": "camera-icon",
+  "title": "Camera Icon",
+  "sortOrder": 4,
+  "year": "2026",
+  "featured": false,
+  "format": "Still",
+  "discipline": "Product-style icon rendering",
+  "client": "Self initiated study",
+  "engagement": "Icon and surface read test",
+  "summary": "A small-scale rendering study designed to make an object read crisply at both icon and full-frame sizes.",
+  "tags": [
+    "Icon work",
+    "Product render",
+    "Surface control"
+  ],
+  "role": [
+    "Lighting direction",
+    "Material polish"
+  ],
+  "tools": [
+    "Blender",
+    "Cycles"
+  ],
+  "thumbnail": {
+    "kind": "image",
+    "src": "/Image renders/cam_icon_fullscale_medium-dark-lightrim.webp",
+    "alt": "Camera icon render with rim lighting",
+    "width": 2048,
+    "height": 1152,
+    "variants": [
+      {
+        "label": "png",
+        "src": "/Image renders/cam_icon_fullscale_medium-dark-lightrim.png"
+      }
+    ]
+  },
+  "heroMedia": {
+    "kind": "image",
+    "src": "/Image renders/cam_icon_fullscale_medium-dark-lightrim.webp",
+    "alt": "Camera icon render with rim lighting",
+    "width": 2048,
+    "height": 1152,
+    "variants": [
+      {
+        "label": "png",
+        "src": "/Image renders/cam_icon_fullscale_medium-dark-lightrim.png"
+      }
+    ]
+  },
+  "gallery": [
+    {
+      "kind": "image",
+      "src": "/Image renders/cam_icon_fullscale_medium-dark-lightrim.webp",
+      "alt": "Camera icon render with rim lighting",
+      "width": 2048,
+      "height": 1152
+    }
+  ],
+  "seo": {
+    "title": "Camera Icon project",
+    "description": "Small-format render study focused on silhouette, rim light, and readable product-style presentation.",
+    "ogImage": "/Image renders/cam_icon_fullscale_medium-dark-lightrim.png"
+  },
+  "interactive": {
+    "available": false
+  },
+  "caseStudy": {
+    "hook": "A compact study in making a simple object feel precise.",
+    "brief": [
+      "The challenge was to preserve clarity at small sizes while keeping the full-frame render from feeling sterile."
+    ],
+    "sections": [
+      {
+        "title": "Readability first",
+        "body": [
+          "Silhouette, rim light, and tonal grouping do most of the work here.",
+          "The piece is intentionally minimal so the lighting choices stay obvious."
+        ]
+      }
+    ],
+    "deliverables": [
+      "Primary icon render"
+    ],
+    "outcomes": [
+      "A tighter reference for product-style icon framing"
+    ]
+  }
+}

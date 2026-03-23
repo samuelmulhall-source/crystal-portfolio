@@ -1,0 +1,48 @@
+{
+  "brand": {
+    "name": "Multiscatter",
+    "studioLabel": "3D direction, motion, and interactive presentation",
+    "location": "Australia"
+  },
+  "deployment": {
+    "siteUrl": "https://crystal-portfolio.pages.dev",
+    "locale": "en-AU"
+  },
+  "seo": {
+    "defaultTitle": "Multiscatter | 3D direction, motion, and atmospheric worldbuilding",
+    "titleTemplate": "%s | Multiscatter",
+    "description": "Multiscatter creates atmospheric 3D assets, motion studies, and realtime presentation work for fantasy, product, and experimental projects.",
+    "keywords": [
+      "3D artist portfolio",
+      "motion design portfolio",
+      "Blender artist",
+      "Houdini artist",
+      "realtime presentation",
+      "atmospheric rendering",
+      "hero asset design",
+      "portfolio case study"
+    ],
+    "defaultOgImage": "/images/posters/site-og.svg"
+  },
+  "contact": {
+    "primaryLabel": "Message on X",
+    "primaryHref": "https://x.com/multiscatter",
+    "secondaryLabel": "Browse archive",
+    "secondaryHref": "/work",
+    "availability": "Open to commissions, visual development briefs, and collaborative R&D."
+  },
+  "social": {
+    "xHandle": "@multiscatter",
+    "xUrl": "https://x.com/multiscatter"
+  },
+  "featureFlags": {
+    "experienceRoute": false,
+    "ambientAudio": false,
+    "specimenPreview": true
+  },
+  "qualityPresets": {
+    "defaultMode": "auto",
+    "enhancedMinDeviceMemory": 8,
+    "enhancedMinHardwareConcurrency": 8
+  }
+}

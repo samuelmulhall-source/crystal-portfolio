@@ -1,0 +1,77 @@
+{
+  "slug": "shield",
+  "title": "Shield",
+  "sortOrder": 8,
+  "year": "2026",
+  "featured": false,
+  "format": "Game Asset",
+  "discipline": "Protective prop asset",
+  "client": "Self initiated asset build",
+  "engagement": "Wear-and-surface study",
+  "summary": "A kite shield asset focused on wear patterns, layered materials, and broad reads that hold up in a game-facing presentation context.",
+  "tags": [
+    "Game asset",
+    "Surface wear",
+    "PBR"
+  ],
+  "role": [
+    "Modeling",
+    "Texturing"
+  ],
+  "tools": [
+    "Blender",
+    "Substance Painter"
+  ],
+  "thumbnail": {
+    "kind": "image",
+    "src": "/models/Weapons/Shield/thumb.webp",
+    "alt": "Shield thumbnail render",
+    "width": 120,
+    "height": 120
+  },
+  "heroMedia": {
+    "kind": "image",
+    "src": "/models/Weapons/Shield/thumb.webp",
+    "alt": "Shield thumbnail render",
+    "width": 120,
+    "height": 120
+  },
+  "gallery": [
+    {
+      "kind": "image",
+      "src": "/models/Weapons/Shield/thumb.webp",
+      "alt": "Shield thumbnail render",
+      "width": 120,
+      "height": 120
+    }
+  ],
+  "seo": {
+    "title": "Shield asset",
+    "description": "Shield asset study centered on broad readability and surface wear.",
+    "ogImage": "/Image renders/holography_scaled.png"
+  },
+  "interactive": {
+    "available": false,
+    "sourcePath": "/models/Weapons/Shield/Shield.fbx"
+  },
+  "caseStudy": {
+    "hook": "A broad-read asset where material wear had to support the silhouette instead of replacing it.",
+    "brief": [
+      "The shield is a useful reference for controlled aging and shape clarity."
+    ],
+    "sections": [
+      {
+        "title": "Surface storytelling",
+        "body": [
+          "Damage, paint wear, and roughness variation were treated as structure, not decoration."
+        ]
+      }
+    ],
+    "deliverables": [
+      "Realtime-ready shield asset"
+    ],
+    "outcomes": [
+      "A more reliable wear-language reference for prop production"
+    ]
+  }
+}

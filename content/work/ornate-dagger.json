@@ -1,0 +1,77 @@
+{
+  "slug": "ornate-dagger",
+  "title": "Ornate Dagger",
+  "sortOrder": 7,
+  "year": "2026",
+  "featured": false,
+  "format": "Game Asset",
+  "discipline": "Ornamental prop asset",
+  "client": "Self initiated asset build",
+  "engagement": "Hero prop detail study",
+  "summary": "A ceremonial dagger study built to test ornamental detail density without losing the underlying shape read.",
+  "tags": [
+    "Game asset",
+    "Detail study",
+    "PBR"
+  ],
+  "role": [
+    "Modeling",
+    "Texturing"
+  ],
+  "tools": [
+    "Blender",
+    "Substance Painter"
+  ],
+  "thumbnail": {
+    "kind": "image",
+    "src": "/models/Weapons/Ornate Dagger/thumb.webp",
+    "alt": "Ornate Dagger thumbnail render",
+    "width": 120,
+    "height": 120
+  },
+  "heroMedia": {
+    "kind": "image",
+    "src": "/models/Weapons/Ornate Dagger/thumb.webp",
+    "alt": "Ornate Dagger thumbnail render",
+    "width": 120,
+    "height": 120
+  },
+  "gallery": [
+    {
+      "kind": "image",
+      "src": "/models/Weapons/Ornate Dagger/thumb.webp",
+      "alt": "Ornate Dagger thumbnail render",
+      "width": 120,
+      "height": 120
+    }
+  ],
+  "seo": {
+    "title": "Ornate Dagger asset",
+    "description": "Decorative prop study focused on ornamental density and readable form.",
+    "ogImage": "/Image renders/fourteenth_image.png"
+  },
+  "interactive": {
+    "available": false,
+    "sourcePath": "/models/Weapons/Ornate Dagger/Ornate Dagger.fbx"
+  },
+  "caseStudy": {
+    "hook": "A prop study about detail density, not just decoration.",
+    "brief": [
+      "The dagger had to feel ornate without becoming visually muddy."
+    ],
+    "sections": [
+      {
+        "title": "Density management",
+        "body": [
+          "The design only works if the larger silhouette stays readable while the close-up detail rewards inspection."
+        ]
+      }
+    ],
+    "deliverables": [
+      "Realtime-ready ornate prop"
+    ],
+    "outcomes": [
+      "A sharper benchmark for decorative asset readability"
+    ]
+  }
+}

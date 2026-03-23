@@ -107,8 +107,8 @@ export function StarLayer({
     const motionSignal = Math.max(travelSpeed, scrollBoost);
     const streakFloor = transit > 0.35 ? 0.45 : 0.0;
     const targetStreak = transit * Math.max(streakFloor, motionSignal);
-    // Fast ramp-up (warp engage), slower settle (station lock-in)
-    const rampSpeed = targetStreak > smoothStreak.current ? 10.0 : 4.0;
+    // Symmetric ramp — fast engage AND fast settle to avoid post-scroll lag
+    const rampSpeed = targetStreak > smoothStreak.current ? 10.0 : 8.0;
     smoothStreak.current += (targetStreak - smoothStreak.current) * Math.min(dt * rampSpeed, 1);
 
     // ── Write uniforms (all streak logic is GPU-side) ───────────────────

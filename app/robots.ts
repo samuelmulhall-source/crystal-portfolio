@@ -1,12 +1,13 @@
 import type { MetadataRoute } from "next";
+import { getSiteSettings } from "./lib/content";
 
 export const dynamic = "force-static";
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://multiscatter.com";
-
 export default function robots(): MetadataRoute.Robots {
+  const site = getSiteSettings();
+
   return {
-    rules:   { userAgent: "*", allow: "/" },
-    sitemap: `${SITE_URL}/sitemap.xml`,
+    rules: { userAgent: "*", allow: "/" },
+    sitemap: `${site.deployment.siteUrl}/sitemap.xml`,
   };
 }

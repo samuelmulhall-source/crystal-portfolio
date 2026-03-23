@@ -98,7 +98,17 @@ function faceNormal(a: Vec3, b: Vec3, c: Vec3): Vec3 {
   return [uy*vz - uz*vy, uz*vx - ux*vz, ux*vy - uy*vx];
 }
 
-export default function EffectsOverlay() {
+export default function EffectsOverlay({
+  bypassLoadGate = false,
+  hoverSlotLimit = 14,
+  glowSlotLimit = 8,
+  lineDistanceLimit = 700,
+}: {
+  bypassLoadGate?: boolean;
+  hoverSlotLimit?: number;
+  glowSlotLimit?: number;
+  lineDistanceLimit?: number;
+}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -125,7 +135,7 @@ export default function EffectsOverlay() {
 
       // Skip all rendering while loading screen is visible — nothing to draw
       // and we avoid competing for CPU time during critical loading phase.
-      if (!loadGate.dismissed) return;
+      if (!bypassLoadGate && !loadGate.dismissed) return;
 
       const w   = canvas!.width;
       const h   = canvas!.height;
@@ -198,7 +208,7 @@ export default function EffectsOverlay() {
         spring.pos   = Math.max(0, Math.min(spring.pos, 1.0));
         if (spring.pos < 0.005 && target < 0.01) { spring.pos = 0; spring.vel = 0; }
         if (spring.pos < 0.005) continue;
-        if (i >= 8) continue; // line-only slots: spring advances but no geometry
+        if (i >= glowSlotLimit) continue; // line-only slots: spring advances but no geometry
 
         const ease = Math.min(spring.pos, 1.0);
         const { sx, sy } = slot;
@@ -304,7 +314,7 @@ export default function EffectsOverlay() {
 
       // ── 2. Constellation paths between active hover stars ─────────────────
       const active: Array<{ sx: number; sy: number; ease: number }> = [];
-      for (let i = 0; i < voidState.hoverSlots.length; i++) {
+      for (let i = 0; i < Math.min(voidState.hoverSlots.length, hoverSlotLimit); i++) {
         if (_springs[i].pos > 0.12) {
           const s = voidState.hoverSlots[i];
           active.push({ sx: s.sx, sy: s.sy, ease: _springs[i].pos });
@@ -318,10 +328,10 @@ export default function EffectsOverlay() {
           for (let b = a + 1; b < active.length; b++) {
             const sa = active[a], sb = active[b];
             const dist = Math.hypot(sa.sx - sb.sx, sa.sy - sb.sy);
-            if (dist > 700 || dist < 8) continue;
+            if (dist > lineDistanceLimit || dist < 8) continue;
 
             const minE     = Math.min(sa.ease, sb.ease);
-            const distFade = Math.max(0, 1 - dist / 700);
+            const distFade = Math.max(0, 1 - dist / lineDistanceLimit);
             const alpha    = minE * distFade * 0.55;
 
             const dashLen    = 8 + dist * 0.06;
@@ -505,7 +515,7 @@ export default function EffectsOverlay() {
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", resize);
     };
-  }, []);
+  }, [bypassLoadGate, glowSlotLimit, hoverSlotLimit, lineDistanceLimit]);
 
   return (
     <canvas

@@ -13,7 +13,6 @@ import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { voidState } from "../lib/voidState";
 
-const HOVER_POOL = 14;
 interface HoverSlot {
   active:   boolean;
   ease:     number;
@@ -25,16 +24,26 @@ interface HoverSlot {
 
 export default function StarHoverSystem({
   pts,
+  hoverPool = 14,
+  glowPool = 8,
+  glowThreshold = 0.065,
+  lineThreshold = 0.13,
+  idleScanDivisor = 3,
 }: {
   pts: [
     React.RefObject<THREE.Points | null>,
     React.RefObject<THREE.Points | null>,
     React.RefObject<THREE.Points | null>,
   ];
+  hoverPool?: number;
+  glowPool?: number;
+  glowThreshold?: number;
+  lineThreshold?: number;
+  idleScanDivisor?: number;
 }) {
   const { camera } = useThree();
   const slotsRef   = useRef<HoverSlot[]>(
-    Array.from({ length: HOVER_POOL }, () => ({
+    Array.from({ length: hoverPool }, () => ({
       active: false, ease: 0, layerIdx: -1, starIdx: -1, variant: 0, wx: 0, wy: 0, wz: 0,
     }))
   );
@@ -66,15 +75,12 @@ export default function StarHoverSystem({
     frameCount.current++;
     const mouseMoved = Math.abs(curNX - lastMouseNX.current) > 0.001 ||
                        Math.abs(curNY - lastMouseNY.current) > 0.001;
-    const skipScan = !mouseMoved && frameCount.current % 3 !== 0;
+    const skipScan = !mouseMoved && frameCount.current % idleScanDivisor !== 0;
     lastMouseNX.current = curNX;
     lastMouseNY.current = curNY;
-    const GLOW_POOL = 8;
 
     // Expensive star scan — skip when mouse idle and not on scan frame
     if (!skipScan) {
-      const NDC_GLOW  = 0.065;
-      const NDC_LINE  = 0.130;
       const camX  = camera.position.x, camY = camera.position.y, camZ = camera.position.z;
       const MIN_D2 = 5 * 5;
 
@@ -96,14 +102,14 @@ export default function StarHoverSystem({
           tmpV.project(camera);
           if (tmpV.z > 1) continue;
           const dist = Math.sqrt((tmpV.x - curNX) ** 2 + (tmpV.y - curNY) ** 2);
-          if (dist < NDC_GLOW) {
+          if (dist < glowThreshold) {
             glowCands.push({ dist, layerIdx: li, starIdx: i, wx: px, wy: py, wz: pz });
-          } else if (dist < NDC_LINE) {
+          } else if (dist < lineThreshold) {
             lineCands.push({ dist, layerIdx: li, starIdx: i, wx: px, wy: py, wz: pz });
           }
-          if (glowCands.length + lineCands.length >= HOVER_POOL * 3) break;
+          if (glowCands.length + lineCands.length >= hoverPool * 3) break;
         }
-        if (glowCands.length + lineCands.length >= HOVER_POOL * 3) break;
+        if (glowCands.length + lineCands.length >= hoverPool * 3) break;
       }
 
       glowCands.sort((a, b) => a.dist - b.dist);
@@ -145,12 +151,12 @@ export default function StarHoverSystem({
         }
       };
 
-      assignSlots(glowCands, 0,         GLOW_POOL);
-      assignSlots(lineCands, GLOW_POOL, HOVER_POOL);
+      assignSlots(glowCands, 0,         glowPool);
+      assignSlots(lineCands, glowPool, hoverPool);
     }
 
     slots.forEach((s, i) => {
-      const maxEase = i < GLOW_POOL ? 0.45 : 0.15;
+      const maxEase = i < glowPool ? 0.45 : 0.15;
       s.ease += ((s.active ? maxEase : 0) - s.ease) * lerpK;
 
       if (s.ease > 0.01 && s.layerIdx >= 0 && s.starIdx >= 0) {

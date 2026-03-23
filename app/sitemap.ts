@@ -1,16 +1,31 @@
 import type { MetadataRoute } from "next";
+import { getSiteSettings, getWorkEntries } from "./lib/content";
 
 export const dynamic = "force-static";
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://multiscatter.com";
-
 export default function sitemap(): MetadataRoute.Sitemap {
+  const site = getSiteSettings();
+  const now = new Date();
+  const workEntries = getWorkEntries();
+
   return [
     {
-      url:              SITE_URL,
-      lastModified:     new Date(),
-      changeFrequency:  "monthly",
-      priority:         1,
+      url: site.deployment.siteUrl,
+      lastModified: now,
+      changeFrequency: "monthly",
+      priority: 1,
     },
+    {
+      url: `${site.deployment.siteUrl}/work`,
+      lastModified: now,
+      changeFrequency: "monthly",
+      priority: 0.9,
+    },
+    ...workEntries.map((entry) => ({
+      url: `${site.deployment.siteUrl}/work/${entry.slug}`,
+      lastModified: now,
+      changeFrequency: "monthly" as const,
+      priority: entry.featured ? 0.8 : 0.7,
+    })),
   ];
 }

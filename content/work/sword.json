@@ -1,0 +1,81 @@
+{
+  "slug": "sword",
+  "title": "Sword",
+  "sortOrder": 6,
+  "year": "2026",
+  "featured": false,
+  "format": "Game Asset",
+  "discipline": "Realtime hero asset",
+  "client": "Self initiated asset build",
+  "engagement": "Hero asset production",
+  "summary": "A stylized arming sword focused on crisp silhouette, layered material separation, and a more fantastical glass-and-metal read.",
+  "tags": [
+    "Game asset",
+    "Hero prop",
+    "PBR"
+  ],
+  "role": [
+    "Modeling",
+    "Texturing",
+    "Material lookdev"
+  ],
+  "tools": [
+    "Blender",
+    "Substance Painter"
+  ],
+  "thumbnail": {
+    "kind": "image",
+    "src": "/models/Weapons/Sword/thumb.webp",
+    "alt": "Sword thumbnail render",
+    "width": 120,
+    "height": 120
+  },
+  "heroMedia": {
+    "kind": "image",
+    "src": "/models/Weapons/Sword/thumb.webp",
+    "alt": "Sword thumbnail render",
+    "width": 120,
+    "height": 120
+  },
+  "gallery": [
+    {
+      "kind": "image",
+      "src": "/models/Weapons/Sword/thumb.webp",
+      "alt": "Sword thumbnail render",
+      "width": 120,
+      "height": 120
+    }
+  ],
+  "seo": {
+    "title": "Sword asset",
+    "description": "Realtime hero asset study with stylized glass-and-metal treatment.",
+    "ogImage": "/Image renders/holography_scaled.png"
+  },
+  "interactive": {
+    "available": false,
+    "sourcePath": "/models/Weapons/Sword/sword.fbx",
+    "note": "Source geometry exists, but the main portfolio now treats interactive specimens as an optional secondary experience."
+  },
+  "caseStudy": {
+    "hook": "A compact hero asset designed to read quickly in realtime-friendly presentation.",
+    "brief": [
+      "The main goal was to build a weapon with enough fantasy detail to feel premium without losing clear silhouette."
+    ],
+    "sections": [
+      {
+        "title": "Silhouette and material split",
+        "body": [
+          "The shape language stays clean so the more stylized material choices still feel legible.",
+          "Glass, metal, and wrap details were separated to keep the asset useful beyond a flat portfolio render."
+        ]
+      }
+    ],
+    "deliverables": [
+      "Realtime-ready sword asset",
+      "PBR texture set"
+    ],
+    "outcomes": [
+      "A stronger reference for premium fantasy asset work"
+    ]
+  }
+}

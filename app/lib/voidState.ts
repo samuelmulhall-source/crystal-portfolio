@@ -21,8 +21,6 @@ export const voidState = {
   activeStationIndex: -1,          // -1 = transit, 0-4 = weapon index
   cameraProgress: 0,               // raw 0-1 scroll position on spline
   stationProximity: [0, 0, 0, 0, 0] as number[], // per-station proximity 0-1
-  stationFocus: [0, 0, 0, 0, 0] as number[],     // narrow focus band for hard lock-in
-  focusedStationIndex: -1,                         // -1 = no station fully in focus
 
   // ── Hover star screen positions ──────────────────────────────────────────
   // Written by StarHoverSystem (inside Three.js canvas, has camera access).

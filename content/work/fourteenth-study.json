@@ -1,0 +1,82 @@
+{
+  "slug": "fourteenth-study",
+  "title": "Fourteenth Study",
+  "sortOrder": 5,
+  "year": "2026",
+  "featured": false,
+  "format": "Still",
+  "discipline": "Lighting and composition study",
+  "client": "Personal study",
+  "engagement": "Open exploration",
+  "summary": "An unconstrained image study used to test composition, material contrast, and how much atmosphere could be built inside a single frame.",
+  "tags": [
+    "Lighting study",
+    "Still image",
+    "Composition"
+  ],
+  "role": [
+    "Look development"
+  ],
+  "tools": [
+    "Blender",
+    "Cycles"
+  ],
+  "thumbnail": {
+    "kind": "image",
+    "src": "/Image renders/fourteenth_image.webp",
+    "alt": "Fourteenth study still image",
+    "width": 2048,
+    "height": 1152,
+    "variants": [
+      {
+        "label": "png",
+        "src": "/Image renders/fourteenth_image.png"
+      }
+    ]
+  },
+  "heroMedia": {
+    "kind": "image",
+    "src": "/Image renders/fourteenth_image.webp",
+    "alt": "Fourteenth study still image",
+    "width": 2048,
+    "height": 1152
+  },
+  "gallery": [
+    {
+      "kind": "image",
+      "src": "/Image renders/fourteenth_image.webp",
+      "alt": "Fourteenth study still image",
+      "width": 2048,
+      "height": 1152
+    }
+  ],
+  "seo": {
+    "title": "Fourteenth Study project",
+    "description": "Personal still-image study exploring atmosphere, material contrast, and composition.",
+    "ogImage": "/Image renders/fourteenth_image.png"
+  },
+  "interactive": {
+    "available": false
+  },
+  "caseStudy": {
+    "hook": "A loose study with no production constraint, useful mainly as a reference for instinct and taste.",
+    "brief": [
+      "The value of this piece is less in the subject and more in the way the frame holds together under stylized lighting."
+    ],
+    "sections": [
+      {
+        "title": "What it tests",
+        "body": [
+          "This frame tests how much detail can be implied rather than stated.",
+          "It also serves as a quick benchmark for color restraint and focal hierarchy."
+        ]
+      }
+    ],
+    "deliverables": [
+      "Primary still frame"
+    ],
+    "outcomes": [
+      "A lightweight visual benchmark for future still-image work"
+    ]
+  }
+}
