@@ -85,9 +85,9 @@ function BackgroundScene({
           pts={[pts0, pts1, pts2]}
           hoverPool={3}
           glowPool={1}
-          glowThreshold={0.032}
-          lineThreshold={0.06}
-          idleScanDivisor={7}
+          glowThreshold={0.055}
+          lineThreshold={0.11}
+          idleScanDivisor={5}
         />
       ) : null}
       <BackgroundCameraRig interactive={interactive} />
@@ -169,6 +169,13 @@ export function StarfieldBackground() {
     };
 
     canvas.addEventListener("webglcontextlost", onContextLost, false);
+
+    // R3F's internal ResizeObserver can miss the initial mount sizing,
+    // leaving the canvas stuck at 300×150. Force a resize event so the
+    // renderer picks up the actual container dimensions.
+    requestAnimationFrame(() => {
+      window.dispatchEvent(new Event("resize"));
+    });
   }, []);
 
   const interactive = effectiveMode === "enhanced" && !isMobile;

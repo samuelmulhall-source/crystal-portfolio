@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Footer } from "./components/site/Footer";
 import { Header } from "./components/site/Header";
 import { HeroAtmosphere } from "./components/site/HeroAtmosphere";
+import { HeroEntrance } from "./components/site/HeroEntrance";
 import { MediaBlock } from "./components/site/MediaBlock";
 import { SpecimenPreview } from "./components/site/SpecimenPreview";
 import { WorkCard } from "./components/site/WorkCard";
@@ -51,63 +52,65 @@ export default function HomePage() {
 
       <section className="hero-section">
         <HeroAtmosphere />
-        <div className="page-shell hero-section__content">
-          <div className="hero-copy">
-            <div className="hero-copy__intro">
-              <p className="eyebrow">{home.hero.eyebrow}</p>
-              <p className="hero-kicker">Australia studio / hero assets / motion / realtime</p>
-            </div>
-            <h1 className="hero-title">
-              {heroTitleLines.map((line) => (
-                <span key={line} className="hero-title__line">
-                  {line}
-                </span>
-              ))}
-            </h1>
-            <div className="hero-copy__body">
-              <p className="lede">{home.hero.intro}</p>
-              <div className="hero-actions">
-                {renderLink(home.hero.primaryCta.href, home.hero.primaryCta.label, "primary")}
-                {renderLink(home.hero.secondaryCta.href, home.hero.secondaryCta.label, "secondary")}
+        <HeroEntrance>
+          <div className="page-shell hero-section__content">
+            <div className="hero-copy">
+              <div className="hero-copy__intro">
+                <p className="eyebrow" data-hero-entrance="eyebrow">{home.hero.eyebrow}</p>
+                <p className="hero-kicker" data-hero-entrance="kicker">Australia studio / hero assets / motion / realtime</p>
               </div>
-            </div>
-            <div className="hero-band" aria-label="Studio capabilities">
-              {home.hero.meta.map((item, index) => (
-                <div key={item} className="hero-band__item">
-                  <span className="hero-band__index">{`0${index + 1}`}</span>
-                  <p>{item}</p>
+              <h1 className="hero-title" data-hero-entrance="title">
+                {heroTitleLines.map((line) => (
+                  <span key={line} className="hero-title__line">
+                    {line}
+                  </span>
+                ))}
+              </h1>
+              <div className="hero-copy__body" data-hero-entrance="body">
+                <p className="lede">{home.hero.intro}</p>
+                <div className="hero-actions" data-hero-entrance="actions">
+                  {renderLink(home.hero.primaryCta.href, home.hero.primaryCta.label, "primary")}
+                  {renderLink(home.hero.secondaryCta.href, home.hero.secondaryCta.label, "secondary")}
                 </div>
-              ))}
-            </div>
-          </div>
-
-          <aside className="specimen-card specimen-card--hero">
-            <div className="specimen-card__chrome">
-              <p className="specimen-card__label">Featured specimen</p>
-              <p className="specimen-card__index">Case study 01</p>
-            </div>
-            <div className="specimen-card__preview">
-              <div className="specimen-card__orb specimen-card__orb--primary" />
-              <div className="specimen-card__orb specimen-card__orb--secondary" />
-              <SpecimenPreview
-                posterAsset={heroEntry.thumbnail}
-                motionAsset={heroEntry.heroMedia}
-                priority
-              />
-            </div>
-            <div className="specimen-card__body">
-              <div className="specimen-card__meta">
-                <span>{heroEntry.discipline}</span>
-                <span>{`${heroEntry.format} / ${heroEntry.year}`}</span>
               </div>
-              <h2>{heroEntry.title}</h2>
-              <p>{heroEntry.summary}</p>
-              <Link href={`/work/${heroEntry.slug}`} className="text-link">
-                Open case study
-              </Link>
+              <div className="hero-band" data-hero-entrance="band" aria-label="Studio capabilities">
+                {home.hero.meta.map((item, index) => (
+                  <div key={item} className="hero-band__item">
+                    <span className="hero-band__index">{`0${index + 1}`}</span>
+                    <p>{item}</p>
+                  </div>
+                ))}
+              </div>
             </div>
-          </aside>
-        </div>
+
+            <aside className="specimen-card specimen-card--hero" data-hero-entrance="specimen">
+              <div className="specimen-card__chrome">
+                <p className="specimen-card__label">Featured specimen</p>
+                <p className="specimen-card__index">Case study 01</p>
+              </div>
+              <div className="specimen-card__preview">
+                <div className="specimen-card__orb specimen-card__orb--primary" />
+                <div className="specimen-card__orb specimen-card__orb--secondary" />
+                <SpecimenPreview
+                  posterAsset={heroEntry.thumbnail}
+                  motionAsset={heroEntry.heroMedia}
+                  priority
+                />
+              </div>
+              <div className="specimen-card__body">
+                <div className="specimen-card__meta">
+                  <span>{heroEntry.discipline}</span>
+                  <span>{`${heroEntry.format} / ${heroEntry.year}`}</span>
+                </div>
+                <h2>{heroEntry.title}</h2>
+                <p>{heroEntry.summary}</p>
+                <Link href={`/work/${heroEntry.slug}`} className="text-link">
+                  Open case study
+                </Link>
+              </div>
+            </aside>
+          </div>
+        </HeroEntrance>
       </section>
 
       <section className="section page-shell">

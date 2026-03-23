@@ -16,7 +16,10 @@ import { useEffect, useRef } from "react";
 import { voidState } from "../lib/voidState";
 import { loadGate } from "../lib/loadingOrchestrator";
 
-// Per-slot spring state (lives outside React render cycle)
+// Per-slot spring state (lives outside React render cycle).
+// Size matches the maximum hoverSlotLimit that will be passed in.
+// Springs beyond the active limit are never iterated, preventing
+// stale ghost effects from unmanaged slots.
 const _springs: Array<{ pos: number; vel: number }> =
   Array.from({ length: 14 }, () => ({ pos: 0, vel: 0 }));
 
@@ -122,10 +125,14 @@ export default function EffectsOverlay({
     let lastT = performance.now();
     let loadFade = 0; // smoothed opacity for black hole loading vortex
     let warpLevel = 0;
+    let dpr = Math.min(window.devicePixelRatio || 1, 2); // cap at 2 for perf
 
     const resize = () => {
-      canvas.width  = window.innerWidth;
-      canvas.height = window.innerHeight;
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width  = Math.round(window.innerWidth * dpr);
+      canvas.height = Math.round(window.innerHeight * dpr);
+      canvas.style.width  = window.innerWidth + "px";
+      canvas.style.height = window.innerHeight + "px";
     };
     resize();
     window.addEventListener("resize", resize);
@@ -137,9 +144,13 @@ export default function EffectsOverlay({
       // and we avoid competing for CPU time during critical loading phase.
       if (!bypassLoadGate && !loadGate.dismissed) return;
 
-      const w   = canvas!.width;
-      const h   = canvas!.height;
-      ctx!.clearRect(0, 0, w, h);
+      // Clear at device-pixel resolution, then set DPR transform so all
+      // drawing uses logical (CSS) pixel coordinates automatically.
+      ctx!.setTransform(1, 0, 0, 1, 0, 0);
+      ctx!.clearRect(0, 0, canvas!.width, canvas!.height);
+      ctx!.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const w   = window.innerWidth;
+      const h   = window.innerHeight;
 
       const now = performance.now();
       const dt  = Math.min((now - lastT) * 0.001, 0.05);
@@ -197,7 +208,9 @@ export default function EffectsOverlay({
       const SPRING_D = 26;
 
       // ── 1. 3D Holographic star hover ──────────────────────────────────────
-      for (let i = 0; i < voidState.hoverSlots.length; i++) {
+      // Only iterate managed slots (hoverSlotLimit), not the full 14-slot array.
+      // This prevents stale spring data in unmanaged slots from producing ghost effects.
+      for (let i = 0; i < Math.min(hoverSlotLimit, voidState.hoverSlots.length); i++) {
         const slot   = voidState.hoverSlots[i];
         const spring = _springs[i];
 
@@ -526,8 +539,6 @@ export default function EffectsOverlay({
         position:      "fixed",
         top:           0,
         left:          0,
-        width:         "100%",
-        height:        "100%",
         pointerEvents: "none",
         zIndex:        1,
       }}

@@ -24,7 +24,7 @@ export default function SmoothScroll({ children }: { children: React.ReactNode }
   const lastTime = useRef(0);
 
   useEffect(() => {
-    const lenis = new Lenis({ lerp: 0.08, smoothWheel: true });
+    const lenis = new Lenis({ lerp: 0.11, smoothWheel: true });
     lenisInstance = lenis;
 
     // Sync Lenis with GSAP ScrollTrigger

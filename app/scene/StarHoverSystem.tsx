@@ -63,7 +63,7 @@ export default function StarHoverSystem({
       slots.forEach((s, i) => {
         s.active = false;
         s.ease   = Math.max(s.ease - dt * 5, 0);
-        voidState.hoverSlots[i].ease = s.ease;
+        if (i < voidState.hoverSlots.length) voidState.hoverSlots[i].ease = s.ease;
       });
       return;
     }
@@ -71,15 +71,18 @@ export default function StarHoverSystem({
     const curNX = voidState.mouseNX;
     const curNY = -voidState.mouseNY;
 
-    // Frame-skip: only run full star scan every 3rd frame (20fps hover is plenty)
+    // Frame-skip: scan every 3rd frame when idle, every 2nd frame when moving
+    // (reduces 4750 projections/frame to 2375 during active movement)
     frameCount.current++;
     const mouseMoved = Math.abs(curNX - lastMouseNX.current) > 0.001 ||
                        Math.abs(curNY - lastMouseNY.current) > 0.001;
-    const skipScan = !mouseMoved && frameCount.current % idleScanDivisor !== 0;
+    const skipScan = mouseMoved
+      ? frameCount.current % 2 !== 0
+      : frameCount.current % idleScanDivisor !== 0;
     lastMouseNX.current = curNX;
     lastMouseNY.current = curNY;
 
-    // Expensive star scan — skip when mouse idle and not on scan frame
+    // Expensive star scan — skip alternate frames to halve cost
     if (!skipScan) {
       const camX  = camera.position.x, camY = camera.position.y, camZ = camera.position.z;
       const MIN_D2 = 5 * 5;

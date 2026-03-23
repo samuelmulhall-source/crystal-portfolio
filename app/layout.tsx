@@ -6,6 +6,8 @@ import { StarfieldBackground } from "./components/site/StarfieldBackground";
 import { DisplayModeProvider } from "./components/site/DisplayModeProvider";
 import { DisplayModeScript } from "./components/site/DisplayModeScript";
 import SmoothScroll from "./components/SmoothScroll";
+import CursorFollower from "./components/CursorFollower";
+import { ScanLine } from "./components/site/ScanLine";
 import { getSiteSettings } from "./lib/content";
 
 const geistSans = Geist({
@@ -74,9 +76,11 @@ export default function RootLayout({
           enhancedMinHardwareConcurrency={siteSettings.qualityPresets.enhancedMinHardwareConcurrency}
         >
           <StarfieldBackground />
+          <ScanLine />
           <SmoothScroll>
             {children}
           </SmoothScroll>
+          <CursorFollower />
         </DisplayModeProvider>
         <Analytics />
       </body>

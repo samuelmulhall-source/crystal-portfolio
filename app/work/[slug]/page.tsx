@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { Footer } from "../../components/site/Footer";
 import { Header } from "../../components/site/Header";
 import { MediaBlock } from "../../components/site/MediaBlock";
+import { PageEntrance } from "../../components/site/PageEntrance";
 import { WorkCard } from "../../components/site/WorkCard";
 import {
   getRelatedEntries,
@@ -64,15 +65,16 @@ export default async function WorkDetailPage({ params }: WorkPageProps) {
       <Header brandName={site.brand.name} />
 
       <article className="case-study">
+        <PageEntrance>
         <section className="case-study__hero page-shell">
           <div className="case-study__copy">
-            <Link className="text-link text-link--muted" href="/work">
+            <Link className="text-link text-link--muted" href="/work" data-entrance="eyebrow">
               Back to archive
             </Link>
-            <p className="eyebrow">{entry.discipline}</p>
-            <h1 className="page-title">{entry.title}</h1>
-            <p className="lede">{entry.summary}</p>
-            <div className="case-study__meta">
+            <p className="eyebrow" data-entrance="eyebrow">{entry.discipline}</p>
+            <h1 className="page-title" data-entrance="title">{entry.title}</h1>
+            <p className="lede" data-entrance="body">{entry.summary}</p>
+            <div className="case-study__meta" data-entrance="content">
               <div>
                 <span>Format</span>
                 <strong>{entry.format}</strong>
@@ -99,6 +101,7 @@ export default async function WorkDetailPage({ params }: WorkPageProps) {
 
           <MediaBlock asset={entry.heroMedia} priority />
         </section>
+        </PageEntrance>
 
         <section className="page-shell detail-grid">
           <div className="detail-grid__main">

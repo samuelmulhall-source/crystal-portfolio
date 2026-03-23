@@ -24,8 +24,8 @@ export function Header({
     <header className={`site-header${scrolled ? " is-scrolled" : ""}`}>
       <div className="site-header__inner">
         <Link href="/" className="site-mark">
-          <span className="site-mark__dot" />
-          <span className="site-mark__text">{brandName}</span>
+          <span className="status-led" />
+          <span className="site-mark__text glitch" data-text={brandName}>{brandName}</span>
           <span className="site-mark__status">AU / atmospheric direction</span>
         </Link>
 
