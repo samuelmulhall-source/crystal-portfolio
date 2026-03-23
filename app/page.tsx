@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { Footer } from "./components/site/Footer";
 import { Header } from "./components/site/Header";
-import { HeroAtmosphere } from "./components/site/HeroAtmosphere";
 import { HeroEntrance } from "./components/site/HeroEntrance";
 import { MediaBlock } from "./components/site/MediaBlock";
 import { SpecimenPreview } from "./components/site/SpecimenPreview";
@@ -12,23 +11,6 @@ import {
   getWorkEntries,
   getWorkEntryBySlug,
 } from "./lib/content";
-
-function renderLink(href: string, label: string, variant: "primary" | "secondary") {
-  const className = variant === "primary" ? "button-link" : "button-link button-link--ghost";
-  if (href.startsWith("http") || href.startsWith("#")) {
-    return (
-      <a className={className} href={href}>
-        {label}
-      </a>
-    );
-  }
-
-  return (
-    <Link className={className} href={href}>
-      {label}
-    </Link>
-  );
-}
 
 export default function HomePage() {
   const site = getSiteSettings();
@@ -44,49 +26,61 @@ export default function HomePage() {
   const selectedEntries = home.selectedWork.featuredSlugs
     .map((slug) => getWorkEntryBySlug(slug))
     .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
-  const heroTitleLines = home.hero.title.split("\n");
 
   return (
     <main className="page-root">
       <Header brandName={site.brand.name} />
 
+      {/* ═══ HERO — full viewport, smoke-layered ═══ */}
       <section className="hero-section">
-        <HeroAtmosphere />
         <HeroEntrance>
-          <div className="page-shell hero-section__content">
-            <div className="hero-copy">
-              <p className="eyebrow" data-hero-entrance="eyebrow">{home.hero.eyebrow}</p>
-              <h1 className="hero-title--content" data-hero-entrance="title">
-                {heroTitleLines.map((line) => (
-                  <span key={line} className="hero-title__line">
-                    {line}
-                  </span>
-                ))}
-              </h1>
-              <p className="lede" data-hero-entrance="body">{home.hero.intro}</p>
-              <div className="hero-actions" data-hero-entrance="actions">
-                {renderLink(home.hero.primaryCta.href, home.hero.primaryCta.label, "primary")}
-                {renderLink(home.hero.secondaryCta.href, home.hero.secondaryCta.label, "secondary")}
-              </div>
-            </div>
+          {/* Top-left HUD readout */}
+          <div className="hud-readout hud-readout--tl" data-hero-entrance="hud" aria-hidden="true">
+            <span className="hud-label">SYS</span>
+            <span className="hud-value">ONLINE</span>
+          </div>
 
-            <div className="hero-reel" data-hero-entrance="specimen">
-              <SpecimenPreview
-                posterAsset={heroEntry.thumbnail}
-                motionAsset={heroEntry.heroMedia}
-                priority
-              />
-              <div className="hero-reel__caption">
-                <span className="hero-reel__label">{heroEntry.title}</span>
-                <Link href={`/work/${heroEntry.slug}`} className="text-link--muted">
-                  View project
-                </Link>
-              </div>
-            </div>
+          {/* Top-right HUD readout */}
+          <div className="hud-readout hud-readout--tr" data-hero-entrance="hud" aria-hidden="true">
+            <span className="hud-label">RES</span>
+            <span className="hud-value">4K</span>
+          </div>
+
+          {/* Center hero content */}
+          <div className="hero-core">
+            <h1 className="hero-title--brutal" data-hero-entrance="title">
+              <span className="hero-title__line">Atmospheric</span>
+              <span className="hero-title__line">Direction</span>
+            </h1>
+            <p className="hero-subtitle" data-hero-entrance="subtitle">
+              {home.hero.intro}
+            </p>
+          </div>
+
+          {/* Video viewport — sits between smoke layers */}
+          <div className="hero-viewport" data-hero-entrance="viewport">
+            <SpecimenPreview
+              posterAsset={heroEntry.thumbnail}
+              motionAsset={heroEntry.heroMedia}
+              priority
+            />
+            <div className="hero-viewport__frame" aria-hidden="true" />
+          </div>
+
+          {/* Bottom HUD bar */}
+          <div className="hud-bar" data-hero-entrance="hud-bottom">
+            <span className="hud-bar__tools" aria-hidden="true">
+              {home.hero.meta.join(" / ")}
+            </span>
+            <span className="hud-divider" />
+            <Link href="/work" className="hud-link">Archive</Link>
+            <span className="hud-divider" />
+            <Link href="#contact" className="hud-link">Transmit</Link>
           </div>
         </HeroEntrance>
       </section>
 
+      {/* ═══ SELECTED WORK ═══ */}
       <section className="section page-shell">
         <div className="section-heading">
           <p className="eyebrow">Selected work</p>
@@ -100,6 +94,7 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ═══ SPOTLIGHT ═══ */}
       <section className="section page-shell spotlight">
         <div className="section-heading">
           <p className="eyebrow">In depth</p>
@@ -114,6 +109,7 @@ export default function HomePage() {
         <MediaBlock asset={spotlightEntry.heroMedia} />
       </section>
 
+      {/* ═══ CAPABILITIES ═══ */}
       <section className="section page-shell">
         <div className="section-heading">
           <p className="eyebrow">Capabilities</p>
@@ -130,6 +126,7 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ═══ ARCHIVE PREVIEW ═══ */}
       <section className="section page-shell">
         <div className="section-heading">
           <p className="eyebrow">Archive</p>
@@ -148,6 +145,7 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ═══ CONTACT ═══ */}
       <section id="contact" className="contact-section">
         <div className="page-shell contact-section__inner">
           <div className="section-heading">
@@ -163,8 +161,12 @@ export default function HomePage() {
               ))}
             </ul>
             <div className="hero-actions">
-              {renderLink(home.contact.primaryCta.href, home.contact.primaryCta.label, "primary")}
-              {renderLink(home.contact.secondaryCta.href, home.contact.secondaryCta.label, "secondary")}
+              <a className="button-link" href={home.contact.primaryCta.href}>
+                {home.contact.primaryCta.label}
+              </a>
+              <Link className="button-link button-link--ghost" href={home.contact.secondaryCta.href}>
+                {home.contact.secondaryCta.label}
+              </Link>
             </div>
           </div>
         </div>

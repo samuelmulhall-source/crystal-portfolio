@@ -4,6 +4,7 @@ import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import VoidBackground from "./components/VoidBackground";
 import EffectsOverlay from "./components/EffectsOverlay";
+import SmokeLayers from "./components/SmokeLayers";
 import { DisplayModeProvider } from "./components/site/DisplayModeProvider";
 import { DisplayModeScript } from "./components/site/DisplayModeScript";
 import SmoothScroll from "./components/SmoothScroll";
@@ -77,7 +78,7 @@ export default function RootLayout({
         >
           <VoidBackground />
           <EffectsOverlay />
-          <div className="scan-line" aria-hidden="true" />
+          <SmokeLayers />
           <SmoothScroll>
             {children}
           </SmoothScroll>

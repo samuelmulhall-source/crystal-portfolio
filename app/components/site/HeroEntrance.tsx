@@ -1,18 +1,16 @@
 "use client";
 
 /**
- * HeroEntrance — GSAP staggered reveal for the content-first hero.
+ * HeroEntrance — GSAP staggered reveal for the hero.
  *
- * Wraps children and applies a coordinated entrance sequence:
- *   1. Eyebrow fades + slides up
- *   2. Title de-blurs + slides up (cinematic feel)
- *   3. Body copy fades in
- *   4. CTAs slide up
- *   5. Specimen card scales in from slight offset
+ * Targets via data-hero-entrance attributes:
+ *   hud        → corner HUD readouts (fade from edges)
+ *   title      → massive title (de-blur + slide)
+ *   subtitle   → terse descriptor line
+ *   viewport   → video reel (scale in)
+ *   hud-bottom → bottom bar (fade up)
  *
- * Uses data-hero-entrance="<name>" attributes on children to target them.
- * Falls back gracefully: if GSAP fails or reduced motion is preferred,
- * everything is visible by default.
+ * Falls back gracefully: reduced motion = everything visible immediately.
  */
 
 import { useEffect, useRef } from "react";
@@ -24,35 +22,32 @@ export function HeroEntrance({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-
-    // Respect reduced motion
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
     const ctx = gsap.context(() => {
-      // Set initial states
-      gsap.set("[data-hero-entrance='eyebrow']", { opacity: 0, y: 12 });
-      gsap.set("[data-hero-entrance='title']", { opacity: 0, y: 28, filter: "blur(14px)" });
-      gsap.set("[data-hero-entrance='body']", { opacity: 0, y: 14 });
-      gsap.set("[data-hero-entrance='actions']", { opacity: 0, y: 16 });
-      gsap.set("[data-hero-entrance='specimen']", { opacity: 0, y: 30, scale: 0.97 });
+      gsap.set("[data-hero-entrance='hud']", { opacity: 0 });
+      gsap.set("[data-hero-entrance='title']", { opacity: 0, y: 40, filter: "blur(18px)" });
+      gsap.set("[data-hero-entrance='subtitle']", { opacity: 0, y: 16 });
+      gsap.set("[data-hero-entrance='viewport']", { opacity: 0, y: 36, scale: 0.96 });
+      gsap.set("[data-hero-entrance='hud-bottom']", { opacity: 0, y: 12 });
 
-      const tl = gsap.timeline({ delay: 0.15 });
+      const tl = gsap.timeline({ delay: 0.1 });
 
-      tl.to("[data-hero-entrance='eyebrow']", {
-        opacity: 1, y: 0, duration: 0.55, ease: "power2.out",
+      tl.to("[data-hero-entrance='title']", {
+        opacity: 1, y: 0, filter: "blur(0px)", duration: 1.1, ease: "power3.out",
       })
-      .to("[data-hero-entrance='title']", {
-        opacity: 1, y: 0, filter: "blur(0px)", duration: 1.0, ease: "power3.out",
-      }, "-=0.25")
-      .to("[data-hero-entrance='body']", {
+      .to("[data-hero-entrance='subtitle']", {
         opacity: 1, y: 0, duration: 0.6, ease: "power2.out",
       }, "-=0.5")
-      .to("[data-hero-entrance='actions']", {
-        opacity: 1, y: 0, duration: 0.5, ease: "power2.out",
-      }, "-=0.3")
-      .to("[data-hero-entrance='specimen']", {
-        opacity: 1, y: 0, scale: 1, duration: 0.85, ease: "power2.out",
-      }, "-=0.35");
+      .to("[data-hero-entrance='viewport']", {
+        opacity: 1, y: 0, scale: 1, duration: 0.9, ease: "power2.out",
+      }, "-=0.35")
+      .to("[data-hero-entrance='hud']", {
+        opacity: 1, duration: 0.8, ease: "power1.out",
+      }, "-=0.6")
+      .to("[data-hero-entrance='hud-bottom']", {
+        opacity: 1, y: 0, duration: 0.6, ease: "power2.out",
+      }, "-=0.5");
     }, el);
 
     return () => ctx.revert();
