@@ -55,10 +55,7 @@ export default function HomePage() {
         <HeroEntrance>
           <div className="page-shell hero-section__content">
             <div className="hero-copy">
-              <div className="hero-copy__intro">
-                <p className="eyebrow" data-hero-entrance="eyebrow">{home.hero.eyebrow}</p>
-                <p className="hero-kicker" data-hero-entrance="kicker">Australia studio / hero assets / motion / realtime</p>
-              </div>
+              <p className="eyebrow" data-hero-entrance="eyebrow">{home.hero.eyebrow}</p>
               <h1 className="hero-title--content" data-hero-entrance="title">
                 {heroTitleLines.map((line) => (
                   <span key={line} className="hero-title__line">
@@ -66,49 +63,26 @@ export default function HomePage() {
                   </span>
                 ))}
               </h1>
-              <div className="hero-copy__body" data-hero-entrance="body">
-                <p className="lede">{home.hero.intro}</p>
-                <div className="hero-actions" data-hero-entrance="actions">
-                  {renderLink(home.hero.primaryCta.href, home.hero.primaryCta.label, "primary")}
-                  {renderLink(home.hero.secondaryCta.href, home.hero.secondaryCta.label, "secondary")}
-                </div>
-              </div>
-              <div className="hero-band" data-hero-entrance="band" aria-label="Studio capabilities">
-                {home.hero.meta.map((item, index) => (
-                  <div key={item} className="hero-band__item">
-                    <span className="hero-band__index">{`0${index + 1}`}</span>
-                    <p>{item}</p>
-                  </div>
-                ))}
+              <p className="lede" data-hero-entrance="body">{home.hero.intro}</p>
+              <div className="hero-actions" data-hero-entrance="actions">
+                {renderLink(home.hero.primaryCta.href, home.hero.primaryCta.label, "primary")}
+                {renderLink(home.hero.secondaryCta.href, home.hero.secondaryCta.label, "secondary")}
               </div>
             </div>
 
-            <aside className="specimen-card specimen-card--hero" data-hero-entrance="specimen">
-              <div className="specimen-card__chrome">
-                <p className="specimen-card__label">Featured specimen</p>
-                <p className="specimen-card__index">Case study 01</p>
-              </div>
-              <div className="specimen-card__preview">
-                <div className="specimen-card__orb specimen-card__orb--primary" />
-                <div className="specimen-card__orb specimen-card__orb--secondary" />
-                <SpecimenPreview
-                  posterAsset={heroEntry.thumbnail}
-                  motionAsset={heroEntry.heroMedia}
-                  priority
-                />
-              </div>
-              <div className="specimen-card__body">
-                <div className="specimen-card__meta">
-                  <span>{heroEntry.discipline}</span>
-                  <span>{`${heroEntry.format} / ${heroEntry.year}`}</span>
-                </div>
-                <h2>{heroEntry.title}</h2>
-                <p>{heroEntry.summary}</p>
-                <Link href={`/work/${heroEntry.slug}`} className="text-link">
-                  Open case study
+            <div className="hero-reel" data-hero-entrance="specimen">
+              <SpecimenPreview
+                posterAsset={heroEntry.thumbnail}
+                motionAsset={heroEntry.heroMedia}
+                priority
+              />
+              <div className="hero-reel__caption">
+                <span className="hero-reel__label">{heroEntry.title}</span>
+                <Link href={`/work/${heroEntry.slug}`} className="text-link--muted">
+                  View project
                 </Link>
               </div>
-            </aside>
+            </div>
           </div>
         </HeroEntrance>
       </section>

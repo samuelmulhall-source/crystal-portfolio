@@ -30,37 +30,29 @@ export function HeroEntrance({ children }: { children: React.ReactNode }) {
 
     const ctx = gsap.context(() => {
       // Set initial states
-      gsap.set("[data-hero-entrance='eyebrow']", { opacity: 0, y: 14 });
-      gsap.set("[data-hero-entrance='kicker']", { opacity: 0, y: 10 });
-      gsap.set("[data-hero-entrance='title']", { opacity: 0, y: 26, filter: "blur(12px)" });
-      gsap.set("[data-hero-entrance='body']", { opacity: 0, y: 12 });
+      gsap.set("[data-hero-entrance='eyebrow']", { opacity: 0, y: 12 });
+      gsap.set("[data-hero-entrance='title']", { opacity: 0, y: 28, filter: "blur(14px)" });
+      gsap.set("[data-hero-entrance='body']", { opacity: 0, y: 14 });
       gsap.set("[data-hero-entrance='actions']", { opacity: 0, y: 16 });
-      gsap.set("[data-hero-entrance='band']", { opacity: 0, y: 14 });
-      gsap.set("[data-hero-entrance='specimen']", { opacity: 0, y: 22, scale: 0.97 });
+      gsap.set("[data-hero-entrance='specimen']", { opacity: 0, y: 30, scale: 0.97 });
 
-      const tl = gsap.timeline({ delay: 0.2 });
+      const tl = gsap.timeline({ delay: 0.15 });
 
       tl.to("[data-hero-entrance='eyebrow']", {
-        opacity: 1, y: 0, duration: 0.6, ease: "power2.out",
+        opacity: 1, y: 0, duration: 0.55, ease: "power2.out",
       })
-      .to("[data-hero-entrance='kicker']", {
-        opacity: 1, y: 0, duration: 0.5, ease: "power2.out",
-      }, "-=0.35")
       .to("[data-hero-entrance='title']", {
-        opacity: 1, y: 0, filter: "blur(0px)", duration: 0.9, ease: "power3.out",
-      }, "-=0.3")
+        opacity: 1, y: 0, filter: "blur(0px)", duration: 1.0, ease: "power3.out",
+      }, "-=0.25")
       .to("[data-hero-entrance='body']", {
         opacity: 1, y: 0, duration: 0.6, ease: "power2.out",
-      }, "-=0.45")
+      }, "-=0.5")
       .to("[data-hero-entrance='actions']", {
-        opacity: 1, y: 0, duration: 0.55, ease: "power2.out",
+        opacity: 1, y: 0, duration: 0.5, ease: "power2.out",
       }, "-=0.3")
-      .to("[data-hero-entrance='band']", {
-        opacity: 1, y: 0, duration: 0.6, ease: "power2.out",
-      }, "-=0.25")
       .to("[data-hero-entrance='specimen']", {
-        opacity: 1, y: 0, scale: 1, duration: 0.75, ease: "power2.out",
-      }, "-=0.5");
+        opacity: 1, y: 0, scale: 1, duration: 0.85, ease: "power2.out",
+      }, "-=0.35");
     }, el);
 
     return () => ctx.revert();
