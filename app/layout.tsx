@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Space_Grotesk, IBM_Plex_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import VoidBackground from "./components/VoidBackground";
@@ -11,14 +11,18 @@ import SmoothScroll from "./components/SmoothScroll";
 import CursorFollower from "./components/CursorFollower";
 import { getSiteSettings } from "./lib/content";
 
-const geistSans = Geist({
+const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
+  weight: ["400", "500", "700"],
   variable: "--font-space-grotesk",
+  display: "swap",
 });
 
-const plexMono = Geist_Mono({
+const plexMono = IBM_Plex_Mono({
   subsets: ["latin"],
+  weight: ["400", "500"],
   variable: "--font-plex-mono",
+  display: "swap",
 });
 
 const siteSettings = getSiteSettings();
@@ -64,7 +68,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${plexMono.variable}`}
+      className={`${spaceGrotesk.variable} ${plexMono.variable}`}
       suppressHydrationWarning
     >
       <body>

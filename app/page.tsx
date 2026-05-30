@@ -31,48 +31,45 @@ export default function HomePage() {
     <main className="page-root">
       <Header brandName={site.brand.name} />
 
-      {/* ═══ HERO — full viewport, smoke-layered ═══ */}
+      {/* ═══ HERO — full viewport, asset dissolved into the smoke ═══ */}
       <section className="hero-section">
         <HeroEntrance>
-          {/* Top-left HUD readout */}
-          <div className="hud-readout hud-readout--tl" data-hero-entrance="hud" aria-hidden="true">
-            <span className="hud-label">SYS</span>
-            <span className="hud-value">ONLINE</span>
-          </div>
-
-          {/* Top-right HUD readout */}
-          <div className="hud-readout hud-readout--tr" data-hero-entrance="hud" aria-hidden="true">
-            <span className="hud-label">RES</span>
-            <span className="hud-value">4K</span>
-          </div>
-
           {/* Center hero content */}
           <div className="hero-core">
             <h1 className="hero-title--brutal" data-hero-entrance="title">
-              <span className="hero-title__line">Atmospheric</span>
-              <span className="hero-title__line">Direction</span>
+              {home.hero.title.split("\n").map((line) => (
+                <span key={line} className="hero-title__line">
+                  {line.split(" · ").map((word, j, arr) => (
+                    <span key={word}>
+                      {word}
+                      {j < arr.length - 1 ? <span className="hero-title__sep"> · </span> : null}
+                    </span>
+                  ))}
+                </span>
+              ))}
             </h1>
-            <p className="hero-subtitle" data-hero-entrance="subtitle">
-              {home.hero.intro}
-            </p>
+            <p className="hero-lede" data-hero-entrance="lede">{home.hero.lede}</p>
+            <dl className="hero-readout" data-hero-entrance="readout">
+              {home.hero.readout.map((row) => (
+                <div className="hero-readout__row" key={row.key}>
+                  <dt className="hero-readout__key">{row.key}</dt>
+                  <dd className="hero-readout__val">{row.val}</dd>
+                </div>
+              ))}
+            </dl>
           </div>
 
-          {/* Video viewport — sits between smoke layers */}
+          {/* Featured asset — masked + screen-blended so it melts into the smoke */}
           <div className="hero-viewport" data-hero-entrance="viewport">
             <SpecimenPreview
               posterAsset={heroEntry.thumbnail}
               motionAsset={heroEntry.heroMedia}
               priority
             />
-            <div className="hero-viewport__frame" aria-hidden="true" />
           </div>
 
-          {/* Bottom HUD bar */}
+          {/* Bottom actions */}
           <div className="hud-bar" data-hero-entrance="hud-bottom">
-            <span className="hud-bar__tools" aria-hidden="true">
-              {home.hero.meta.join(" / ")}
-            </span>
-            <span className="hud-divider" />
             <Link href="/work" className="hud-link">Archive</Link>
             <span className="hud-divider" />
             <Link href="#contact" className="hud-link">Transmit</Link>
@@ -83,7 +80,7 @@ export default function HomePage() {
       {/* ═══ SELECTED WORK ═══ */}
       <section className="section page-shell">
         <div className="section-heading">
-          <p className="eyebrow">Selected work</p>
+          <p className="eyebrow">01 · Work</p>
           <h2>{home.selectedWork.heading}</h2>
           <p>{home.selectedWork.intro}</p>
         </div>
@@ -97,7 +94,7 @@ export default function HomePage() {
       {/* ═══ SPOTLIGHT ═══ */}
       <section className="section page-shell spotlight">
         <div className="section-heading">
-          <p className="eyebrow">In depth</p>
+          <p className="eyebrow">02 · Case study</p>
           <h2>{home.spotlight.heading}</h2>
           <p>{home.spotlight.intro}</p>
           <p className="spotlight__title">{spotlightEntry.title}</p>
@@ -112,7 +109,7 @@ export default function HomePage() {
       {/* ═══ CAPABILITIES ═══ */}
       <section className="section page-shell">
         <div className="section-heading">
-          <p className="eyebrow">Capabilities</p>
+          <p className="eyebrow">03 · Method</p>
           <h2>{home.capabilities.heading}</h2>
           <p>{home.capabilities.intro}</p>
         </div>
@@ -129,7 +126,7 @@ export default function HomePage() {
       {/* ═══ ARCHIVE PREVIEW ═══ */}
       <section className="section page-shell">
         <div className="section-heading">
-          <p className="eyebrow">Archive</p>
+          <p className="eyebrow">04 · Archive</p>
           <h2>{home.archivePreview.heading}</h2>
           <p>{home.archivePreview.intro}</p>
         </div>
@@ -149,7 +146,7 @@ export default function HomePage() {
       <section id="contact" className="contact-section">
         <div className="page-shell contact-section__inner">
           <div className="section-heading">
-            <p className="eyebrow">Contact</p>
+            <p className="eyebrow">05 · Contact</p>
             <h2>{home.contact.heading}</h2>
             <p>{home.contact.intro}</p>
           </div>

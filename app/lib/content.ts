@@ -132,6 +132,8 @@ const HomeContentSchema = z.object({
     eyebrow: z.string(),
     title: z.string(),
     intro: z.string(),
+    lede: z.string(),
+    readout: z.array(z.object({ key: z.string(), val: z.string() })),
     primaryCta: LinkSchema,
     secondaryCta: LinkSchema,
     featuredSlug: z.string(),

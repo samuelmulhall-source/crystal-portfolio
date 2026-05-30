@@ -1,8 +1,15 @@
 {
   "hero": {
     "eyebrow": "",
-    "title": "Atmospheric\nDirection",
-    "intro": "3D assets. Motion studies. Mood-first presentation.",
+    "title": "Light · Material\nAtmosphere",
+    "intro": "Independent 3D studies — how far mood and material can carry a single object or frame.",
+    "lede": "Independent 3D studies — how far mood and material can carry a single object or frame.",
+    "readout": [
+      { "key": "Focus", "val": "Hero props · environments · motion" },
+      { "key": "Stack", "val": "Blender · Houdini · EmberGen · Substance" },
+      { "key": "Based", "val": "Australia / AEST" },
+      { "key": "Status", "val": "Open to briefs & roles" }
+    ],
     "primaryCta": {
       "label": "View archive",
       "href": "/work"
@@ -21,7 +28,7 @@
   },
   "selectedWork": {
     "heading": "Selected work",
-    "intro": "Hero props, environment mood studies, and material experiments — framing, lighting, and presentation.",
+    "intro": "Three studies where the whole frame had to sell on light, material, and restraint.",
     "featuredSlugs": [
       "soulbound-lantern",
       "evening-fishing",
@@ -30,45 +37,41 @@
   },
   "spotlight": {
     "heading": "In depth",
-    "intro": "One project with enough context to show the artistic decisions behind the result.",
+    "intro": "One study, taken apart — the decisions behind the frame, not just the result.",
     "slug": "soulbound-lantern",
     "ctaLabel": "Open case study"
   },
   "capabilities": {
-    "heading": "Capabilities",
-    "intro": "Controlled atmosphere — clear silhouettes, readable materials, motion that sells intent without overcomplicating the frame.",
+    "heading": "How the work is built",
+    "intro": "Three things every study is pressure-tested against.",
     "items": [
       {
-        "title": "Hero asset development",
-        "body": "Game-ready or presentation-ready assets with strong silhouettes, material separation, and client-facing polish."
+        "title": "Material read",
+        "body": "Glass, metal, and wear stay legible as separate surfaces instead of collapsing into one mass."
       },
       {
-        "title": "Lighting and look dev",
-        "body": "Mood-first composition for environments, props, and still frames where the image sells tone immediately."
+        "title": "Light & mood",
+        "body": "Emissive and key light balanced so the first glance lands the tone, the second reveals the detail."
       },
       {
-        "title": "Motion and presentation",
-        "body": "Short-form loops, render turnarounds, and cinematic product framing for decks, launches, and social edits."
-      },
-      {
-        "title": "Interactive exploration",
-        "body": "Realtime presentation prototypes for teams testing how 3D work reads beyond a flat gallery."
+        "title": "Presentation",
+        "body": "Framing, motion, and finishing tuned so an asset reads as a piece, not a turntable."
       }
     ]
   },
   "archivePreview": {
     "heading": "Archive",
-    "intro": "Personal studies, icon work, and supporting 3D assets showing range beyond the main case studies.",
+    "intro": "Props, icons, and supporting builds — the range behind the featured studies.",
     "limit": 6,
     "ctaLabel": "Full archive",
     "ctaHref": "/work"
   },
   "contact": {
-    "heading": "Available for work",
-    "intro": "If the brief calls for atmosphere, material confidence, or a stronger sense of world — let's talk.",
+    "heading": "Open to briefs & roles",
+    "intro": "Hero props, atmospheric stills, motion, and presentation work — for a commission or a studio seat.",
     "notes": [
-      "Best fit: hero props, atmospheric stills, motion studies, and presentation visuals.",
-      "Collaborations typically start with references, deliverables, and intended use."
+      "Best fit — single hero objects and small environment moments that live or die on mood.",
+      "Start with references, the deliverable, and where it needs to ship."
     ],
     "primaryCta": {
       "label": "Get in touch",
