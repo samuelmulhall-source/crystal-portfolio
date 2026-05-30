@@ -28,22 +28,22 @@
   ],
   "thumbnail": {
     "kind": "image",
-    "src": "/images/posters/evening-fishing.svg",
+    "src": "/images/posters/evening-fishing.webp",
     "alt": "Evening Fishing poster with a deep blue dusk horizon",
-    "width": 1200,
-    "height": 900
+    "width": 1280,
+    "height": 720
   },
   "heroMedia": {
     "kind": "video",
     "src": "/Video renders/Evening Fishing.mp4",
-    "poster": "/images/posters/evening-fishing.svg",
+    "poster": "/images/posters/evening-fishing.webp",
     "alt": "Evening Fishing environment loop"
   },
   "gallery": [
     {
       "kind": "video",
       "src": "/Video renders/Evening Fishing.mp4",
-      "poster": "/images/posters/evening-fishing.svg",
+      "poster": "/images/posters/evening-fishing.webp",
       "alt": "Evening Fishing environment loop"
     },
     {
@@ -63,7 +63,7 @@
   "seo": {
     "title": "Evening Fishing case study",
     "description": "Environment look development study centered on dusk light, volumetrics, and slow observational motion.",
-    "ogImage": "/images/posters/evening-fishing.svg"
+    "ogImage": "/images/posters/evening-fishing.webp"
   },
   "interactive": {
     "available": false,

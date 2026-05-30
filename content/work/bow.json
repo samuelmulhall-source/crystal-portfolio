@@ -24,35 +24,45 @@
   ],
   "thumbnail": {
     "kind": "image",
-    "src": "/models/Weapons/bow/thumb.webp",
-    "alt": "Bow thumbnail render",
-    "width": 120,
-    "height": 120
+    "src": "/images/posters/bow.webp",
+    "alt": "Bow 3D asset render",
+    "width": 1200,
+    "height": 900
   },
   "heroMedia": {
     "kind": "image",
-    "src": "/models/Weapons/bow/thumb.webp",
-    "alt": "Bow thumbnail render",
-    "width": 120,
-    "height": 120
+    "src": "/images/posters/bow.webp",
+    "alt": "Bow 3D asset render",
+    "width": 1200,
+    "height": 900
   },
   "gallery": [
     {
       "kind": "image",
-      "src": "/models/Weapons/bow/thumb.webp",
-      "alt": "Bow thumbnail render",
-      "width": 120,
-      "height": 120
+      "src": "/images/posters/bow.webp",
+      "alt": "Bow 3D asset render",
+      "width": 1200,
+      "height": 900
     }
   ],
   "seo": {
     "title": "Bow asset",
     "description": "Game-ready bow asset study focused on clean silhouette and natural material breakup.",
-    "ogImage": "/Image renders/fourteenth_image.png"
+    "ogImage": "/images/posters/bow.webp"
   },
   "interactive": {
-    "available": false,
-    "sourcePath": "/models/Weapons/bow/Bow.fbx"
+    "available": true,
+    "sourcePath": "/models/Weapons/bow/Bow.fbx",
+    "note": "Live WebGL viewer above — drag to orbit, scroll to zoom. Rendered in real time from the production FBX and PBR texture set."
+  },
+  "specimen": {
+    "modelPath": "/models/Weapons/bow/Bow.fbx",
+    "poster": "/images/posters/bow.webp",
+    "textures": {
+      "map": "/models/Weapons/bow/bow_color.webp",
+      "normalMap": "/models/Weapons/bow/bow_normal.webp",
+      "roughnessMap": "/models/Weapons/bow/bow_roughness.webp"
+    }
   },
   "caseStudy": {
     "hook": "A game-ready asset study with an emphasis on calm, readable form.",

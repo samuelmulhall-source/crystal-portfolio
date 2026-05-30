@@ -24,35 +24,46 @@
   ],
   "thumbnail": {
     "kind": "image",
-    "src": "/models/Weapons/Ornate Dagger/thumb.webp",
-    "alt": "Ornate Dagger thumbnail render",
-    "width": 120,
-    "height": 120
+    "src": "/images/posters/ornate-dagger.webp",
+    "alt": "Ornate Dagger 3D asset render",
+    "width": 1200,
+    "height": 900
   },
   "heroMedia": {
     "kind": "image",
-    "src": "/models/Weapons/Ornate Dagger/thumb.webp",
-    "alt": "Ornate Dagger thumbnail render",
-    "width": 120,
-    "height": 120
+    "src": "/images/posters/ornate-dagger.webp",
+    "alt": "Ornate Dagger 3D asset render",
+    "width": 1200,
+    "height": 900
   },
   "gallery": [
     {
       "kind": "image",
-      "src": "/models/Weapons/Ornate Dagger/thumb.webp",
-      "alt": "Ornate Dagger thumbnail render",
-      "width": 120,
-      "height": 120
+      "src": "/images/posters/ornate-dagger.webp",
+      "alt": "Ornate Dagger 3D asset render",
+      "width": 1200,
+      "height": 900
     }
   ],
   "seo": {
     "title": "Ornate Dagger asset",
     "description": "Decorative prop study focused on ornamental density and readable form.",
-    "ogImage": "/Image renders/fourteenth_image.png"
+    "ogImage": "/images/posters/ornate-dagger.webp"
   },
   "interactive": {
-    "available": false,
-    "sourcePath": "/models/Weapons/Ornate Dagger/Ornate Dagger.fbx"
+    "available": true,
+    "sourcePath": "/models/Weapons/Ornate Dagger/Ornate Dagger.fbx",
+    "note": "Live WebGL viewer above — drag to orbit, scroll to zoom. Rendered in real time from the production FBX and PBR texture set."
+  },
+  "specimen": {
+    "modelPath": "/models/Weapons/Ornate Dagger/Ornate Dagger.fbx",
+    "poster": "/images/posters/ornate-dagger.webp",
+    "textures": {
+      "map": "/models/Weapons/Ornate Dagger/ornate_dagger_color.webp",
+      "normalMap": "/models/Weapons/Ornate Dagger/ornate_dagger_normal.webp",
+      "roughnessMap": "/models/Weapons/Ornate Dagger/ornate_dagger_roughness.webp",
+      "metalnessMap": "/models/Weapons/Ornate Dagger/ornate_dagger_metallic.webp"
+    }
   },
   "caseStudy": {
     "hook": "A prop study about detail density, not just decoration.",

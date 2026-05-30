@@ -24,35 +24,46 @@
   ],
   "thumbnail": {
     "kind": "image",
-    "src": "/models/Weapons/Shield/thumb.webp",
-    "alt": "Shield thumbnail render",
-    "width": 120,
-    "height": 120
+    "src": "/images/posters/shield.webp",
+    "alt": "Shield 3D asset render",
+    "width": 1200,
+    "height": 900
   },
   "heroMedia": {
     "kind": "image",
-    "src": "/models/Weapons/Shield/thumb.webp",
-    "alt": "Shield thumbnail render",
-    "width": 120,
-    "height": 120
+    "src": "/images/posters/shield.webp",
+    "alt": "Shield 3D asset render",
+    "width": 1200,
+    "height": 900
   },
   "gallery": [
     {
       "kind": "image",
-      "src": "/models/Weapons/Shield/thumb.webp",
-      "alt": "Shield thumbnail render",
-      "width": 120,
-      "height": 120
+      "src": "/images/posters/shield.webp",
+      "alt": "Shield 3D asset render",
+      "width": 1200,
+      "height": 900
     }
   ],
   "seo": {
     "title": "Shield asset",
     "description": "Shield asset study centered on broad readability and surface wear.",
-    "ogImage": "/Image renders/holography_scaled.png"
+    "ogImage": "/images/posters/shield.webp"
   },
   "interactive": {
-    "available": false,
-    "sourcePath": "/models/Weapons/Shield/Shield.fbx"
+    "available": true,
+    "sourcePath": "/models/Weapons/Shield/Shield.fbx",
+    "note": "Live WebGL viewer above — drag to orbit, scroll to zoom. Rendered in real time from the production FBX and PBR texture set."
+  },
+  "specimen": {
+    "modelPath": "/models/Weapons/Shield/Shield.fbx",
+    "poster": "/images/posters/shield.webp",
+    "textures": {
+      "map": "/models/Weapons/Shield/Shield_color.webp",
+      "normalMap": "/models/Weapons/Shield/Shield_normal.webp",
+      "roughnessMap": "/models/Weapons/Shield/shield_roughness.webp",
+      "metalnessMap": "/models/Weapons/Shield/Shield_metallic.webp"
+    }
   },
   "caseStudy": {
     "hook": "A broad-read asset where material wear had to support the silhouette instead of replacing it.",

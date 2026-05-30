@@ -28,6 +28,24 @@ const CaseStudySectionSchema = z.object({
   body: z.array(z.string()),
 });
 
+/** Interactive 3D specimen — content-driven FBX + PBR texture set. */
+const SpecimenSchema = z.object({
+  modelPath: z.string(),
+  /** Static poster used for archive cards, reduced mode, and SSR. */
+  poster: z.string(),
+  /** Optional second model merged into the same view (e.g. wrap geometry). */
+  extraModelPath: z.string().optional(),
+  /** Vertical framing nudge applied after auto-centering (world units). */
+  yOffset: z.number().optional(),
+  textures: z.object({
+    map: z.string().optional(),
+    normalMap: z.string().optional(),
+    roughnessMap: z.string().optional(),
+    metalnessMap: z.string().optional(),
+    transmissionMap: z.string().optional(),
+  }),
+});
+
 const CaseStudySchema = z.object({
   hook: z.string(),
   brief: z.array(z.string()),
@@ -65,6 +83,7 @@ const WorkEntrySchema = z.object({
     sourcePath: z.string().optional(),
     note: z.string().optional(),
   }),
+  specimen: SpecimenSchema.optional(),
   caseStudy: CaseStudySchema,
 });
 
@@ -156,6 +175,7 @@ const HomeContentSchema = z.object({
 });
 
 export type MediaAsset = z.infer<typeof MediaAssetSchema>;
+export type Specimen = z.infer<typeof SpecimenSchema>;
 export type WorkEntry = z.infer<typeof WorkEntrySchema>;
 export type SiteSettings = z.infer<typeof SiteSettingsSchema>;
 export type HomeContent = z.infer<typeof HomeContentSchema>;

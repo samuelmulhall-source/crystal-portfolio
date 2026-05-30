@@ -24,35 +24,46 @@
   ],
   "thumbnail": {
     "kind": "image",
-    "src": "/models/Torch/thumb.webp",
-    "alt": "Torch thumbnail render",
-    "width": 120,
-    "height": 120
+    "src": "/images/posters/torch.webp",
+    "alt": "Torch 3D asset render",
+    "width": 1200,
+    "height": 900
   },
   "heroMedia": {
     "kind": "image",
-    "src": "/models/Torch/thumb.webp",
-    "alt": "Torch thumbnail render",
-    "width": 120,
-    "height": 120
+    "src": "/images/posters/torch.webp",
+    "alt": "Torch 3D asset render",
+    "width": 1200,
+    "height": 900
   },
   "gallery": [
     {
       "kind": "image",
-      "src": "/models/Torch/thumb.webp",
-      "alt": "Torch thumbnail render",
-      "width": 120,
-      "height": 120
+      "src": "/images/posters/torch.webp",
+      "alt": "Torch 3D asset render",
+      "width": 1200,
+      "height": 900
     }
   ],
   "seo": {
     "title": "Torch asset",
     "description": "Fantasy torch prop study focused on layered material treatment and readable shape.",
-    "ogImage": "/Image renders/holography_scaled.png"
+    "ogImage": "/images/posters/torch.webp"
   },
   "interactive": {
-    "available": false,
-    "sourcePath": "/models/Torch/torch.fbx"
+    "available": true,
+    "sourcePath": "/models/Torch/torch.fbx",
+    "note": "Live WebGL viewer above — drag to orbit, scroll to zoom. Rendered in real time from the production FBX and PBR texture set."
+  },
+  "specimen": {
+    "modelPath": "/models/Torch/torch.fbx",
+    "poster": "/images/posters/torch.webp",
+    "textures": {
+      "map": "/models/Torch/Torch_color.webp",
+      "normalMap": "/models/Torch/torch_normal.webp",
+      "roughnessMap": "/models/Torch/torch_roughness.webp",
+      "metalnessMap": "/models/Torch/torch_metallic.webp"
+    }
   },
   "caseStudy": {
     "hook": "A compact prop where material contrast had to do more than the silhouette alone.",

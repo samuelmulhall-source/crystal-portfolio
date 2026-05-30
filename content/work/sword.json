@@ -25,36 +25,48 @@
   ],
   "thumbnail": {
     "kind": "image",
-    "src": "/models/Weapons/Sword/thumb.webp",
-    "alt": "Sword thumbnail render",
-    "width": 120,
-    "height": 120
+    "src": "/images/posters/sword.webp",
+    "alt": "Sword 3D asset render",
+    "width": 1200,
+    "height": 900
   },
   "heroMedia": {
     "kind": "image",
-    "src": "/models/Weapons/Sword/thumb.webp",
-    "alt": "Sword thumbnail render",
-    "width": 120,
-    "height": 120
+    "src": "/images/posters/sword.webp",
+    "alt": "Sword 3D asset render",
+    "width": 1200,
+    "height": 900
   },
   "gallery": [
     {
       "kind": "image",
-      "src": "/models/Weapons/Sword/thumb.webp",
-      "alt": "Sword thumbnail render",
-      "width": 120,
-      "height": 120
+      "src": "/images/posters/sword.webp",
+      "alt": "Sword 3D asset render",
+      "width": 1200,
+      "height": 900
     }
   ],
   "seo": {
     "title": "Sword asset",
     "description": "Realtime hero asset study with stylized glass-and-metal treatment.",
-    "ogImage": "/Image renders/holography_scaled.png"
+    "ogImage": "/images/posters/sword.webp"
   },
   "interactive": {
-    "available": false,
+    "available": true,
     "sourcePath": "/models/Weapons/Sword/sword.fbx",
-    "note": "Source geometry exists, but the main portfolio now treats interactive specimens as an optional secondary experience."
+    "note": "Live WebGL viewer above — drag to orbit, scroll to zoom. Rendered in real time from the production FBX and full PBR texture set."
+  },
+  "specimen": {
+    "modelPath": "/models/Weapons/Sword/sword.fbx",
+    "poster": "/images/posters/sword.webp",
+    "extraModelPath": "/models/Weapons/Sword/sword_wrap.fbx",
+    "textures": {
+      "map": "/models/Weapons/Sword/sword_color.webp",
+      "normalMap": "/models/Weapons/Sword/sword_normal.webp",
+      "roughnessMap": "/models/Weapons/Sword/sword_roughness.webp",
+      "metalnessMap": "/models/Weapons/Sword/sword_metallic.webp",
+      "transmissionMap": "/models/Weapons/Sword/sword_transmission.webp"
+    }
   },
   "caseStudy": {
     "hook": "A compact hero asset designed to read quickly in realtime-friendly presentation.",

@@ -28,22 +28,22 @@
   ],
   "thumbnail": {
     "kind": "image",
-    "src": "/images/posters/soulbound-lantern.svg",
+    "src": "/images/posters/soulbound-lantern.webp",
     "alt": "Soulbound Lantern presentation poster with cold blue lighting",
-    "width": 1200,
-    "height": 900
+    "width": 1280,
+    "height": 720
   },
   "heroMedia": {
     "kind": "video",
     "src": "/Video renders/Soulbound Lantern (multiple versions).mp4",
-    "poster": "/images/posters/soulbound-lantern.svg",
+    "poster": "/images/posters/soulbound-lantern.webp",
     "alt": "Soulbound Lantern animated showcase"
   },
   "gallery": [
     {
       "kind": "video",
       "src": "/Video renders/Soulbound Lantern (multiple versions).mp4",
-      "poster": "/images/posters/soulbound-lantern.svg",
+      "poster": "/images/posters/soulbound-lantern.webp",
       "alt": "Soulbound Lantern animated showcase"
     },
     {
@@ -63,7 +63,7 @@
   "seo": {
     "title": "Soulbound Lantern case study",
     "description": "Hero prop presentation study focused on emissive lighting, flame simulation, and premium object framing.",
-    "ogImage": "/images/posters/soulbound-lantern.svg"
+    "ogImage": "/images/posters/soulbound-lantern.webp"
   },
   "interactive": {
     "available": false,

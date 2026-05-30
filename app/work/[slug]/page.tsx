@@ -5,6 +5,7 @@ import { Footer } from "../../components/site/Footer";
 import { Header } from "../../components/site/Header";
 import { MediaBlock } from "../../components/site/MediaBlock";
 import { PageEntrance } from "../../components/site/PageEntrance";
+import { SpecimenViewer } from "../../components/site/SpecimenViewer";
 import { WorkCard } from "../../components/site/WorkCard";
 import {
   getRelatedEntries,
@@ -99,7 +100,11 @@ export default async function WorkDetailPage({ params }: WorkPageProps) {
             </ul>
           </div>
 
-          <MediaBlock asset={entry.heroMedia} priority />
+          {entry.specimen ? (
+            <SpecimenViewer specimen={entry.specimen} alt={`${entry.title} interactive 3D model`} />
+          ) : (
+            <MediaBlock asset={entry.heroMedia} priority />
+          )}
         </section>
         </PageEntrance>
 
@@ -158,17 +163,19 @@ export default async function WorkDetailPage({ params }: WorkPageProps) {
           </aside>
         </section>
 
-        <section className="section page-shell">
-          <div className="section-heading">
-            <p className="eyebrow">Gallery</p>
-            <h2>Supporting frames and media</h2>
-          </div>
-          <div className="gallery-grid">
-            {entry.gallery.map((asset, index) => (
-              <MediaBlock key={`${entry.slug}-${asset.src}-${index}`} asset={asset} />
-            ))}
-          </div>
-        </section>
+        {!entry.specimen && entry.gallery.length > 0 ? (
+          <section className="section page-shell">
+            <div className="section-heading">
+              <p className="eyebrow">Gallery</p>
+              <h2>Supporting frames and media</h2>
+            </div>
+            <div className="gallery-grid">
+              {entry.gallery.map((asset, index) => (
+                <MediaBlock key={`${entry.slug}-${asset.src}-${index}`} asset={asset} />
+              ))}
+            </div>
+          </section>
+        ) : null}
 
         <section className="contact-section contact-section--compact">
           <div className="page-shell contact-section__inner">
