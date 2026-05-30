@@ -10,6 +10,12 @@
       { "key": "Based", "val": "Australia / AEST" },
       { "key": "Status", "val": "Open to briefs & roles" }
     ],
+    "video": {
+      "kind": "video",
+      "src": "/hero/lantern-hero.mp4",
+      "poster": "/hero/lantern-hero.webp",
+      "alt": "Soulbound Lantern — emissive glass and metal study, looping"
+    },
     "primaryCta": {
       "label": "View archive",
       "href": "/work"

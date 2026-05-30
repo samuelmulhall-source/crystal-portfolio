@@ -134,6 +134,7 @@ const HomeContentSchema = z.object({
     intro: z.string(),
     lede: z.string(),
     readout: z.array(z.object({ key: z.string(), val: z.string() })),
+    video: MediaAssetSchema.optional(),
     primaryCta: LinkSchema,
     secondaryCta: LinkSchema,
     featuredSlug: z.string(),

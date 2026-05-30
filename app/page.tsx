@@ -59,11 +59,21 @@ export default function HomePage() {
             </dl>
           </div>
 
-          {/* Featured asset — masked + screen-blended so it melts into the smoke */}
+          {/* Featured asset — framed, crushed + screen-blended so it melts into the smoke */}
           <div className="hero-viewport" data-hero-entrance="viewport">
             <SpecimenPreview
-              posterAsset={heroEntry.thumbnail}
-              motionAsset={heroEntry.heroMedia}
+              posterAsset={
+                home.hero.video
+                  ? {
+                      kind: "image",
+                      src: home.hero.video.poster ?? home.hero.video.src,
+                      alt: home.hero.video.alt,
+                      width: 760,
+                      height: 1056,
+                    }
+                  : heroEntry.thumbnail
+              }
+              motionAsset={home.hero.video ?? heroEntry.heroMedia}
               priority
             />
           </div>
