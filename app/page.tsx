@@ -68,8 +68,8 @@ export default function HomePage() {
                       kind: "image",
                       src: home.hero.video.poster ?? home.hero.video.src,
                       alt: home.hero.video.alt,
-                      width: 760,
-                      height: 1056,
+                      width: 800,
+                      height: 780,
                     }
                   : heroEntry.thumbnail
               }

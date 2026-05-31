@@ -861,26 +861,23 @@ button, input, textarea { font: inherit; }
   .hero-readout__row { font-size: 0.56rem; }
 }
 
-/* ─── Hero viewport — asset framed and dissolved INTO the smoke ──────────── */
+/* ─── Hero viewport — full uncropped clip dissolved INTO the smoke ───────── */
 .hero-viewport {
   position: relative;
-  height: min(54vh, 36rem);
+  height: min(56vh, 38rem);
   margin: 0 auto;
   z-index: 2;
-  /* Per-axis edge feather: generous on the empty sides, barely on top/bottom
-     so the tall lantern is never clipped. Center stays fully opaque. */
-  -webkit-mask-image:
-    linear-gradient(to right, transparent, #000 14%, #000 86%, transparent),
-    linear-gradient(to bottom, transparent, #000 6%, #000 92%, transparent);
-  -webkit-mask-composite: source-in;
-  mask-image:
-    linear-gradient(to right, transparent, #000 14%, #000 86%, transparent),
-    linear-gradient(to bottom, transparent, #000 6%, #000 92%, transparent);
-  mask-composite: intersect;
+  /* Oval alpha mask: fully opaque over the lantern, fading to fully transparent
+     at the sides/top/bottom so the asset reads at full quality while its edges
+     dissolve into the smoke (front-smoke canvas, z5, drifts over the top). */
+  -webkit-mask-image: radial-gradient(ellipse 44% 58% at 50% 46%, #000 30%, rgba(0,0,0,0) 78%);
+  mask-image: radial-gradient(ellipse 44% 58% at 50% 46%, #000 30%, rgba(0,0,0,0) 78%);
 }
 
 .hero-viewport .specimen-preview {
-  aspect-ratio: 1080 / 1500;
+  position: relative;
+  z-index: 1;
+  aspect-ratio: 640 / 624;
   height: 100%;
   width: auto;
   margin: 0 auto;
@@ -892,10 +889,8 @@ button, input, textarea { font: inherit; }
   height: 100%;
   object-fit: contain;
   display: block;
-  /* Crush the dark surround toward true black so screen-blend renders it as
-     void/smoke; only the emissive lantern survives and glows through. */
-  filter: contrast(1.32) brightness(0.88) saturate(1.08);
-  mix-blend-mode: screen;
+  /* Full original quality — no filter, no blend. The oval mask on the parent
+     does the integration. */
 }
 
 /* ─── Specimen viewer — interactive 3D asset display ────────────────────── */

@@ -7,10 +7,13 @@ import { useDisplayMode } from "./DisplayModeProvider";
 export function SpecimenPreview({
   posterAsset,
   motionAsset,
+  alphaSrc,
   priority = false,
 }: {
   posterAsset: MediaAsset;
   motionAsset: MediaAsset;
+  /** Optional alpha (VP9 webm) source served first; mp4 is the fallback. */
+  alphaSrc?: string;
   priority?: boolean;
 }) {
   const { effectiveMode } = useDisplayMode();
@@ -28,7 +31,8 @@ export function SpecimenPreview({
           preload="metadata"
           poster={motionAsset.poster ?? posterAsset.src}
         >
-          <source src={motionAsset.src} />
+          {alphaSrc ? <source src={alphaSrc} type="video/webm" /> : null}
+          <source src={motionAsset.src} type="video/mp4" />
         </video>
       </div>
     );

@@ -153,8 +153,11 @@ export default function SmokeLayers() {
       if (frontContainerRef.current) frontContainerRef.current.style.display = pastEnd ? "none" : "";
       if (pastEnd) return;
 
+      // Start partway into the sequence so the hero already sits in dense smoke
+      // at rest (scroll 0), rather than the sparse opening frames.
+      const START_FRAC = 0.3;
       const corridorP = Math.min(p / CORRIDOR_END, 1);
-      const target = corridorP * (TOTAL - 1);
+      const target = (START_FRAC + corridorP * (1 - START_FRAC)) * (TOTAL - 1);
       smoothFrame.current = lerp(smoothFrame.current, target, 0.16);
       const idx = Math.round(Math.max(0, Math.min(TOTAL - 1, smoothFrame.current)));
 
@@ -174,12 +177,17 @@ export default function SmokeLayers() {
       const bcw = bc.width, bch = bc.height;
       const fcw = fc.width, fch = fc.height;
 
+      // Base upward lift so the dense smoke field sits around the hero centre
+      // (the lantern) rather than only billowing along the bottom edge.
+      const backLift = bch * 0.12;
+      const frontLift = fch * 0.16;
+
       bctx.clearRect(0, 0, bcw, bch);
-      if (bi) drawCover(bctx, bi, bcw, bch, obx.current, oby.current, 0.6, 1.12);
+      if (bi) drawCover(bctx, bi, bcw, bch, obx.current, oby.current - backLift, 0.6, 1.18);
       bctx.globalAlpha = 1;
 
       fctx.clearRect(0, 0, fcw, fch);
-      if (fi) drawCover(fctx, fi, fcw, fch, ofx.current, ofy.current, 0.45, 1.14);
+      if (fi) drawCover(fctx, fi, fcw, fch, ofx.current, ofy.current - frontLift, 0.45, 1.2);
       fctx.globalAlpha = 1;
     };
 
