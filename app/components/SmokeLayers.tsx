@@ -177,17 +177,18 @@ export default function SmokeLayers() {
       const bcw = bc.width, bch = bc.height;
       const fcw = fc.width, fch = fc.height;
 
-      // Base upward lift so the dense smoke field sits around the hero centre
-      // (the lantern) rather than only billowing along the bottom edge.
-      const backLift = bch * 0.12;
-      const frontLift = fch * 0.16;
+      // Scale the smoke up so its dense band is tall enough to surround the
+      // lantern AND still cover down to the bottom edge — a small lift biases
+      // it toward the hero centre without exposing the bottom of the canvas.
+      const backLift = bch * 0.05;
+      const frontLift = fch * 0.07;
 
       bctx.clearRect(0, 0, bcw, bch);
-      if (bi) drawCover(bctx, bi, bcw, bch, obx.current, oby.current - backLift, 0.6, 1.18);
+      if (bi) drawCover(bctx, bi, bcw, bch, obx.current, oby.current - backLift, 0.6, 1.34);
       bctx.globalAlpha = 1;
 
       fctx.clearRect(0, 0, fcw, fch);
-      if (fi) drawCover(fctx, fi, fcw, fch, ofx.current, ofy.current - frontLift, 0.45, 1.2);
+      if (fi) drawCover(fctx, fi, fcw, fch, ofx.current, ofy.current - frontLift, 0.45, 1.4);
       fctx.globalAlpha = 1;
     };
 

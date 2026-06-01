@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Footer } from "./components/site/Footer";
 import { Header } from "./components/site/Header";
 import { HeroEntrance } from "./components/site/HeroEntrance";
+import { HeroGlow } from "./components/site/HeroGlow";
 import { SpecimenPreview } from "./components/site/SpecimenPreview";
 import { WorkCard } from "./components/site/WorkCard";
 import {
@@ -33,7 +34,10 @@ export default function HomePage() {
       <section className="hero-section">
         <HeroEntrance>
           <div className="hero-core">
-            <h1 className="hero-wordmark" data-hero-entrance="title">{home.hero.title}</h1>
+            <HeroGlow />
+            <h1 className="hero-wordmark" data-hero-entrance="title">
+              <span className="hero-wordmark__text">{home.hero.title}</span>
+            </h1>
             <p className="hero-subhead" data-hero-entrance="subhead">
               {home.hero.subhead.map((word, i) => (
                 <span key={word} className="hero-subhead__item">
