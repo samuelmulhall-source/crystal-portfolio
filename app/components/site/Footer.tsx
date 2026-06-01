@@ -12,7 +12,7 @@ export function Footer({
   return (
     <footer className="site-footer">
       <div className="site-footer__inner">
-        <p>{brandName} builds atmospheric 3D work with a bias toward clarity, presentation, and repeatable craft.</p>
+        <p className="site-footer__mark">{brandName}</p>
         <div className="site-footer__links">
           <Link href="/work">Archive</Link>
           <a href={xUrl} target="_blank" rel="noreferrer">

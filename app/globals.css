@@ -722,36 +722,37 @@ button, input, textarea { font: inherit; }
   animation: label-glow-breathe 6s ease-in-out infinite;
 }
 
-/* ─── Brutalist hero title ────────────────────────────────────────────────── */
-.hero-title--brutal {
-  font-size: clamp(3.4rem, 10vw, 8.6rem);
+/* ─── Hero wordmark + discipline subhead ──────────────────────────────────── */
+.hero-wordmark {
+  margin: 0;
+  font-size: clamp(3.4rem, 11vw, 9.5rem);
   font-weight: 500;
-  letter-spacing: -0.03em;
-  line-height: 0.92;
+  letter-spacing: -0.045em;
+  line-height: 0.95;
   text-align: center;
-  text-transform: uppercase;
-  text-wrap: balance;
-  background: linear-gradient(168deg, #fff 8%, var(--text-primary) 35%, var(--ice) 88%);
+  background: linear-gradient(176deg, #ffffff 6%, var(--text-primary) 42%, var(--ice) 96%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  animation: hero-glow-pulse 8s ease-in-out infinite;
+  text-shadow: 0 0 38px rgba(184, 240, 255, 0.10);
 }
 
-.hero-title__line { display: block; }
-
-/* The middot-separated focus words read as one composed statement */
-.hero-title__sep { color: rgba(184, 240, 255, 0.45); -webkit-text-fill-color: rgba(184, 240, 255, 0.45); }
-
-.hero-lede {
+.hero-subhead {
   margin: 0;
-  max-width: 30ch;
-  text-align: center;
-  font-size: clamp(0.98rem, 1.4vw, 1.12rem);
-  line-height: 1.55;
-  color: var(--text-secondary);
-  text-wrap: balance;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0 0.95rem;
+  font-family: var(--font-plex-mono), monospace;
+  font-size: clamp(0.58rem, 0.9vw, 0.72rem);
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: rgba(184, 240, 255, 0.6);
 }
+
+.hero-subhead__item { display: inline-flex; align-items: center; gap: 0.95rem; }
+.hero-subhead__sep { color: rgba(184, 240, 255, 0.26); }
 
 .page-title {
   font-size: clamp(2.6rem, 5vw, 4.8rem);
@@ -819,52 +820,76 @@ button, input, textarea { font: inherit; }
   position: relative;
   min-height: 100vh;
   min-height: 100dvh;
-  display: grid;
-  grid-template-rows: 1fr auto;
-  padding: 0;
-  overflow: hidden;
-}
-
-.hero-core {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 1.2rem;
-  padding: clamp(7rem, 14vh, 10rem) clamp(1rem, 3vw, 2.5rem) 2rem;
+  gap: clamp(1.5rem, 4vh, 3.25rem);
+  padding: clamp(6rem, 12vh, 9rem) clamp(1rem, 3vw, 2.5rem) clamp(3rem, 6vh, 5rem);
+  overflow: hidden;
+}
+
+/* HeroEntrance wrapper dissolves so its children lay out in the hero flex */
+.hero-section > div { display: contents; }
+
+.hero-core {
   position: relative;
   z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
 }
 
 .hero-actions { display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center; }
 
-/* ─── Hero readout — terse technical spec block ─────────────────────────── */
-.hero-readout {
-  display: grid;
-  grid-template-columns: repeat(2, auto);
-  justify-content: center;
-  gap: 0.5rem 2.4rem;
-  margin: 0.4rem auto 0;
-  padding: 0;
+/* ─── Editorial section header — index · title · link, hairline rule ──────── */
+.section-head {
+  display: flex;
+  align-items: baseline;
+  gap: clamp(0.9rem, 2vw, 1.6rem);
+  padding-bottom: 1.4rem;
+  margin-bottom: clamp(2rem, 4vw, 3.25rem);
+  border-bottom: 1px solid rgba(184, 240, 255, 0.09);
+}
+
+.section-head__index {
   font-family: var(--font-plex-mono), monospace;
-  font-size: 0.6rem;
-  letter-spacing: 0.16em;
+  font-size: 0.7rem;
+  letter-spacing: 0.2em;
+  color: rgba(184, 240, 255, 0.4);
+}
+
+.section-head__title {
+  margin: 0;
+  flex: 1;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  font-size: clamp(1.7rem, 3.6vw, 2.9rem);
+  background: linear-gradient(170deg, #fff 12%, var(--text-primary) 60%, var(--ice) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.section-head__link {
+  font-family: var(--font-plex-mono), monospace;
+  font-size: 0.64rem;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
+  color: rgba(184, 240, 255, 0.55);
+  text-decoration: none;
+  transition: color 200ms ease;
 }
+.section-head__link:hover { color: var(--ice-bright); }
 
-.hero-readout__row { display: flex; align-items: baseline; gap: 0.7rem; white-space: nowrap; margin: 0; }
-.hero-readout__key { color: rgba(184, 240, 255, 0.34); margin: 0; }
-.hero-readout__val { color: var(--text-secondary); margin: 0; }
-
-@media (max-width: 640px) {
-  .hero-readout { grid-template-columns: auto; gap: 0.4rem; }
-  .hero-readout__row { font-size: 0.56rem; }
-}
+.contact-actions { display: flex; gap: 1rem; flex-wrap: wrap; }
 
 /* ─── Hero viewport — full uncropped clip dissolved INTO the smoke ───────── */
 .hero-viewport {
   position: relative;
-  height: min(56vh, 38rem);
+  height: min(48vh, 32rem);
   margin: 0 auto;
   z-index: 2;
   /* Oval alpha mask: fully opaque over the lantern, fading to fully transparent
@@ -1451,6 +1476,26 @@ button, input, textarea { font: inherit; }
 
 .case-study__meta strong { font-size: 1rem; color: var(--text-primary); font-weight: 500; }
 
+/* Data-driven "how it was made" spec — mirrors the meta cards */
+.spec-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.8rem; }
+.spec-grid div {
+  padding: 0.95rem 1.05rem;
+  border-radius: 8px;
+  border: 1px solid rgba(184, 240, 255, 0.06);
+  background: rgba(255, 255, 255, 0.02);
+  display: grid;
+  gap: 0.4rem;
+}
+.spec-grid span {
+  font-family: var(--font-plex-mono), monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.spec-grid strong { font-size: 0.95rem; color: var(--text-primary); font-weight: 500; line-height: 1.4; }
+@media (max-width: 640px) { .spec-grid { grid-template-columns: 1fr; } }
+
 .detail-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 2rem; }
 .detail-grid__main, .section-stack, .rich-copy { display: grid; gap: 1.5rem; }
 .standfirst { font-size: 1.35rem; line-height: 1.65; color: var(--ice-bright); }
@@ -1501,6 +1546,15 @@ button, input, textarea { font: inherit; }
   justify-content: space-between;
   gap: 1rem;
   align-items: center;
+}
+
+.site-footer__mark {
+  margin: 0;
+  font-family: var(--font-plex-mono), monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ice-bright);
 }
 
 .site-footer__links { display: flex; gap: 1rem; flex-wrap: wrap; }
@@ -1574,9 +1628,9 @@ button, input, textarea { font: inherit; }
 @media (max-width: 720px) {
   .page-root { padding-top: 88px; }
   .page-shell, .site-header__inner, .site-footer__inner { width: min(100% - 1.35rem, 1200px); }
-  .hero-title--brutal { font-size: clamp(2.1rem, 9.4vw, 3.6rem); letter-spacing: -0.02em; }
-  .hud-readout { display: none; }
-  .hud-bar__tools { display: none; }
+  .hero-wordmark { font-size: clamp(2.6rem, 13vw, 4.4rem); letter-spacing: -0.04em; }
+  .hero-subhead { font-size: 0.56rem; letter-spacing: 0.24em; gap: 0 0.6rem; }
+  .hero-subhead__item { gap: 0.6rem; }
   .hero-band { grid-template-columns: 1fr; gap: 0.75rem; }
   .hero-band__item { padding: 0.9rem 0.9rem 0.95rem 1.1rem; }
   .specimen-card__preview { min-height: 18rem; }

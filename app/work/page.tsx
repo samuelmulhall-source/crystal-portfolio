@@ -28,10 +28,7 @@ export default function WorkArchivePage() {
       <PageEntrance>
         <section className="subpage-hero page-shell">
           <p className="eyebrow" data-entrance="eyebrow">Archive</p>
-          <h1 className="page-title" data-entrance="title">A browsable library of motion, stills, and supporting assets.</h1>
-          <p className="lede" data-entrance="body">
-            The archive is structured for fast scanning first. Featured case studies go deeper, while supporting work still stays easy to review without entering the old cinematic interface.
-          </p>
+          <h1 className="page-title" data-entrance="title">All work</h1>
         </section>
 
         <section className="section page-shell" data-entrance="content">

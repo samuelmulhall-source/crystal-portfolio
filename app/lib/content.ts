@@ -65,6 +65,10 @@ const WorkEntrySchema = z.object({
   client: z.string(),
   engagement: z.string(),
   summary: z.string(),
+  /** Editorial long-form, filled in by hand later. Falls back to summary. */
+  description: z.string().optional(),
+  /** When the piece was made, e.g. "Mar 2026". Falls back to year. */
+  created: z.string().optional(),
   tags: z.array(z.string()),
   role: z.array(z.string()),
   tools: z.array(z.string()),
@@ -129,49 +133,23 @@ const SiteSettingsSchema = z.object({
 
 const HomeContentSchema = z.object({
   hero: z.object({
-    eyebrow: z.string(),
     title: z.string(),
-    intro: z.string(),
-    lede: z.string(),
-    readout: z.array(z.object({ key: z.string(), val: z.string() })),
-    video: MediaAssetSchema.optional(),
-    primaryCta: LinkSchema,
-    secondaryCta: LinkSchema,
+    subhead: z.array(z.string()),
     featuredSlug: z.string(),
-    meta: z.array(z.string()),
+    video: MediaAssetSchema.optional(),
   }),
   selectedWork: z.object({
     heading: z.string(),
-    intro: z.string(),
     featuredSlugs: z.array(z.string()),
-  }),
-  spotlight: z.object({
-    heading: z.string(),
-    intro: z.string(),
-    slug: z.string(),
-    ctaLabel: z.string(),
-  }),
-  capabilities: z.object({
-    heading: z.string(),
-    intro: z.string(),
-    items: z.array(
-      z.object({
-        title: z.string(),
-        body: z.string(),
-      }),
-    ),
   }),
   archivePreview: z.object({
     heading: z.string(),
-    intro: z.string(),
     limit: z.number(),
     ctaLabel: z.string(),
     ctaHref: z.string(),
   }),
   contact: z.object({
     heading: z.string(),
-    intro: z.string(),
-    notes: z.array(z.string()),
     primaryCta: LinkSchema,
     secondaryCta: LinkSchema,
   }),
@@ -213,6 +191,25 @@ export const getFeaturedEntries = cache(() =>
 
 export function getWorkEntryBySlug(slug: string) {
   return getWorkEntries().find((entry) => entry.slug === slug);
+}
+
+/** Human-readable PBR map labels present on a specimen, in pipeline order. */
+const MAP_LABELS: Array<[keyof Specimen["textures"], string]> = [
+  ["map", "Albedo"],
+  ["normalMap", "Normal"],
+  ["roughnessMap", "Roughness"],
+  ["metalnessMap", "Metalness"],
+  ["transmissionMap", "Transmission"],
+];
+
+export function getSpecimenMaps(specimen: Specimen): string[] {
+  return MAP_LABELS.filter(([key]) => specimen.textures[key]).map(([, label]) => label);
+}
+
+/** Geometry container format from a model path, e.g. "FBX". */
+export function getModelFormat(modelPath: string): string {
+  const ext = modelPath.split(".").pop() ?? "";
+  return ext.toUpperCase();
 }
 
 export function getRelatedEntries(slug: string, limit = 3) {

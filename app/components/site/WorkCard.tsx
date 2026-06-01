@@ -23,15 +23,11 @@ export function WorkCard({
         <h3 className="work-card__title">
           <Link href={`/work/${entry.slug}`}>{entry.title}</Link>
         </h3>
-        <p className="work-card__summary">{entry.summary}</p>
         <ul className="work-card__tags" aria-label={`${entry.title} tags`}>
           {entry.tags.slice(0, variant === "compact" ? 2 : 3).map((tag) => (
             <li key={tag}>{tag}</li>
           ))}
         </ul>
-        <Link href={`/work/${entry.slug}`} className="text-link">
-          View project
-        </Link>
       </div>
     </article>
   );

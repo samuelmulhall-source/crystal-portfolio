@@ -8,8 +8,10 @@ import { PageEntrance } from "../../components/site/PageEntrance";
 import { SpecimenViewer } from "../../components/site/SpecimenViewer";
 import { WorkCard } from "../../components/site/WorkCard";
 import {
+  getModelFormat,
   getRelatedEntries,
   getSiteSettings,
+  getSpecimenMaps,
   getWorkEntries,
   getWorkEntryBySlug,
 } from "../../lib/content";
@@ -81,17 +83,15 @@ export default async function WorkDetailPage({ params }: WorkPageProps) {
                 <strong>{entry.format}</strong>
               </div>
               <div>
-                <span>Year</span>
-                <strong>{entry.year}</strong>
+                <span>Made</span>
+                <strong>{entry.created ?? entry.year}</strong>
               </div>
-              <div>
-                <span>Client</span>
-                <strong>{entry.client}</strong>
-              </div>
-              <div>
-                <span>Engagement</span>
-                <strong>{entry.engagement}</strong>
-              </div>
+              {entry.specimen ? (
+                <div>
+                  <span>Geometry</span>
+                  <strong>{getModelFormat(entry.specimen.modelPath)} · realtime</strong>
+                </div>
+              ) : null}
             </div>
             <ul className="tool-list">
               {entry.tools.map((tool) => (
@@ -110,26 +110,54 @@ export default async function WorkDetailPage({ params }: WorkPageProps) {
 
         <section className="page-shell detail-grid">
           <div className="detail-grid__main">
-            <div className="rich-copy">
-              <p className="standfirst">{entry.caseStudy.hook}</p>
-              {entry.caseStudy.brief.map((paragraph) => (
-                <p key={paragraph}>{paragraph}</p>
-              ))}
-            </div>
+            {entry.description?.trim() ? (
+              <div className="rich-copy">
+                <p className="eyebrow">Overview</p>
+                <p className="standfirst">{entry.description}</p>
+              </div>
+            ) : null}
 
             <div className="section-stack">
-              {entry.caseStudy.sections.map((section) => (
-                <section key={section.title} className="story-section">
-                  <h2>{section.title}</h2>
-                  {section.body.map((paragraph) => (
-                    <p key={paragraph}>{paragraph}</p>
-                  ))}
-                </section>
-              ))}
+              <section className="story-section">
+                <h2>How it was made</h2>
+                <div className="spec-grid">
+                  <div>
+                    <span>Software</span>
+                    <strong>{entry.tools.join(" · ")}</strong>
+                  </div>
+                  <div>
+                    <span>Discipline</span>
+                    <strong>{entry.discipline}</strong>
+                  </div>
+                  {entry.specimen ? (
+                    <>
+                      <div>
+                        <span>Geometry</span>
+                        <strong>{getModelFormat(entry.specimen.modelPath)} · realtime mesh</strong>
+                      </div>
+                      <div>
+                        <span>Texture set</span>
+                        <strong>{getSpecimenMaps(entry.specimen).join(" · ")} · PBR</strong>
+                      </div>
+                    </>
+                  ) : (
+                    <div>
+                      <span>Output</span>
+                      <strong>{entry.format}</strong>
+                    </div>
+                  )}
+                </div>
+              </section>
             </div>
           </div>
 
           <aside className="fact-panel">
+            <div>
+              <p className="eyebrow">Made</p>
+              <ul className="fact-list">
+                <li>{entry.created ?? entry.year}</li>
+              </ul>
+            </div>
             <div>
               <p className="eyebrow">Role</p>
               <ul className="fact-list">
@@ -139,21 +167,23 @@ export default async function WorkDetailPage({ params }: WorkPageProps) {
               </ul>
             </div>
             <div>
-              <p className="eyebrow">Deliverables</p>
+              <p className="eyebrow">Tools</p>
               <ul className="fact-list">
-                {entry.caseStudy.deliverables.map((item) => (
+                {entry.tools.map((item) => (
                   <li key={item}>{item}</li>
                 ))}
               </ul>
             </div>
-            <div>
-              <p className="eyebrow">Outcomes</p>
-              <ul className="fact-list">
-                {entry.caseStudy.outcomes.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
-            </div>
+            {entry.specimen ? (
+              <div>
+                <p className="eyebrow">Maps</p>
+                <ul className="fact-list">
+                  {getSpecimenMaps(entry.specimen).map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
             {entry.interactive.note ? (
               <div className="fact-panel__note">
                 <p className="eyebrow">Interactive</p>
@@ -180,11 +210,9 @@ export default async function WorkDetailPage({ params }: WorkPageProps) {
         <section className="contact-section contact-section--compact">
           <div className="page-shell contact-section__inner">
             <div className="section-heading">
-              <p className="eyebrow">Next step</p>
-              <h2>Use this project as a reference for your brief.</h2>
-              <p>
-                If this direction feels relevant, send a note on X with the deliverable, timeframe, and where the work needs to live. I can respond with a tighter scope from there.
-              </p>
+              <p className="eyebrow">Enquire</p>
+              <h2>Commission or collaborate</h2>
+              <p>Send the deliverable, timeframe, and where it needs to ship — I&apos;ll come back with scope.</p>
             </div>
             <div className="contact-panel">
               <p className="contact-panel__availability">{site.contact.availability}</p>
@@ -202,8 +230,8 @@ export default async function WorkDetailPage({ params }: WorkPageProps) {
 
         <section className="section page-shell">
           <div className="section-heading">
-            <p className="eyebrow">Related work</p>
-            <h2>Continue browsing</h2>
+            <p className="eyebrow">More</p>
+            <h2>Related work</h2>
           </div>
           <div className="feature-grid">
             {relatedEntries.map((relatedEntry) => (

@@ -1,84 +1,31 @@
 {
   "hero": {
-    "eyebrow": "",
-    "title": "Light · Material\nAtmosphere",
-    "intro": "Independent 3D studies — how far mood and material can carry a single object or frame.",
-    "lede": "Independent 3D studies — how far mood and material can carry a single object or frame.",
-    "readout": [
-      { "key": "Focus", "val": "Hero props · environments · motion" },
-      { "key": "Stack", "val": "Blender · Houdini · EmberGen · Substance" },
-      { "key": "Based", "val": "Australia / AEST" },
-      { "key": "Status", "val": "Open to briefs & roles" }
-    ],
+    "title": "Multiscatter",
+    "subhead": ["Design", "Development", "Rendering", "Production"],
+    "featuredSlug": "soulbound-lantern",
     "video": {
       "kind": "video",
       "src": "/hero/lantern-hero.mp4",
       "poster": "/hero/lantern-hero.webp",
       "alt": "Soulbound Lantern — emissive glass and metal study, looping"
-    },
-    "primaryCta": {
-      "label": "View archive",
-      "href": "/work"
-    },
-    "secondaryCta": {
-      "label": "Transmit",
-      "href": "#contact"
-    },
-    "featuredSlug": "soulbound-lantern",
-    "meta": [
-      "Blender",
-      "Houdini",
-      "EmberGen",
-      "Substance Painter"
-    ]
+    }
   },
   "selectedWork": {
     "heading": "Selected work",
-    "intro": "Three studies where the whole frame had to sell on light, material, and restraint.",
     "featuredSlugs": [
       "soulbound-lantern",
       "evening-fishing",
       "holography-study"
     ]
   },
-  "spotlight": {
-    "heading": "In depth",
-    "intro": "One study, taken apart — the decisions behind the frame, not just the result.",
-    "slug": "soulbound-lantern",
-    "ctaLabel": "Open case study"
-  },
-  "capabilities": {
-    "heading": "How the work is built",
-    "intro": "Three things every study is pressure-tested against.",
-    "items": [
-      {
-        "title": "Material read",
-        "body": "Glass, metal, and wear stay legible as separate surfaces instead of collapsing into one mass."
-      },
-      {
-        "title": "Light & mood",
-        "body": "Emissive and key light balanced so the first glance lands the tone, the second reveals the detail."
-      },
-      {
-        "title": "Presentation",
-        "body": "Framing, motion, and finishing tuned so an asset reads as a piece, not a turntable."
-      }
-    ]
-  },
   "archivePreview": {
     "heading": "Archive",
-    "intro": "Props, icons, and supporting builds — the range behind the featured studies.",
     "limit": 6,
     "ctaLabel": "Full archive",
     "ctaHref": "/work"
   },
   "contact": {
     "heading": "Open to briefs & roles",
-    "intro": "Hero props, atmospheric stills, motion, and presentation work — for a commission or a studio seat.",
-    "notes": [
-      "Best fit — single hero objects and small environment moments that live or die on mood.",
-      "Start with references, the deliverable, and where it needs to ship."
-    ],
     "primaryCta": {
       "label": "Get in touch",
       "href": "https://x.com/multiscatter"
