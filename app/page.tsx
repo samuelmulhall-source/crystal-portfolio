@@ -2,7 +2,6 @@ import Link from "next/link";
 import { Footer } from "./components/site/Footer";
 import { Header } from "./components/site/Header";
 import { HeroEntrance } from "./components/site/HeroEntrance";
-import { HeroGlow } from "./components/site/HeroGlow";
 import { HeroParallax } from "./components/site/HeroParallax";
 import { SpecimenPreview } from "./components/site/SpecimenPreview";
 import { WorkCard } from "./components/site/WorkCard";
@@ -36,9 +35,8 @@ export default function HomePage() {
         <HeroParallax />
         <HeroEntrance>
           <div className="hero-core" data-parallax="0.2">
-            <HeroGlow />
             <h1 className="hero-wordmark" data-hero-entrance="title">
-              <span className="hero-wordmark__text" data-text={home.hero.title}>{home.hero.title}</span>
+              <span className="hero-wordmark__text">{home.hero.title}</span>
             </h1>
             <p className="hero-subhead" data-hero-entrance="subhead">
               {home.hero.subhead.map((word, i) => (

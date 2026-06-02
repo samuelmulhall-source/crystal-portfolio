@@ -20,9 +20,9 @@ const archivo = Archivo({
   display: "swap",
 });
 
-// Hero wordmark — Glass Houses (self-hosted display)
-const glassHouses = localFont({
-  src: "./fonts/glass-houses.ttf",
+// Hero wordmark — VTKS Trunkset (self-hosted display)
+const displayFont = localFont({
+  src: "./fonts/vtks-trunkset.ttf",
   variable: "--font-display",
   display: "swap",
 });
@@ -77,7 +77,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${archivo.variable} ${glassHouses.variable} ${plexMono.variable}`}
+      className={`${archivo.variable} ${displayFont.variable} ${plexMono.variable}`}
       suppressHydrationWarning
     >
       <body>

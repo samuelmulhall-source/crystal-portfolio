@@ -21,7 +21,7 @@ import { voidState } from "../lib/voidState";
 import { getDeviceProfile } from "../lib/deviceTier";
 import { loadGate } from "../lib/loadingOrchestrator";
 
-const CORRIDOR_END = 0.15;
+const CORRIDOR_END = 0.28;
 const PARALLAX_BACK = 8;
 const PARALLAX_FRONT = 22;
 
@@ -188,7 +188,7 @@ export default function SmokeLayers() {
       bctx.globalAlpha = 1;
 
       fctx.clearRect(0, 0, fcw, fch);
-      if (fi) drawCover(fctx, fi, fcw, fch, ofx.current, ofy.current - frontLift, 0.45, 1.4);
+      if (fi) drawCover(fctx, fi, fcw, fch, ofx.current, ofy.current - frontLift, 0.62, 1.46);
       fctx.globalAlpha = 1;
     };
 
