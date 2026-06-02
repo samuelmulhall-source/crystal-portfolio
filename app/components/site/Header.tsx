@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Magnetic } from "./Magnetic";
 
 export function Header({
   brandName,
@@ -28,12 +29,16 @@ export function Header({
         </Link>
 
         <nav className="site-nav" aria-label="Primary navigation">
-          <Link href="/work" className={pathname.startsWith("/work") ? "is-active" : ""}>
-            Work
-          </Link>
-          <Link href="/#contact" className={pathname === "/#contact" ? "is-active" : ""}>
-            Contact
-          </Link>
+          <Magnetic strength={0.5}>
+            <Link href="/work" className={pathname.startsWith("/work") ? "is-active" : ""}>
+              Work
+            </Link>
+          </Magnetic>
+          <Magnetic strength={0.5}>
+            <Link href="/#contact" className={pathname === "/#contact" ? "is-active" : ""}>
+              Contact
+            </Link>
+          </Magnetic>
         </nav>
       </div>
     </header>

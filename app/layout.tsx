@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { Archivo, Archivo_Black, IBM_Plex_Mono } from "next/font/google";
+import { Archivo, IBM_Plex_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import VoidBackground from "./components/VoidBackground";
@@ -19,10 +20,9 @@ const archivo = Archivo({
   display: "swap",
 });
 
-// Hero wordmark — heavy display, distressed + glowing in CSS
-const archivoBlack = Archivo_Black({
-  subsets: ["latin"],
-  weight: ["400"],
+// Hero wordmark — Glass Houses (self-hosted display)
+const glassHouses = localFont({
+  src: "./fonts/glass-houses.ttf",
   variable: "--font-display",
   display: "swap",
 });
@@ -77,22 +77,10 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${archivo.variable} ${archivoBlack.variable} ${plexMono.variable}`}
+      className={`${archivo.variable} ${glassHouses.variable} ${plexMono.variable}`}
       suppressHydrationWarning
     >
       <body>
-        {/* Distress filter for the hero wordmark — eroded, printed edges */}
-        <svg width="0" height="0" aria-hidden="true" style={{ position: "absolute" }}>
-          <filter id="wordmark-distress">
-            <feTurbulence type="fractalNoise" baseFrequency="0.012 0.16" numOctaves="2" seed="7" result="noise" />
-            <feDisplacementMap in="SourceGraphic" in2="noise" scale="5" xChannelSelector="R" yChannelSelector="G" />
-          </filter>
-          <filter id="wordmark-grain">
-            <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="3" result="g" />
-            <feColorMatrix in="g" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -1.2 1.05" result="grain" />
-            <feComposite in="SourceGraphic" in2="grain" operator="in" />
-          </filter>
-        </svg>
         <DisplayModeScript
           enhancedMinDeviceMemory={siteSettings.qualityPresets.enhancedMinDeviceMemory}
           enhancedMinHardwareConcurrency={siteSettings.qualityPresets.enhancedMinHardwareConcurrency}

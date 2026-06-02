@@ -722,28 +722,63 @@ button, input, textarea { font: inherit; }
   animation: label-glow-breathe 6s ease-in-out infinite;
 }
 
-/* ─── Hero wordmark — heavy, distressed, glowing ──────────────────────────── */
+/* ─── Hero wordmark — engineered technical display, glowing, with buzz ─────── */
 .hero-wordmark {
   position: relative;
   z-index: 1;
   margin: 0;
   font-family: var(--font-display), system-ui, sans-serif;
-  font-weight: 400;
-  font-size: clamp(3.4rem, 12vw, 10.5rem);
-  letter-spacing: -0.04em;
-  line-height: 0.88;
+  font-weight: 600;
+  font-size: clamp(2.9rem, 10vw, 8.4rem);
+  letter-spacing: 0.012em;
+  line-height: 0.96;
+  text-transform: uppercase;
   text-align: center;
 }
 
 .hero-wordmark__text {
+  position: relative;
   display: inline-block;
   background: linear-gradient(176deg, #ffffff 2%, #e2f7ff 26%, var(--ice) 70%, #5fb8da 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  /* Eroded/printed edges + an ice bloom anchored to the letterforms */
-  filter: url(#wordmark-distress) drop-shadow(0 0 26px rgba(150, 220, 255, 0.32))
-    drop-shadow(0 0 60px rgba(120, 200, 255, 0.14));
+  /* Ice bloom anchored to the letterforms */
+  filter: drop-shadow(0 0 22px rgba(150, 220, 255, 0.30)) drop-shadow(0 0 60px rgba(120, 200, 255, 0.13));
+}
+
+/* RGB-split "static buzz" — two coloured copies that flicker in brief bursts */
+.hero-wordmark__text::before,
+.hero-wordmark__text::after {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  background: none;
+  pointer-events: none;
+  opacity: 0;
+  mix-blend-mode: screen;
+}
+.hero-wordmark__text::before { -webkit-text-fill-color: #4dffee; color: #4dffee; }
+.hero-wordmark__text::after { -webkit-text-fill-color: #ff39c0; color: #ff39c0; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .hero-wordmark__text::before { animation: wm-buzz-a 8.5s steps(1, end) infinite; }
+  .hero-wordmark__text::after { animation: wm-buzz-b 8.5s steps(1, end) infinite; }
+}
+
+@keyframes wm-buzz-a {
+  0%, 91%, 100% { opacity: 0; transform: translate(0, 0); clip-path: inset(0 0 0 0); }
+  91.5% { opacity: 0.85; transform: translate(-3px, -1px); clip-path: inset(6% 0 64% 0); }
+  92.5% { opacity: 0.55; transform: translate(2px, 1px); clip-path: inset(52% 0 14% 0); }
+  93.5% { opacity: 0.8; transform: translate(-2px, 1px); clip-path: inset(26% 0 46% 0); }
+  94.5% { opacity: 0; }
+}
+@keyframes wm-buzz-b {
+  0%, 91%, 100% { opacity: 0; transform: translate(0, 0); clip-path: inset(0 0 0 0); }
+  91.5% { opacity: 0.7; transform: translate(3px, 1px); clip-path: inset(10% 0 58% 0); }
+  92.5% { opacity: 0.5; transform: translate(-2px, -1px); clip-path: inset(46% 0 22% 0); }
+  93.5% { opacity: 0.7; transform: translate(2px, -1px); clip-path: inset(30% 0 40% 0); }
+  94.5% { opacity: 0; }
 }
 
 /* Cursor-reactive ice bloom behind the wordmark */
@@ -873,6 +908,15 @@ button, input, textarea { font: inherit; }
 }
 
 .hero-actions { display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center; }
+
+/* Parallax layers + magnetic targets */
+.hero-core { will-change: transform; }
+.hero-viewport-wrap { display: flex; justify-content: center; width: 100%; will-change: transform; }
+.magnetic {
+  display: inline-flex;
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
 
 /* ─── Editorial section header — index · title · link, hairline rule ──────── */
 .section-head {
