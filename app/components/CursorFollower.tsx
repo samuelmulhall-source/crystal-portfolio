@@ -43,9 +43,10 @@ export default function CursorFollower() {
     // ── Canvas setup ─────────────────────────────────────────────────────────
     const cv  = cvRef.current!;
     const ctx = cv.getContext("2d")!;
-    let dpr   = window.devicePixelRatio || 1;
+    // Cap DPR — a full-screen cursor canvas at 3x is pure waste for a few px of art
+    let dpr   = Math.min(window.devicePixelRatio || 1, 2);
     function resize() {
-      dpr = window.devicePixelRatio || 1;
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
       cv.width  = window.innerWidth  * dpr;
       cv.height = window.innerHeight * dpr;
       cv.style.width  = window.innerWidth  + "px";
