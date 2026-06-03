@@ -11,21 +11,34 @@ export function Header({
   brandName: string;
 }) {
   const pathname = usePathname();
+  const isHome = pathname === "/";
   const [scrolled, setScrolled] = useState(false);
+  // The hero already shows the wordmark; reveal the header mark only once the
+  // hero has scrolled away. On subpages it is always shown.
+  const [markShown, setMarkShown] = useState(!isHome);
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 18);
+    const onScroll = () => {
+      const y = window.scrollY;
+      setScrolled(y > 18);
+      setMarkShown(!isHome || y > window.innerHeight * 0.72);
+    };
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+  }, [isHome]);
 
   return (
     <header className={`site-header${scrolled ? " is-scrolled" : ""}`}>
       <div className="site-header__inner">
-        <Link href="/" className="site-mark">
+        <Link href="/" className="site-mark" aria-label={brandName}>
           <span className="status-led" />
-          <span className="site-mark__text glitch" data-text={brandName}>{brandName}</span>
+          <span
+            className={`site-mark__text glitch${markShown ? " is-shown" : ""}`}
+            data-text={brandName}
+          >
+            {brandName}
+          </span>
         </Link>
 
         <nav className="site-nav" aria-label="Primary navigation">

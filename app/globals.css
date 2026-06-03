@@ -550,16 +550,16 @@ body.viewer-open main {
 
 /* ─── Status LED — PS2-style power indicator ─────────────────────────────── */
 @keyframes led-pulse {
-  0%, 100% { box-shadow: 0 0 3px rgba(120, 255, 180, 0.4), 0 0 8px rgba(120, 255, 180, 0.15); }
-  50%      { box-shadow: 0 0 5px rgba(120, 255, 180, 0.6), 0 0 14px rgba(120, 255, 180, 0.25); }
+  0%, 100% { box-shadow: 0 0 3px rgba(150, 222, 255, 0.45), 0 0 8px rgba(120, 200, 255, 0.18); }
+  50%      { box-shadow: 0 0 6px rgba(150, 222, 255, 0.7), 0 0 16px rgba(120, 200, 255, 0.3); }
 }
 
 .status-led {
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: rgba(120, 255, 180, 0.65);
-  box-shadow: 0 0 8px rgba(120, 255, 180, 0.3);
+  background: rgba(184, 240, 255, 0.85);
+  box-shadow: 0 0 8px rgba(150, 222, 255, 0.35);
   animation: led-pulse 3s ease-in-out infinite;
   flex-shrink: 0;
 }
@@ -661,7 +661,14 @@ button, input, textarea { font: inherit; }
 
 .site-mark:hover { text-shadow: 0 0 18px rgba(184, 240, 255, 0.25); }
 
-.site-mark__text { color: var(--ice-bright); }
+.site-mark__text {
+  color: var(--ice-bright);
+  opacity: 0;
+  transform: translateX(-6px);
+  pointer-events: none;
+  transition: opacity 0.45s ease, transform 0.45s ease;
+}
+.site-mark__text.is-shown { opacity: 1; transform: none; pointer-events: auto; }
 
 .site-mark__status {
   color: var(--text-muted);
@@ -729,9 +736,10 @@ button, input, textarea { font: inherit; }
   margin: 0;
   font-family: var(--font-display), system-ui, sans-serif;
   font-weight: 400;
-  font-size: clamp(3.2rem, 12vw, 10rem);
-  letter-spacing: 0.005em;
+  font-size: clamp(3rem, 11vw, 9.4rem);
+  letter-spacing: 0.07em;
   line-height: 0.98;
+  text-transform: uppercase;
   text-align: center;
 }
 
@@ -912,14 +920,15 @@ button, input, textarea { font: inherit; }
   /* Oval alpha mask: fully opaque over the lantern, fading to fully transparent
      at the sides/top/bottom so the asset reads at full quality while its edges
      dissolve into the smoke (front-smoke canvas, z5, drifts over the top). */
-  /* Radial body mask + a soft fade at the very top so the crown dissolves in */
+  /* Radial body mask + soft fades at the very top and bottom so the crown and
+     base both dissolve into the smoke instead of cutting. */
   -webkit-mask-image:
     radial-gradient(ellipse 46% 76% at 50% 49%, #000 48%, rgba(0,0,0,0) 90%),
-    linear-gradient(to bottom, rgba(0,0,0,0) 0%, #000 13%, #000 100%);
+    linear-gradient(to bottom, rgba(0,0,0,0) 0%, #000 12%, #000 87%, rgba(0,0,0,0) 100%);
   -webkit-mask-composite: source-in;
   mask-image:
     radial-gradient(ellipse 46% 76% at 50% 49%, #000 48%, rgba(0,0,0,0) 90%),
-    linear-gradient(to bottom, rgba(0,0,0,0) 0%, #000 13%, #000 100%);
+    linear-gradient(to bottom, rgba(0,0,0,0) 0%, #000 12%, #000 87%, rgba(0,0,0,0) 100%);
   mask-composite: intersect;
 }
 
