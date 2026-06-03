@@ -64,31 +64,14 @@ function getStarGeom(n: number): { verts: Vec3[]; faces: Face[] } {
   return { verts, faces };
 }
 
-/** Rotate a point by Ry then Rx. */
-function rotV(v: Vec3, rx: number, ry: number): Vec3 {
-  // Ry
-  const x1 =  v[0] * Math.cos(ry) + v[2] * Math.sin(ry);
-  const y1 =  v[1];
-  const z1 = -v[0] * Math.sin(ry) + v[2] * Math.cos(ry);
-  // Rx
-  const x2 = x1;
-  const y2 = y1 * Math.cos(rx) - z1 * Math.sin(rx);
-  const z2 = y1 * Math.sin(rx) + z1 * Math.cos(rx);
-  return [x2, y2, z2];
-}
-
-/** Simple perspective projection to 2D screen coords. */
-function project(v: Vec3, cx: number, cy: number, scale: number, fov: number): [number, number] {
-  const depth = fov / (fov + v[2]);
-  return [cx + v[0] * scale * depth, cy - v[1] * scale * depth];
-}
-
-/** Cross product of two Vec3 edges → face normal (unnormalised). */
-function faceNormal(a: Vec3, b: Vec3, c: Vec3): Vec3 {
-  const ux = b[0]-a[0], uy = b[1]-a[1], uz = b[2]-a[2];
-  const vx = c[0]-a[0], vy = c[1]-a[1], vz = c[2]-a[2];
-  return [uy*vz - uz*vy, uz*vx - ux*vz, ux*vy - uy*vx];
-}
+// Reused per-vertex scratch buffers for the hover-star draw — sized for the
+// largest bipyramid (n=7 → 16 verts). Avoids per-frame array allocation, which
+// otherwise builds GC pressure and causes periodic ~300ms collection hitches.
+const _vx: number[] = [];
+const _vy: number[] = [];
+const _vz: number[] = [];
+const _sx2: number[] = [];
+const _sy2: number[] = [];
 
 export default function EffectsOverlay() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -157,35 +140,41 @@ export default function EffectsOverlay() {
         const rx = 0.4 + i * 0.22;
 
         const { verts, faces } = getCachedStarGeom(n);
-        const rotated: Vec3[] = verts.map(v => rotV(v, rx, ry));
 
-        // Painter's sort back → front
-        const faceOrder = faces
-          .map((f, fi) => ({
-            fi,
-            avgZ: (rotated[f[0]][2] + rotated[f[1]][2] + rotated[f[2]][2]) / 3,
-          }))
-          .sort((a, b) => a.avgZ - b.avgZ);
+        // Rotate + project every vertex ONCE into reused scratch buffers.
+        const cosY = Math.cos(ry), sinY = Math.sin(ry);
+        const cosX = Math.cos(rx), sinX = Math.sin(rx);
+        for (let vi = 0; vi < verts.length; vi++) {
+          const v = verts[vi];
+          const x1 = v[0] * cosY + v[2] * sinY;
+          const z1 = -v[0] * sinY + v[2] * cosY;
+          const y2 = v[1] * cosX - z1 * sinX;
+          const z2 = v[1] * sinX + z1 * cosX;
+          _vx[vi] = x1; _vy[vi] = y2; _vz[vi] = z2;
+          const depth = FOV / (FOV + z2);
+          _sx2[vi] = sx + x1 * scale * depth;
+          _sy2[vi] = sy - y2 * scale * depth;
+        }
 
         ctx!.save();
         ctx!.globalCompositeOperation = "lighter";
 
-        for (const { fi } of faceOrder) {
-          const f  = faces[fi];
-          const a3 = rotated[f[0]], b3 = rotated[f[1]], c3 = rotated[f[2]];
+        // Additive blending is order-independent — no painter's sort needed.
+        for (let fi = 0; fi < faces.length; fi++) {
+          const f = faces[fi];
+          const i0 = f[0], i1 = f[1], i2 = f[2];
 
-          const norm    = faceNormal(a3, b3, c3);
-          const nLen    = Math.sqrt(norm[0]*norm[0] + norm[1]*norm[1] + norm[2]*norm[2]);
-          const facing  = nLen > 0 ? Math.abs(norm[2] / nLen) : 0;
+          // Face normal (scalars, no allocation); only z + magnitude are used.
+          const ux = _vx[i1]-_vx[i0], uy = _vy[i1]-_vy[i0], uz = _vz[i1]-_vz[i0];
+          const wx = _vx[i2]-_vx[i0], wy = _vy[i2]-_vy[i0], wz = _vz[i2]-_vz[i0];
+          const nx = uy*wz - uz*wy, ny = uz*wx - ux*wz, nz = ux*wy - uy*wx;
+          const nLen    = Math.sqrt(nx*nx + ny*ny + nz*nz);
+          const facing  = nLen > 0 ? Math.abs(nz / nLen) : 0;
           const fresnel = Math.pow(1 - facing, 2.2);
 
           // Holographic hue: violet → cyan → white, drifts with time
-          const hue  = ((fresnel * 2.2 + t * 0.28 + fi * 0.13 + i * 0.38) % 1) * 360;
-          const lgt  = 72 + fresnel * 18; // edge-on faces bloom brighter
-
-          const ap  = project(a3, sx, sy, scale, FOV);
-          const bp  = project(b3, sx, sy, scale, FOV);
-          const cp2 = project(c3, sx, sy, scale, FOV);
+          const hue = ((fresnel * 2.2 + t * 0.28 + fi * 0.13 + i * 0.38) % 1) * 360;
+          const lgt = 72 + fresnel * 18; // edge-on faces bloom brighter
 
           // Edges only — line-art look, no filled planes
           const edgeA = ease * (0.28 + fresnel * 0.72);
@@ -193,9 +182,9 @@ export default function EffectsOverlay() {
           ctx!.lineWidth   = 0.7 + fresnel * 1.1;
           ctx!.lineJoin    = "round";
           ctx!.beginPath();
-          ctx!.moveTo(ap[0], ap[1]);
-          ctx!.lineTo(bp[0], bp[1]);
-          ctx!.lineTo(cp2[0], cp2[1]);
+          ctx!.moveTo(_sx2[i0], _sy2[i0]);
+          ctx!.lineTo(_sx2[i1], _sy2[i1]);
+          ctx!.lineTo(_sx2[i2], _sy2[i2]);
           ctx!.closePath();
           ctx!.stroke();
         }
