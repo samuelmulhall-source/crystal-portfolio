@@ -39,6 +39,7 @@ export default function StarHoverSystem({
     }))
   );
   const tmpV = useMemo(() => new THREE.Vector3(), []);
+  const scanAccum = useRef(0);
 
   useFrame((state, dt) => {
     const t     = state.clock.elapsedTime;
@@ -56,11 +57,20 @@ export default function StarHoverSystem({
       return;
     }
 
+    const GLOW_POOL = 8;
+
+    // Throttle the heavy star scan to ~20Hz. It projects thousands of stars and
+    // builds candidate objects; doing it every frame is the biggest always-on
+    // CPU/GC cost. The slot ease + visual below still update at full frame rate,
+    // so the hover stays smooth via the springs.
+    scanAccum.current += dt;
+    if (scanAccum.current >= 0.05) {
+      scanAccum.current = 0;
+
     const curNX = voidState.mouseNX;
     const curNY = -voidState.mouseNY;
     const NDC_GLOW  = 0.060;
     const NDC_LINE  = 0.120;
-    const GLOW_POOL = 8;
     const camX  = camera.position.x, camY = camera.position.y, camZ = camera.position.z;
     const MIN_D2 = 5 * 5;
 
@@ -133,6 +143,7 @@ export default function StarHoverSystem({
 
     assignSlots(glowCands, 0,         GLOW_POOL);
     assignSlots(lineCands, GLOW_POOL, HOVER_POOL);
+    } // end throttled scan
 
     slots.forEach((s, i) => {
       const maxEase = i < GLOW_POOL ? 1.0 : 0.28;
