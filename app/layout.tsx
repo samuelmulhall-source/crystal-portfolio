@@ -10,6 +10,7 @@ import { DisplayModeProvider } from "./components/site/DisplayModeProvider";
 import { DisplayModeScript } from "./components/site/DisplayModeScript";
 import SmoothScroll from "./components/SmoothScroll";
 import CursorFollower from "./components/CursorFollower";
+import FpsMeter from "./components/site/FpsMeter";
 import { getSiteSettings } from "./lib/content";
 
 // Body / UI — clean modern grotesque (var name kept to avoid CSS churn)
@@ -96,6 +97,7 @@ export default function RootLayout({
             {children}
           </SmoothScroll>
           <CursorFollower />
+          <FpsMeter />
         </DisplayModeProvider>
         <Analytics />
       </body>
