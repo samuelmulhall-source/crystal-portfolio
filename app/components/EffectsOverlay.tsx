@@ -48,7 +48,6 @@ function getStarGeom(n: number): { verts: Vec3[]; faces: Face[] } {
   // Build triangular faces: top cap and bottom cap
   for (let i = 0; i < n; i++) {
     const o  = 2 + i * 2;       // outer[i]
-    const ni = 2 + i * 2 + 2;   // inner[i]   (wraps)
     const o2 = 2 + ((i + 1) % n) * 2; // outer[i+1]
 
     const inner  = o + 1;
@@ -86,6 +85,7 @@ export default function EffectsOverlay() {
     const t0 = performance.now();
     let lastT = performance.now();
     let loadFade = 0; // smoothed loading opacity for HUD text
+    let dirty = false; // whether the canvas currently holds drawn pixels
 
     const resize = () => {
       canvas.width  = window.innerWidth;
@@ -96,9 +96,6 @@ export default function EffectsOverlay() {
 
     function draw() {
       raf = requestAnimationFrame(draw);
-      const w   = canvas!.width;
-      const h   = canvas!.height;
-      ctx!.clearRect(0, 0, w, h);
 
       const now = performance.now();
       const dt  = Math.min((now - lastT) * 0.001, 0.05);
@@ -107,6 +104,36 @@ export default function EffectsOverlay() {
 
       // Smooth loading fade (used for HUD text below)
       loadFade += ((voidState.modelLoading ? 1 : 0) - loadFade) * Math.min(dt * 2.5, 1);
+
+      // ── Activity gate ──────────────────────────────────────────────────
+      // This overlay is fixed + full-screen and the browser composites it
+      // every frame. Clearing and re-uploading a 1080p+ canvas with nothing
+      // to show is the single biggest always-on cost of this layer. When
+      // there is genuinely nothing to draw we skip ALL work (no clear, no
+      // composite churn) — the layer becomes free until the next hover.
+      let busy = false;
+      for (let i = 0; i < voidState.hoverSlots.length; i++) {
+        if (voidState.hoverSlots[i].ease > 0.003 || _springs[i].pos > 0.003) { busy = true; break; }
+      }
+      if (!busy) {
+        for (let m = 0; m < voidState.meteorSlots.length; m++) {
+          const met = voidState.meteorSlots[m];
+          if (met.active && met.env > 0.01) { busy = true; break; }
+        }
+      }
+      if (!busy && (loadFade > 0.01 ||
+          (voidState.modelEntranceProgress < 0.98 && voidState.modelRegion.rPx > 30))) {
+        busy = true;
+      }
+      // Nothing on screen and nothing left to erase → do nothing this frame.
+      if (!busy && !dirty) return;
+
+      const w   = canvas!.width;
+      const h   = canvas!.height;
+      ctx!.clearRect(0, 0, w, h);
+      // Erased the last frame's content; canvas is now blank and stays blank.
+      if (!busy) { dirty = false; return; }
+      dirty = true;
 
       const SPRING_K = 420;
       const SPRING_D = 26;
@@ -123,7 +150,7 @@ export default function EffectsOverlay() {
         spring.pos   = Math.max(0, Math.min(spring.pos, 1.0));
         if (spring.pos < 0.005 && target < 0.01) { spring.pos = 0; spring.vel = 0; }
         if (spring.pos < 0.005) continue;
-        if (i >= 8) continue; // line-only slots: spring advances but no geometry
+        if (i >= 6) continue; // line-only slots: spring advances but no geometry
 
         const ease = Math.min(spring.pos, 1.0);
         const { sx, sy } = slot;
@@ -199,24 +226,6 @@ export default function EffectsOverlay() {
         ctx!.arc(sx, sy, 9 * ease, 0, Math.PI * 2);
         ctx!.fill();
 
-        // Chromatic aberration fringes — cyan left, magenta right
-        const aberr = ease * 2.2;
-        const fL = ctx!.createRadialGradient(sx - aberr, sy, 0, sx - aberr, sy, 3 * ease);
-        fL.addColorStop(0, `rgba(0,255,240,${ease * 0.32})`);
-        fL.addColorStop(1, "rgba(0,0,0,0)");
-        ctx!.fillStyle = fL;
-        ctx!.beginPath();
-        ctx!.arc(sx - aberr, sy, 3 * ease, 0, Math.PI * 2);
-        ctx!.fill();
-
-        const fR = ctx!.createRadialGradient(sx + aberr, sy, 0, sx + aberr, sy, 3 * ease);
-        fR.addColorStop(0, `rgba(255,80,180,${ease * 0.22})`);
-        fR.addColorStop(1, "rgba(0,0,0,0)");
-        ctx!.fillStyle = fR;
-        ctx!.beginPath();
-        ctx!.arc(sx + aberr, sy, 3 * ease, 0, Math.PI * 2);
-        ctx!.fill();
-
         // Tiny ice-white core at star centre
         const anchor = ctx!.createRadialGradient(sx, sy, 0, sx, sy, 2.2 * ease);
         anchor.addColorStop(0,   `rgba(240,250,255,${ease * 0.95})`);
@@ -257,13 +266,16 @@ export default function EffectsOverlay() {
             ctx!.setLineDash([dashLen * 0.5, dashLen * 1.5]);
             ctx!.lineDashOffset = -dashOffset;
 
-            ctx!.strokeStyle = `rgba(184, 240, 255, ${alpha})`;
-            ctx!.lineWidth   = 1.0;
-            ctx!.shadowColor = `rgba(184, 240, 255, 0.45)`;
-            ctx!.shadowBlur  = 3;
             ctx!.beginPath();
             ctx!.moveTo(sa.sx, sa.sy);
             ctx!.lineTo(sb.sx, sb.sy);
+            // Soft glow without the per-stroke cost of shadowBlur: a faint
+            // wide additive pass under a crisp thin core (same path).
+            ctx!.strokeStyle = `rgba(184, 240, 255, ${alpha * 0.34})`;
+            ctx!.lineWidth   = 2.6;
+            ctx!.stroke();
+            ctx!.strokeStyle = `rgba(212, 248, 255, ${alpha})`;
+            ctx!.lineWidth   = 1.0;
             ctx!.stroke();
           }
         }
@@ -324,9 +336,8 @@ export default function EffectsOverlay() {
         gGlow.addColorStop(0.85, `rgba(180,220, 255, ${env * 0.84})`);
         gGlow.addColorStop(1.00, `rgba(255,255, 255, ${env * 0.92})`);
 
-        ctx!.filter      = "blur(0.8px)";
         ctx!.strokeStyle = gGlow;
-        ctx!.lineWidth   = 1.3 * env;
+        ctx!.lineWidth   = 1.6 * env;
         ctx!.shadowColor = `rgba(80, 150, 255, ${env * 0.60})`;
         ctx!.shadowBlur  = 3 * env;
         ctx!.beginPath();
@@ -335,7 +346,6 @@ export default function EffectsOverlay() {
         ctx!.stroke();
 
         // Core pass: ice-white
-        ctx!.filter = "none";
         ctx!.shadowBlur = 0;
 
         const gCore = ctx!.createLinearGradient(tsx, tsy, hsx, hsy);

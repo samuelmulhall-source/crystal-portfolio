@@ -40,6 +40,8 @@ export default function StarHoverSystem({
   );
   const tmpV = useMemo(() => new THREE.Vector3(), []);
   const scanAccum = useRef(0);
+  // Reused scratch so the throttled scan allocates nothing per pass.
+  const usedScratch = useRef<boolean[]>(new Array(HOVER_POOL).fill(false));
 
   useFrame((state, dt) => {
     const t     = state.clock.elapsedTime;
@@ -57,7 +59,7 @@ export default function StarHoverSystem({
       return;
     }
 
-    const GLOW_POOL = 8;
+    const GLOW_POOL = 6;
 
     // Throttle the heavy star scan to ~20Hz. It projects thousands of stars and
     // builds candidate objects; doing it every frame is the biggest always-on
@@ -74,7 +76,7 @@ export default function StarHoverSystem({
     const camX  = camera.position.x, camY = camera.position.y, camZ = camera.position.z;
     const MIN_D2 = 5 * 5;
 
-    type Cand = { dist: number; layerIdx: number; starIdx: number; wx: number; wy: number; wz: number; };
+    type Cand = { dist: number; layerIdx: number; starIdx: number; wx: number; wy: number; wz: number; matched: boolean; };
     const glowCands: Cand[] = [];
     const lineCands: Cand[] = [];
 
@@ -93,9 +95,9 @@ export default function StarHoverSystem({
         if (tmpV.z > 1) continue;
         const dist = Math.sqrt((tmpV.x - curNX) ** 2 + (tmpV.y - curNY) ** 2);
         if (dist < NDC_GLOW) {
-          glowCands.push({ dist, layerIdx: li, starIdx: i, wx, wy, wz });
+          glowCands.push({ dist, layerIdx: li, starIdx: i, wx, wy, wz, matched: false });
         } else if (dist < NDC_LINE) {
-          lineCands.push({ dist, layerIdx: li, starIdx: i, wx, wy, wz });
+          lineCands.push({ dist, layerIdx: li, starIdx: i, wx, wy, wz, matched: false });
         }
         if (glowCands.length + lineCands.length >= HOVER_POOL * 3) break;
       }
@@ -105,36 +107,49 @@ export default function StarHoverSystem({
     glowCands.sort((a, b) => a.dist - b.dist);
     lineCands.sort((a, b) => a.dist - b.dist);
 
+    // Allocation-free slot assignment: no Map/Set/template-string keys and no
+    // per-placement object — pools are small (≤ HOVER_POOL) so linear scans
+    // are cheaper than the hashing + GC the previous version incurred.
+    const used = usedScratch.current;
     const assignSlots = (cands: Cand[], slotStart: number, slotEnd: number) => {
       const poolSize = slotEnd - slotStart;
-      const topCands = cands.slice(0, poolSize);
-      const existing = new Map<string, number>();
-      for (let si = slotStart; si < slotEnd; si++) {
-        const s = slots[si];
-        if (s.active || s.ease > 0) existing.set(`${s.layerIdx}-${s.starIdx}`, si);
-      }
-      const used = new Set<number>();
-      topCands.forEach((c) => {
-        const si = existing.get(`${c.layerIdx}-${c.starIdx}`);
-        if (si !== undefined) {
-          slots[si].active = true;
-          slots[si].wx = c.wx; slots[si].wy = c.wy; slots[si].wz = c.wz;
-          used.add(si);
-        }
-      });
-      topCands.forEach((c) => {
-        if (existing.has(`${c.layerIdx}-${c.starIdx}`)) return;
+      const limit = cands.length < poolSize ? cands.length : poolSize;
+      for (let si = slotStart; si < slotEnd; si++) used[si] = false;
+
+      // Pass 1 — keep any candidate that is already shown in this slot range,
+      // so its spring/ease animation continues without a pop.
+      for (let ci = 0; ci < limit; ci++) {
+        const c = cands[ci];
         for (let si = slotStart; si < slotEnd; si++) {
-          if (!used.has(si)) {
-            const variant = (c.starIdx * 7 + c.layerIdx * 317) % 6;
-            slots[si] = { active: true, ease: slots[si].ease, layerIdx: c.layerIdx, starIdx: c.starIdx, variant, wx: c.wx, wy: c.wy, wz: c.wz };
-            used.add(si);
+          const s = slots[si];
+          if (!used[si] && (s.active || s.ease > 0) &&
+              s.layerIdx === c.layerIdx && s.starIdx === c.starIdx) {
+            s.active = true; s.wx = c.wx; s.wy = c.wy; s.wz = c.wz;
+            used[si] = true; c.matched = true;
             break;
           }
         }
-      });
+      }
+
+      // Pass 2 — drop new candidates into whatever slots remain free.
+      for (let ci = 0; ci < limit; ci++) {
+        const c = cands[ci];
+        if (c.matched) continue;
+        for (let si = slotStart; si < slotEnd; si++) {
+          if (!used[si]) {
+            const s = slots[si];
+            s.active = true; s.layerIdx = c.layerIdx; s.starIdx = c.starIdx;
+            s.variant = (c.starIdx * 7 + c.layerIdx * 317) % 6;
+            s.wx = c.wx; s.wy = c.wy; s.wz = c.wz;
+            used[si] = true;
+            break;
+          }
+        }
+      }
+
+      // Pass 3 — release the rest (let their ease fall off, then free).
       for (let si = slotStart; si < slotEnd; si++) {
-        if (!used.has(si)) {
+        if (!used[si]) {
           slots[si].active = false;
           if (slots[si].ease < 0.01) { slots[si].layerIdx = -1; slots[si].starIdx = -1; }
         }
