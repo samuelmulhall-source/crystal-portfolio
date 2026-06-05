@@ -9,13 +9,20 @@
  * itself adds no measurable overhead.
  */
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export default function FpsMeter() {
   const fpsRef = useRef<HTMLSpanElement>(null);
   const lowRef = useRef<HTMLSpanElement>(null);
+  // Debug-only: show only when ?fps (or ?debug) is in the URL.
+  const [show] = useState(() => {
+    if (typeof window === "undefined") return false;
+    const p = new URLSearchParams(window.location.search);
+    return p.has("fps") || p.has("debug");
+  });
 
   useEffect(() => {
+    if (!show) return;
     let raf = 0;
     let frames = 0;
     let acc = 0; // seconds accumulated in the current sample window
@@ -61,7 +68,9 @@ export default function FpsMeter() {
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, []);
+  }, [show]);
+
+  if (!show) return null;
 
   return (
     <div

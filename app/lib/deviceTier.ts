@@ -14,6 +14,10 @@ export type DeviceTier = "low" | "mid" | "high";
 export interface DeviceProfile {
   tier: DeviceTier;
   isMobile: boolean;
+  /** True when the browser is rendering WebGL/canvas on the CPU
+   *  (SwiftShader / llvmpipe / WARP / "Microsoft Basic Render Driver").
+   *  A discrete GPU may exist but be unused — treat as the lowest tier. */
+  isSoftware: boolean;
   /** Max device pixel ratio to render at */
   maxDpr: number;
   /** Smoke frame folder suffix ("" for desktop, "_m" for mobile) */
@@ -31,7 +35,7 @@ let cached: DeviceProfile | null = null;
 function detect(): DeviceProfile {
   if (typeof window === "undefined") {
     // SSR fallback — assume high
-    return { tier: "high", isMobile: false, maxDpr: 1.5, smokeSuffix: "", smokeFrames: 50, smokeDpr: 2, smokeEager: 20 };
+    return { tier: "high", isMobile: false, isSoftware: false, maxDpr: 1.5, smokeSuffix: "", smokeFrames: 50, smokeDpr: 2, smokeEager: 20 };
   }
 
   const isMobile = window.matchMedia("(max-width: 768px)").matches;
@@ -42,14 +46,23 @@ function detect(): DeviceProfile {
 
   // GPU check via WebGL renderer string
   let gpuTier: "low" | "mid" | "high" = "mid";
+  let isSoftware = false;
   try {
     const canvas = document.createElement("canvas");
     const gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
-    if (gl) {
+    if (!gl) {
+      // No WebGL context at all → treat as software/incapable.
+      isSoftware = true;
+    } else {
       const ext = (gl as WebGLRenderingContext).getExtension("WEBGL_debug_renderer_info");
       if (ext) {
         const renderer = (gl as WebGLRenderingContext).getParameter(ext.UNMASKED_RENDERER_WEBGL) as string;
         const lower = renderer.toLowerCase();
+        // CPU/software rasterizers — a real GPU may exist but is unused.
+        // (Chrome/Brave fallback, hardware accel disabled, headless, VMs.)
+        if (/swiftshader|llvmpipe|software|basic render|microsoft basic|warp|\bsoftpipe\b|google.*software/i.test(lower)) {
+          isSoftware = true;
+        }
         // Low-end indicators
         if (/mali-[gt]|adreno\s*(3|4|5[0-2])|powervr|intel\s*(hd|uhd)\s*(4|5|6)[0-9]{2}/i.test(renderer)) {
           gpuTier = "low";
@@ -72,13 +85,15 @@ function detect(): DeviceProfile {
   if (dpr > 2.5) score -= 1; // Ultra-high DPR = more fill rate needed
 
   let tier: DeviceTier;
-  if (isMobile || isTouch || score <= 1) tier = "low";
+  if (isSoftware) tier = "low"; // CPU rendering — force the lightest path
+  else if (isMobile || isTouch || score <= 1) tier = "low";
   else if (score <= 3) tier = "mid";
   else tier = "high";
 
   const profile: DeviceProfile = {
     tier,
     isMobile,
+    isSoftware,
     maxDpr: tier === "low" ? 1.0 : tier === "mid" ? 1.5 : 1.5,
     smokeSuffix: tier === "low" ? "_m" : "",
     smokeFrames: 50,
@@ -88,7 +103,7 @@ function detect(): DeviceProfile {
 
   if (typeof console !== "undefined") {
     console.log(
-      `[deviceTier] ${tier} | cores=${cores} mem=${memory}GB gpu=${gpuTier} mobile=${isMobile} dpr=${dpr.toFixed(1)}`
+      `[deviceTier] ${tier} | cores=${cores} mem=${memory}GB gpu=${gpuTier} software=${isSoftware} mobile=${isMobile} dpr=${dpr.toFixed(1)}`
     );
   }
 

@@ -1719,3 +1719,39 @@ button, input, textarea { font: inherit; }
     .archive-preview-grid > *:nth-child(3) { animation-range: entry 10% cover 22%; }
   }
 }
+
+/* ─── Lite-tier static starfield (quality 1) ──────────────────────────────────
+   Pure CSS replacement for the WebGL void when the device renders in software
+   or can't keep frame rate. Deep-midnight base + two nebula glows + two tiled
+   star-dot grids. No canvas, no rAF — a flat, fast, intentional void. */
+.static-starfield {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-color: #000005;
+  background-image:
+    radial-gradient(circle at 78% 18%, rgba(70, 120, 190, 0.10), transparent 42%),
+    radial-gradient(circle at 16% 82%, rgba(90, 150, 210, 0.08), transparent 46%),
+    radial-gradient(1px 1px at 20% 30%, rgba(220, 240, 255, 0.85), transparent),
+    radial-gradient(1px 1px at 65% 12%, rgba(200, 230, 255, 0.70), transparent),
+    radial-gradient(1.5px 1.5px at 42% 68%, rgba(235, 248, 255, 0.90), transparent),
+    radial-gradient(1px 1px at 88% 54%, rgba(190, 222, 255, 0.65), transparent),
+    radial-gradient(1px 1px at 33% 88%, rgba(210, 235, 255, 0.70), transparent),
+    radial-gradient(1px 1px at 8% 48%, rgba(200, 228, 255, 0.60), transparent);
+  /* The two dot layers tile; the nebula glows do not. */
+  background-repeat: no-repeat, no-repeat, repeat, repeat, repeat, repeat, repeat, repeat;
+  background-size:
+    100% 100%, 100% 100%,
+    320px 320px, 320px 320px, 540px 540px, 540px 540px, 760px 760px, 760px 760px;
+  animation: static-star-twinkle 9s ease-in-out infinite;
+}
+
+@keyframes static-star-twinkle {
+  0%, 100% { opacity: 0.92; }
+  50%      { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .static-starfield { animation: none; }
+}

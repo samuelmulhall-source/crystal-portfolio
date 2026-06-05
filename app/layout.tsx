@@ -3,13 +3,11 @@ import { Archivo, IBM_Plex_Mono } from "next/font/google";
 import localFont from "next/font/local";
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
-import VoidBackground from "./components/VoidBackground";
-import EffectsOverlay from "./components/EffectsOverlay";
-import SmokeLayersGate from "./components/SmokeLayersGate";
 import { DisplayModeProvider } from "./components/site/DisplayModeProvider";
 import { DisplayModeScript } from "./components/site/DisplayModeScript";
+import { QualityProvider } from "./components/site/QualityProvider";
+import EnhancementLayers from "./components/site/EnhancementLayers";
 import SmoothScroll from "./components/SmoothScroll";
-import CursorFollower from "./components/CursorFollower";
 import FpsMeter from "./components/site/FpsMeter";
 import { getSiteSettings } from "./lib/content";
 
@@ -90,14 +88,13 @@ export default function RootLayout({
           enhancedMinDeviceMemory={siteSettings.qualityPresets.enhancedMinDeviceMemory}
           enhancedMinHardwareConcurrency={siteSettings.qualityPresets.enhancedMinHardwareConcurrency}
         >
-          <VoidBackground />
-          <EffectsOverlay />
-          <SmokeLayersGate />
-          <SmoothScroll>
-            {children}
-          </SmoothScroll>
-          <CursorFollower />
-          <FpsMeter />
+          <QualityProvider>
+            <EnhancementLayers />
+            <SmoothScroll>
+              {children}
+            </SmoothScroll>
+            <FpsMeter />
+          </QualityProvider>
         </DisplayModeProvider>
         <Analytics />
       </body>

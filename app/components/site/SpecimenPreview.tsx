@@ -3,6 +3,7 @@
 import Image from "next/image";
 import type { MediaAsset } from "../../lib/content";
 import { useDisplayMode } from "./DisplayModeProvider";
+import { useQuality } from "./QualityProvider";
 
 export function SpecimenPreview({
   posterAsset,
@@ -17,7 +18,9 @@ export function SpecimenPreview({
   priority?: boolean;
 }) {
   const { effectiveMode } = useDisplayMode();
-  const shouldAnimate = effectiveMode === "enhanced" && motionAsset.kind === "video";
+  const { tier } = useQuality();
+  // At Lite (tier 1) skip video decode entirely and show the poster image.
+  const shouldAnimate = tier >= 2 && effectiveMode === "enhanced" && motionAsset.kind === "video";
 
   if (shouldAnimate && motionAsset.kind === "video") {
     return (

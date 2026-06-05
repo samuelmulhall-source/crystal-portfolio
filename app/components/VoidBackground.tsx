@@ -13,6 +13,7 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { voidState } from "../lib/voidState";
 import { layerOff } from "../lib/debugFlags";
+import type { QualityTier } from "../lib/quality";
 import { VoidContext } from "../scene/VoidContext";
 import { StarLayer } from "../scene/Starfield";
 import DustParticles from "../scene/DustParticles";
@@ -61,11 +62,15 @@ function BackgroundCameraRig() {
   return null;
 }
 
-function BackgroundScene({ isMobile }: { isMobile: boolean }) {
+function BackgroundScene({ isMobile, tier }: { isMobile: boolean; tier: QualityTier }) {
   const pts0 = useRef<THREE.Points | null>(null);
   const pts1 = useRef<THREE.Points | null>(null);
   const pts2 = useRef<THREE.Points | null>(null);
-  const layers = isMobile ? LAYERS_MOBILE : LAYERS_DESKTOP;
+  const full = tier >= 3;
+  const base = isMobile ? LAYERS_MOBILE : LAYERS_DESKTOP;
+  // Balanced tier thins the starfield (cheaper fill + fewer vertices) since a
+  // DPR cap alone does nothing on DPR-1 displays.
+  const layers = full ? base : base.map((l) => ({ ...l, count: Math.round(l.count * 0.6) }));
 
   return (
     <VoidContext.Provider value={{ isMobile, layers }}>
@@ -73,14 +78,14 @@ function BackgroundScene({ isMobile }: { isMobile: boolean }) {
       <StarLayer li={0} pointsRef={pts0} />
       <StarLayer li={1} pointsRef={pts1} />
       <StarLayer li={2} pointsRef={pts2} />
-      <DustParticles />
-      {!isMobile && <StarHoverSystem pts={[pts0, pts1, pts2]} />}
+      {full && <DustParticles />}
+      {full && !isMobile && <StarHoverSystem pts={[pts0, pts1, pts2]} />}
       <BackgroundCameraRig />
     </VoidContext.Provider>
   );
 }
 
-export default function VoidBackground() {
+export default function VoidBackground({ tier = 3 }: { tier?: QualityTier }) {
   const [mounted, setMounted] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [off] = useState(() => layerOff("webgl")); // debug: ?off=webgl
@@ -189,12 +194,12 @@ export default function VoidBackground() {
       <Canvas
         gl={{ antialias: true, alpha: false, powerPreference: "high-performance" }}
         camera={{ position: [0, 0, 14], fov: 50 }}
-        dpr={[1, 1.5]}
+        dpr={tier >= 3 ? [1, 1.5] : [1, 1]}
         frameloop="always"
         style={{ width: "100%", height: "100%", display: "block" }}
         onCreated={onCanvasCreated}
       >
-        <BackgroundScene isMobile={isMobile} />
+        <BackgroundScene isMobile={isMobile} tier={tier} />
       </Canvas>
     </div>
   );
