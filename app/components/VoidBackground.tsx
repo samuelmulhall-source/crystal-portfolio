@@ -12,6 +12,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { voidState } from "../lib/voidState";
+import { layerOff } from "../lib/debugFlags";
 import { VoidContext } from "../scene/VoidContext";
 import { StarLayer } from "../scene/Starfield";
 import DustParticles from "../scene/DustParticles";
@@ -82,6 +83,7 @@ function BackgroundScene({ isMobile }: { isMobile: boolean }) {
 export default function VoidBackground() {
   const [mounted, setMounted] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [off] = useState(() => layerOff("webgl")); // debug: ?off=webgl
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -168,7 +170,7 @@ export default function VoidBackground() {
     });
   }, []);
 
-  if (!mounted || typeof window === "undefined") {
+  if (!mounted || off || typeof window === "undefined") {
     return (
       <div
         style={{ position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none", background: "#000005" }}

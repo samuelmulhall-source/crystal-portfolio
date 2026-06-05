@@ -14,6 +14,7 @@
 
 import { useEffect, useRef } from "react";
 import { voidState } from "../lib/voidState";
+import { layerOff } from "../lib/debugFlags";
 
 // Per-slot spring state (lives outside React render cycle)
 const _springs: Array<{ pos: number; vel: number }> =
@@ -76,6 +77,7 @@ export default function EffectsOverlay() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
+    if (layerOff("effects")) return; // debug: ?off=effects
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");

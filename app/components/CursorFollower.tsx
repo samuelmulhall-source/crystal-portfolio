@@ -24,6 +24,7 @@
 
 import { useEffect, useRef } from "react";
 import { voidState } from "../lib/voidState";
+import { layerOff } from "../lib/debugFlags";
 
 type Particle = { x: number; y: number; vx: number; vy: number; life: number };
 
@@ -34,6 +35,7 @@ export default function CursorFollower() {
   const cvRef  = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
+    if (layerOff("cursor")) return; // debug: ?off=cursor
     if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
 
     const styleTag = document.createElement("style");

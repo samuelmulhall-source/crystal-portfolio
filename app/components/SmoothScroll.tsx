@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import Lenis from "lenis";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { layerOff } from "../lib/debugFlags";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -12,6 +13,7 @@ export let lenisInstance: Lenis | null = null;
 
 export default function SmoothScroll({ children }: { children: React.ReactNode }) {
   useEffect(() => {
+    if (layerOff("scroll")) return; // debug: ?off=scroll
     const lenis = new Lenis({ lerp: 0.08, smoothWheel: true });
     lenisInstance = lenis;
 
