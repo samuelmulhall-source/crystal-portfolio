@@ -121,19 +121,21 @@ main {
 }
 
 /* Hero title: internal luminosity — light emanates FROM the letterforms */
+/* Bloom reduced ~40% from the original; tight white core kept so the dotted
+   letterforms stay luminous and crisp. */
 @keyframes hero-glow-pulse {
   0%, 100% {
     text-shadow:
-      0 0 1px  rgba(255,255,255,0.88),
-      0 0 7px  rgba(210,246,255,0.52),
-      0 0 22px rgba(184,240,255,0.14);
+      0 0 1px  rgba(255,255,255,0.82),
+      0 0 5px  rgba(210,246,255,0.31),
+      0 0 14px rgba(184,240,255,0.085);
   }
   50% {
     text-shadow:
-      0 0 1px  rgba(255,255,255,0.98),
-      0 0 9px  rgba(220,250,255,0.78),
-      0 0 28px rgba(184,240,255,0.32),
-      0 0 70px rgba(184,240,255,0.06);
+      0 0 1px  rgba(255,255,255,0.90),
+      0 0 6px  rgba(220,250,255,0.46),
+      0 0 18px rgba(184,240,255,0.19),
+      0 0 44px rgba(184,240,255,0.036);
   }
 }
 
@@ -737,8 +739,9 @@ button, input, textarea { font: inherit; }
   margin: 0;
   font-family: var(--font-display), system-ui, sans-serif;
   font-weight: 400;
-  font-size: clamp(3rem, 11vw, 9.4rem);
-  letter-spacing: 0.07em;
+  /* ~12% smaller for more whitespace around the composition */
+  font-size: clamp(2.6rem, 9.6vw, 8.2rem);
+  letter-spacing: 0.08em;
   line-height: 0.98;
   text-transform: uppercase;
   text-align: center;
@@ -855,51 +858,87 @@ button, input, textarea { font: inherit; }
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1.5rem;
+  gap: clamp(1.1rem, 2.6vh, 1.9rem);
+  will-change: transform;
 }
 
-.hero-actions { display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center; }
+/* Dark radial behind the logo cluster — lifts text contrast off the fog */
+.hero-core::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  transform: translate(-50%, -50%);
+  width: 150%;
+  height: 200%;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 60% 50% at center,
+    rgba(0, 2, 8, 0.62) 0%,
+    rgba(0, 2, 8, 0.34) 40%,
+    rgba(0, 2, 8, 0) 72%
+  );
+}
 
-/* ─── Hero eyebrow + tagline ──────────────────────────────────────────────── */
-.hero-eyebrow {
+/* ─── Hero descriptor — single concise capability line ───────────────────── */
+.hero-capabilities {
+  margin: 0;
   font-family: var(--font-plex-mono), monospace;
   font-size: 0.66rem;
-  letter-spacing: 0.34em;
+  letter-spacing: 0.4em;
   text-transform: uppercase;
-  color: rgba(184, 240, 255, 0.62);
+  color: rgba(184, 240, 255, 0.6);
 }
 
-/* ─── Hero meta — quiet credential + toolset line (not a busy band) ───────── */
-.hero-meta {
-  margin: 0.4rem 0 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.5rem;
+/* ─── Hero statement — prominent supporting line beneath the logo ─────────── */
+.hero-statement {
+  margin: 0;
   font-family: var(--font-plex-mono), monospace;
+  font-size: clamp(0.78rem, 1.1vw, 0.92rem);
+  letter-spacing: 0.26em;
   text-transform: uppercase;
+  color: rgba(214, 234, 252, 0.78);
 }
 
-.hero-meta__note {
-  margin: 0;
-  font-size: 0.64rem;
-  letter-spacing: 0.22em;
-  color: rgba(184, 240, 255, 0.5);
+/* ─── Hero scroll cue — minimalist "Selected Work ↓" ─────────────────────── */
+.hero-scroll-cue {
+  position: absolute;
+  left: 50%;
+  bottom: clamp(1.4rem, 4vh, 2.6rem);
+  transform: translateX(-50%);
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-family: var(--font-plex-mono), monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: rgba(184, 240, 255, 0.55);
+  text-decoration: none;
+  transition: color 240ms ease, letter-spacing 240ms ease;
 }
+.hero-scroll-cue:hover { color: var(--ice-bright, #c5f8ff); letter-spacing: 0.32em; }
+.hero-scroll-cue__arrow { animation: hero-scroll-bob 2.4s ease-in-out infinite; }
 
-.hero-meta__tools {
-  margin: 0;
-  max-width: 64ch;
-  text-align: center;
-  font-size: 0.58rem;
-  letter-spacing: 0.16em;
-  line-height: 1.7;
-  color: rgba(206, 224, 245, 0.34);
+@keyframes hero-scroll-bob {
+  0%, 100% { transform: translateY(0); opacity: 0.6; }
+  50%      { transform: translateY(3px); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-scroll-cue__arrow { animation: none; }
 }
 
 /* Parallax layers + magnetic targets */
-.hero-core { will-change: transform; }
-.hero-viewport-wrap { display: flex; justify-content: center; width: 100%; will-change: transform; }
+.hero-viewport-wrap {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  /* Pull the artifact up so it anchors the logo instead of floating below */
+  margin-top: clamp(-5rem, -6vh, -2rem);
+  will-change: transform;
+}
 .magnetic {
   display: inline-flex;
   transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
@@ -1714,7 +1753,7 @@ button, input, textarea { font: inherit; }
 @media (max-width: 720px) {
   .page-root { padding-top: 88px; }
   .page-shell, .site-header__inner, .site-footer__inner { width: min(100% - 1.35rem, 1200px); }
-  .hero-wordmark { font-size: clamp(2.6rem, 13vw, 4.4rem); letter-spacing: -0.04em; }
+  .hero-wordmark { font-size: clamp(2.3rem, 11.5vw, 3.9rem); letter-spacing: -0.02em; }
   .hero-subhead { font-size: 0.56rem; letter-spacing: 0.24em; gap: 0 0.6rem; }
   .hero-subhead__item { gap: 0.6rem; }
   .hero-band { grid-template-columns: 1fr; gap: 0.75rem; }

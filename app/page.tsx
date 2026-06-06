@@ -35,27 +35,16 @@ export default function HomePage() {
         <HeroParallax />
         <HeroEntrance>
           <div className="hero-core" data-parallax="0.2">
-            {home.hero.eyebrow ? (
-              <span className="hero-eyebrow" data-hero-entrance="eyebrow">{home.hero.eyebrow}</span>
+            {home.hero.capabilities?.length ? (
+              <p className="hero-capabilities" data-hero-entrance="eyebrow">
+                {home.hero.capabilities.join("  ·  ")}
+              </p>
             ) : null}
             <h1 className="hero-wordmark" data-hero-entrance="title">
               <span className="hero-wordmark__text">{home.hero.title}</span>
             </h1>
-            <p className="hero-subhead" data-hero-entrance="subhead">
-              {home.hero.subhead.map((word, i) => (
-                <span key={word} className="hero-subhead__item">
-                  {i > 0 ? <span className="hero-subhead__sep" aria-hidden="true">·</span> : null}
-                  {word}
-                </span>
-              ))}
-            </p>
-            {home.hero.note || home.hero.tools?.length ? (
-              <div className="hero-meta" data-hero-entrance="lead">
-                {home.hero.note ? <p className="hero-meta__note">{home.hero.note}</p> : null}
-                {home.hero.tools?.length ? (
-                  <p className="hero-meta__tools">{home.hero.tools.join("  ·  ")}</p>
-                ) : null}
-              </div>
+            {home.hero.statement ? (
+              <p className="hero-statement" data-hero-entrance="lead">{home.hero.statement}</p>
             ) : null}
           </div>
 
@@ -78,11 +67,18 @@ export default function HomePage() {
               />
             </div>
           </div>
+
+          {home.hero.scrollCue ? (
+            <a className="hero-scroll-cue" href="#selected-work" data-hero-entrance="lead">
+              <span>{home.hero.scrollCue}</span>
+              <span className="hero-scroll-cue__arrow" aria-hidden="true">↓</span>
+            </a>
+          ) : null}
         </HeroEntrance>
       </section>
 
       {/* ═══ SELECTED WORK ═══ */}
-      <section className="section page-shell">
+      <section id="selected-work" className="section page-shell">
         <div className="section-head">
           <span className="section-head__index">01</span>
           <h2 className="section-head__title">{home.selectedWork.heading}</h2>

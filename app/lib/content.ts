@@ -134,15 +134,15 @@ const SiteSettingsSchema = z.object({
 const HomeContentSchema = z.object({
   hero: z.object({
     title: z.string(),
-    subhead: z.array(z.string()),
+    subhead: z.array(z.string()).optional(),
     featuredSlug: z.string(),
     video: MediaAssetSchema.optional(),
-    /** Small role/eyebrow above the wordmark. */
-    eyebrow: z.string().optional(),
-    /** Subtle one-line credential under the disciplines (e.g. years + projects). */
-    note: z.string().optional(),
-    /** Toolset, shown as a quiet mono line in the hero (not a busy band). */
-    tools: z.array(z.string()).optional(),
+    /** Concise capability labels — the single descriptor above the wordmark. */
+    capabilities: z.array(z.string()).optional(),
+    /** Prominent one-line supporting statement beneath the wordmark. */
+    statement: z.string().optional(),
+    /** Minimal scroll cue label beneath the hero (e.g. "Selected Work"). */
+    scrollCue: z.string().optional(),
   }),
   selectedWork: z.object({
     heading: z.string(),

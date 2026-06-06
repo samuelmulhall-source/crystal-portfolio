@@ -1,10 +1,9 @@
 {
   "hero": {
-    "eyebrow": "3D Generalist & Technical Artist",
     "title": "Multiscatter",
-    "subhead": ["Design", "Development", "Rendering", "Production"],
-    "note": "Working in 3D since 2021 · 50+ projects shipped",
-    "tools": ["Blender", "Houdini", "EmberGen", "Substance 3D", "Unreal Engine 5", "After Effects"],
+    "capabilities": ["CGI", "Realtime", "Technical Art"],
+    "statement": "50+ projects shipped since 2021",
+    "scrollCue": "Selected Work",
     "featuredSlug": "soulbound-lantern",
     "video": {
       "kind": "video",
