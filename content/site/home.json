@@ -1,7 +1,11 @@
 {
   "hero": {
+    "eyebrow": "3D Generalist & Technical Artist",
     "title": "Multiscatter",
+    "tagline": "Bringing ideas to life through 3D, real-time and motion.",
     "subhead": ["Design", "Development", "Rendering", "Production"],
+    "primaryCta": { "label": "View work", "href": "/work" },
+    "secondaryCta": { "label": "Get in touch", "href": "https://x.com/multiscatter" },
     "featuredSlug": "soulbound-lantern",
     "video": {
       "kind": "video",
@@ -9,6 +13,15 @@
       "poster": "/hero/lantern-hero.webp",
       "alt": "Soulbound Lantern — emissive glass and metal study, looping"
     }
+  },
+  "capabilities": {
+    "tools": ["Blender", "Houdini", "EmberGen", "Substance 3D", "Unreal Engine 5", "After Effects"],
+    "stats": [
+      { "label": "Working in 3D", "value": "Since 2021" },
+      { "label": "Projects shipped", "value": "50+" },
+      { "label": "Focus", "value": "Real-time · Lookdev · Motion" },
+      { "label": "Availability", "value": "Open to briefs & roles" }
+    ]
   },
   "selectedWork": {
     "heading": "Selected work",

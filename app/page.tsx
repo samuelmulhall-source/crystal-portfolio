@@ -35,6 +35,9 @@ export default function HomePage() {
         <HeroParallax />
         <HeroEntrance>
           <div className="hero-core" data-parallax="0.2">
+            {home.hero.eyebrow ? (
+              <span className="hero-eyebrow" data-hero-entrance="eyebrow">{home.hero.eyebrow}</span>
+            ) : null}
             <h1 className="hero-wordmark" data-hero-entrance="title">
               <span className="hero-wordmark__text">{home.hero.title}</span>
             </h1>
@@ -46,6 +49,35 @@ export default function HomePage() {
                 </span>
               ))}
             </p>
+            {home.hero.tagline ? (
+              <p className="hero-tagline" data-hero-entrance="lead">{home.hero.tagline}</p>
+            ) : null}
+            {home.hero.primaryCta || home.hero.secondaryCta ? (
+              <div className="hero-actions" data-hero-entrance="lead">
+                {home.hero.primaryCta ? (
+                  home.hero.primaryCta.href.startsWith("/") ? (
+                    <Link className="button-link" href={home.hero.primaryCta.href}>
+                      {home.hero.primaryCta.label}
+                    </Link>
+                  ) : (
+                    <a className="button-link" href={home.hero.primaryCta.href}>
+                      {home.hero.primaryCta.label}
+                    </a>
+                  )
+                ) : null}
+                {home.hero.secondaryCta ? (
+                  home.hero.secondaryCta.href.startsWith("/") ? (
+                    <Link className="button-link button-link--ghost" href={home.hero.secondaryCta.href}>
+                      {home.hero.secondaryCta.label}
+                    </Link>
+                  ) : (
+                    <a className="button-link button-link--ghost" href={home.hero.secondaryCta.href}>
+                      {home.hero.secondaryCta.label}
+                    </a>
+                  )
+                ) : null}
+              </div>
+            ) : null}
           </div>
 
           <div className="hero-viewport-wrap" data-parallax="0.07">
@@ -69,6 +101,25 @@ export default function HomePage() {
           </div>
         </HeroEntrance>
       </section>
+
+      {/* ═══ CAPABILITIES — toolset + real stats (proof band) ═══ */}
+      {home.capabilities ? (
+        <section className="capabilities-band page-shell" aria-label="Capabilities and experience">
+          <ul className="tools-strip">
+            {home.capabilities.tools.map((tool) => (
+              <li key={tool} className="tools-strip__item">{tool}</li>
+            ))}
+          </ul>
+          <dl className="stats-row">
+            {home.capabilities.stats.map((stat) => (
+              <div key={stat.label} className="stats-row__item">
+                <dt className="stats-row__value">{stat.value}</dt>
+                <dd className="stats-row__label">{stat.label}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+      ) : null}
 
       {/* ═══ SELECTED WORK ═══ */}
       <section className="section page-shell">

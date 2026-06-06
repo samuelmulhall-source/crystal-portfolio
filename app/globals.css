@@ -860,6 +860,93 @@ button, input, textarea { font: inherit; }
 
 .hero-actions { display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center; }
 
+/* ─── Hero eyebrow + tagline ──────────────────────────────────────────────── */
+.hero-eyebrow {
+  font-family: var(--font-plex-mono), monospace;
+  font-size: 0.66rem;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  color: rgba(184, 240, 255, 0.62);
+}
+
+.hero-tagline {
+  margin: 0;
+  max-width: 36ch;
+  text-align: center;
+  font-size: clamp(1rem, 1.7vw, 1.3rem);
+  line-height: 1.5;
+  color: rgba(223, 236, 255, 0.82);
+  text-wrap: balance;
+}
+
+/* ─── Capabilities band — toolset strip + real stats (proof) ──────────────── */
+.capabilities-band {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(1.5rem, 3vw, 2.4rem);
+  padding-top: clamp(1rem, 3vh, 2rem);
+  padding-bottom: clamp(2.75rem, 6vh, 4.25rem);
+}
+
+.tools-strip {
+  list-style: none;
+  margin: 0;
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.7rem 1.6rem;
+  border-top: 1px solid rgba(184, 240, 255, 0.09);
+  border-bottom: 1px solid rgba(184, 240, 255, 0.09);
+}
+
+.tools-strip__item {
+  font-family: var(--font-plex-mono), monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(221, 236, 255, 0.66);
+}
+
+.stats-row {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: clamp(1rem, 2.5vw, 2rem);
+}
+
+.stats-row__item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding-left: clamp(0.85rem, 1.4vw, 1.15rem);
+  border-left: 1px solid rgba(184, 240, 255, 0.12);
+}
+
+.stats-row__value {
+  font-size: clamp(1.05rem, 1.8vw, 1.42rem);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+  color: var(--ice-bright, #c5f8ff);
+}
+
+.stats-row__label {
+  margin: 0;
+  font-family: var(--font-plex-mono), monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(184, 240, 255, 0.44);
+}
+
+@media (max-width: 760px) {
+  .stats-row { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.3rem 1rem; }
+}
+
 /* Parallax layers + magnetic targets */
 .hero-core { will-change: transform; }
 .hero-viewport-wrap { display: flex; justify-content: center; width: 100%; will-change: transform; }

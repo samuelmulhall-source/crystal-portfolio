@@ -44,8 +44,6 @@ export default function SmokeLayers() {
 
   const backFrames = useRef<(HTMLImageElement | null)[]>(new Array(TOTAL).fill(null));
   const frontFrames = useRef<(HTMLImageElement | null)[]>(new Array(TOTAL).fill(null));
-  const currentFrame = useRef(-1);
-  const smoothFrame = useRef(0);
   const rafRef = useRef(0);
   const dprRef = useRef(1);
 
@@ -143,43 +141,76 @@ export default function SmokeLayers() {
       ctx.drawImage(image, (cw - dw) / 2 + ox, (ch - dh) / 2 + oy, dw, dh);
     }
 
-    const tick = () => {
+    // Steady-cadence ping-pong playback — frame advance is driven by TIME, not
+    // scroll, so the smoke billows smoothly no matter how the page is scrolled.
+    // Scroll now only fades the layers out as the hero leaves the viewport.
+    const PLAY_FPS = 22;
+    const FRAME_DT = 1 / PLAY_FPS;
+    // Ping-pong inside the upper, fully-developed band so the smoke billows
+    // gently and never thins out to the sparse opening frames.
+    const LO = Math.round((TOTAL - 1) * 0.55);
+    const HI = TOTAL - 1;
+    let playFrame = LO;
+    let playDir = 1;
+    let playAccum = 0;
+    let lastNow = performance.now();
+    let lastIdx = -1;
+    let lastObx = -999, lastOby = -999, lastOfx = -999, lastOfy = -999;
+
+    const tick = (now: number) => {
       rafRef.current = requestAnimationFrame(tick);
+      const dt = Math.min((now - lastNow) * 0.001, 0.05);
+      lastNow = now;
+
+      // Coverage fade: full over the hero, gone by the corridor end. Opacity is
+      // a cheap GPU composite on the container — no canvas redraw required.
       const p = voidState.scrollProgress;
+      const fade = Math.max(0, Math.min(1, 1 - p / CORRIDOR_END));
+      const hidden = fade <= 0.001;
+      if (backContainerRef.current) {
+        backContainerRef.current.style.display = hidden ? "none" : "";
+        backContainerRef.current.style.opacity = fade.toFixed(3);
+      }
+      if (frontContainerRef.current) {
+        frontContainerRef.current.style.display = hidden ? "none" : "";
+        frontContainerRef.current.style.opacity = fade.toFixed(3);
+      }
+      if (hidden) return;
 
-      // Hide past corridor
-      const pastEnd = p > CORRIDOR_END + 0.04;
-      if (backContainerRef.current) backContainerRef.current.style.display = pastEnd ? "none" : "";
-      if (frontContainerRef.current) frontContainerRef.current.style.display = pastEnd ? "none" : "";
-      if (pastEnd) return;
+      // Advance playback by elapsed time (ping-pong within the dense range).
+      playAccum += dt;
+      if (playAccum >= FRAME_DT) {
+        const steps = Math.floor(playAccum / FRAME_DT);
+        playAccum -= steps * FRAME_DT;
+        let f = playFrame + playDir * steps;
+        if (f >= HI) { f = HI; playDir = -1; }
+        else if (f <= LO) { f = LO; playDir = 1; }
+        playFrame = f;
+      }
+      const idx = playFrame;
 
-      // Start partway into the sequence so the hero already sits in dense smoke
-      // at rest (scroll 0), rather than the sparse opening frames.
-      const START_FRAC = 0.3;
-      const corridorP = Math.min(p / CORRIDOR_END, 1);
-      const target = (START_FRAC + corridorP * (1 - START_FRAC)) * (TOTAL - 1);
-      smoothFrame.current = lerp(smoothFrame.current, target, 0.16);
-      const idx = Math.round(Math.max(0, Math.min(TOTAL - 1, smoothFrame.current)));
+      // Mouse parallax (subtle, smoothed).
+      const mx = voidState.mouseNX, my = voidState.mouseNY;
+      obx.current = lerp(obx.current, mx * PARALLAX_BACK * dpr, 0.05);
+      oby.current = lerp(oby.current, my * PARALLAX_BACK * 0.5 * dpr, 0.05);
+      ofx.current = lerp(ofx.current, mx * PARALLAX_FRONT * dpr, 0.09);
+      ofy.current = lerp(ofy.current, my * PARALLAX_FRONT * 0.5 * dpr, 0.09);
 
-      const mx = voidState.mouseNX;
-      const my = voidState.mouseNY;
-      obx.current = lerp(obx.current, mx * PARALLAX_BACK * dpr, 0.03);
-      oby.current = lerp(oby.current, my * PARALLAX_BACK * 0.5 * dpr, 0.03);
-      ofx.current = lerp(ofx.current, mx * PARALLAX_FRONT * dpr, 0.08);
-      ofy.current = lerp(ofy.current, my * PARALLAX_FRONT * 0.5 * dpr, 0.08);
-
-      const moving = Math.abs(obx.current) > 0.3 || Math.abs(ofx.current) > 0.3;
-      if (idx === currentFrame.current && !moving) return;
-      currentFrame.current = idx;
+      // Redraw only when the frame advanced or parallax visibly moved.
+      const moved =
+        Math.abs(obx.current - lastObx) > 0.4 || Math.abs(oby.current - lastOby) > 0.4 ||
+        Math.abs(ofx.current - lastOfx) > 0.4 || Math.abs(ofy.current - lastOfy) > 0.4;
+      if (idx === lastIdx && !moved) return;
+      lastIdx = idx;
+      lastObx = obx.current; lastOby = oby.current; lastOfx = ofx.current; lastOfy = ofy.current;
 
       const bi = backFrames.current[idx];
       const fi = frontFrames.current[idx];
       const bcw = bc.width, bch = bc.height;
       const fcw = fc.width, fch = fc.height;
 
-      // Scale the smoke up so its dense band is tall enough to surround the
-      // lantern AND still cover down to the bottom edge — a small lift biases
-      // it toward the hero centre without exposing the bottom of the canvas.
+      // A small upward lift biases the dense band toward the hero centre while
+      // still covering to the bottom edge.
       const backLift = bch * 0.05;
       const frontLift = fch * 0.07;
 
@@ -188,7 +219,7 @@ export default function SmokeLayers() {
       bctx.globalAlpha = 1;
 
       fctx.clearRect(0, 0, fcw, fch);
-      if (fi) drawCover(fctx, fi, fcw, fch, ofx.current, ofy.current - frontLift, 0.62, 1.46);
+      if (fi) drawCover(fctx, fi, fcw, fch, ofx.current, ofy.current - frontLift, 0.7, 1.46);
       fctx.globalAlpha = 1;
     };
 
@@ -211,16 +242,16 @@ export default function SmokeLayers() {
       {/* Back smoke — behind page content */}
       <div
         ref={backContainerRef}
-        style={{ position: "fixed", inset: 0, zIndex: 1, pointerEvents: "none", overflow: "hidden" }}
+        style={{ position: "fixed", inset: 0, zIndex: 1, pointerEvents: "none", overflow: "hidden", willChange: "opacity" }}
         aria-hidden="true"
       >
         <canvas ref={backCanvasRef} style={canvasStyle} />
       </div>
 
-      {/* Front smoke — over page content */}
+      {/* Front smoke — over page content AND the hero asset (lantern) */}
       <div
         ref={frontContainerRef}
-        style={{ position: "fixed", inset: 0, zIndex: 5, pointerEvents: "none", overflow: "hidden" }}
+        style={{ position: "fixed", inset: 0, zIndex: 6, pointerEvents: "none", overflow: "hidden", willChange: "opacity" }}
         aria-hidden="true"
       >
         <canvas ref={frontCanvasRef} style={canvasStyle} />

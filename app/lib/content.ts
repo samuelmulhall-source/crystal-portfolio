@@ -131,13 +131,31 @@ const SiteSettingsSchema = z.object({
   }),
 });
 
+const HomeStatSchema = z.object({
+  label: z.string(),
+  value: z.string(),
+});
+
 const HomeContentSchema = z.object({
   hero: z.object({
     title: z.string(),
     subhead: z.array(z.string()),
     featuredSlug: z.string(),
     video: MediaAssetSchema.optional(),
+    /** Small role/eyebrow above the wordmark. */
+    eyebrow: z.string().optional(),
+    /** One honest line under the wordmark. */
+    tagline: z.string().optional(),
+    primaryCta: LinkSchema.optional(),
+    secondaryCta: LinkSchema.optional(),
   }),
+  /** "Proof" band between hero and selected work: toolset + real stats. */
+  capabilities: z
+    .object({
+      tools: z.array(z.string()),
+      stats: z.array(HomeStatSchema),
+    })
+    .optional(),
   selectedWork: z.object({
     heading: z.string(),
     featuredSlugs: z.array(z.string()),
