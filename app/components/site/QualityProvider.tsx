@@ -65,8 +65,11 @@ export function QualityProvider({ children }: { children: React.ReactNode }) {
       const dt = now - last;
       last = now;
 
-      // Nothing lower than Lite — stop spending cycles judging.
-      if (qualityState.tier <= 1) return;
+      // The runtime governor only steps down to Balanced — it never auto-drops
+      // to the static-starfield Lite tier (that is reserved for load-time
+      // software/low-end detection, so a capable machine that briefly dips
+      // keeps its real WebGL starfield). Nothing to do once at Balanced.
+      if (qualityState.tier <= 2) return;
 
       // Discard hidden tabs and one-off spikes (alt-tab, GC, downgrade churn).
       if (document.hidden || dt > GOVERNOR.spikeMs) {
@@ -89,7 +92,7 @@ export function QualityProvider({ children }: { children: React.ReactNode }) {
 
       if (fps < GOVERNOR.floorFps) {
         setTier((prev) => {
-          const next = Math.max(1, prev - 1) as QualityTier;
+          const next = Math.max(2, prev - 1) as QualityTier;
           if (next !== prev) writeSessionCap(next);
           return next;
         });

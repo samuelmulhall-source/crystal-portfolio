@@ -141,20 +141,15 @@ export default function SmokeLayers() {
       ctx.drawImage(image, (cw - dw) / 2 + ox, (ch - dh) / 2 + oy, dw, dh);
     }
 
-    // Steady-cadence ping-pong playback — frame advance is driven by TIME, not
-    // scroll, so the smoke billows smoothly no matter how the page is scrolled.
-    // Scroll now only fades the layers out as the hero leaves the viewport.
-    const PLAY_FPS = 22;
-    const FRAME_DT = 1 / PLAY_FPS;
-    // Ping-pong inside the upper, fully-developed band so the smoke billows
-    // gently and never thins out to the sparse opening frames.
-    const LO = Math.round((TOTAL - 1) * 0.55);
-    const HI = TOTAL - 1;
-    let playFrame = LO;
-    let playDir = 1;
-    let playAccum = 0;
+    // Scroll-linear playback: the smoke sequence advances 1:1 with scroll as
+    // the page moves from the hero into the work section. The original version
+    // looked stuttery because it stepped between discrete frames — here we
+    // CROSS-FADE adjacent frames, so the motion is continuous at any scroll
+    // speed without any time-based / ping-pong drift.
+    const START = (TOTAL - 1) * 0.3; // dense rest frame at scroll 0
+    let smoothF = START;
     let lastNow = performance.now();
-    let lastIdx = -1;
+    let lastDrawF = -1;
     let lastObx = -999, lastOby = -999, lastOfx = -999, lastOfy = -999;
 
     const tick = (now: number) => {
@@ -162,10 +157,16 @@ export default function SmokeLayers() {
       const dt = Math.min((now - lastNow) * 0.001, 0.05);
       lastNow = now;
 
-      // Coverage fade: full over the hero, gone by the corridor end. Opacity is
-      // a cheap GPU composite on the container — no canvas redraw required.
       const p = voidState.scrollProgress;
-      const fade = Math.max(0, Math.min(1, 1 - p / CORRIDOR_END));
+      const corridorP = Math.min(Math.max(p / CORRIDOR_END, 0), 1);
+
+      // Frame position tracks scroll linearly; a light ease removes scroll
+      // micro-jitter without the laggy "rubberband" feel.
+      const targetF = START + corridorP * ((TOTAL - 1) - START);
+      smoothF += (targetF - smoothF) * Math.min(dt * 14, 1);
+
+      // Opacity holds over the hero, then fades out as we cross into work.
+      const fade = 1 - Math.min(Math.max((corridorP - 0.55) / 0.45, 0), 1);
       const hidden = fade <= 0.001;
       if (backContainerRef.current) {
         backContainerRef.current.style.display = hidden ? "none" : "";
@@ -176,18 +177,6 @@ export default function SmokeLayers() {
         frontContainerRef.current.style.opacity = fade.toFixed(3);
       }
       if (hidden) return;
-
-      // Advance playback by elapsed time (ping-pong within the dense range).
-      playAccum += dt;
-      if (playAccum >= FRAME_DT) {
-        const steps = Math.floor(playAccum / FRAME_DT);
-        playAccum -= steps * FRAME_DT;
-        let f = playFrame + playDir * steps;
-        if (f >= HI) { f = HI; playDir = -1; }
-        else if (f <= LO) { f = LO; playDir = 1; }
-        playFrame = f;
-      }
-      const idx = playFrame;
 
       // Mouse parallax (subtle, smoothed).
       const mx = voidState.mouseNX, my = voidState.mouseNY;
@@ -200,26 +189,30 @@ export default function SmokeLayers() {
       const moved =
         Math.abs(obx.current - lastObx) > 0.4 || Math.abs(oby.current - lastOby) > 0.4 ||
         Math.abs(ofx.current - lastOfx) > 0.4 || Math.abs(ofy.current - lastOfy) > 0.4;
-      if (idx === lastIdx && !moved) return;
-      lastIdx = idx;
+      if (Math.abs(smoothF - lastDrawF) < 0.01 && !moved) return;
+      lastDrawF = smoothF;
       lastObx = obx.current; lastOby = oby.current; lastOfx = ofx.current; lastOfy = ofy.current;
 
-      const bi = backFrames.current[idx];
-      const fi = frontFrames.current[idx];
+      // Cross-fade the two frames bracketing the float playhead.
+      const i0 = Math.max(0, Math.min(TOTAL - 1, Math.floor(smoothF)));
+      const i1 = Math.min(TOTAL - 1, i0 + 1);
+      const frac = smoothF - i0;
+
       const bcw = bc.width, bch = bc.height;
       const fcw = fc.width, fch = fc.height;
-
-      // A small upward lift biases the dense band toward the hero centre while
-      // still covering to the bottom edge.
       const backLift = bch * 0.05;
       const frontLift = fch * 0.07;
 
       bctx.clearRect(0, 0, bcw, bch);
-      if (bi) drawCover(bctx, bi, bcw, bch, obx.current, oby.current - backLift, 0.6, 1.34);
+      const b0 = backFrames.current[i0], b1 = backFrames.current[i1];
+      if (b0) drawCover(bctx, b0, bcw, bch, obx.current, oby.current - backLift, 0.6 * (1 - frac), 1.34);
+      if (b1 && frac > 0.001) drawCover(bctx, b1, bcw, bch, obx.current, oby.current - backLift, 0.6 * frac, 1.34);
       bctx.globalAlpha = 1;
 
       fctx.clearRect(0, 0, fcw, fch);
-      if (fi) drawCover(fctx, fi, fcw, fch, ofx.current, ofy.current - frontLift, 0.7, 1.46);
+      const f0 = frontFrames.current[i0], f1 = frontFrames.current[i1];
+      if (f0) drawCover(fctx, f0, fcw, fch, ofx.current, ofy.current - frontLift, 0.7 * (1 - frac), 1.46);
+      if (f1 && frac > 0.001) drawCover(fctx, f1, fcw, fch, ofx.current, ofy.current - frontLift, 0.7 * frac, 1.46);
       fctx.globalAlpha = 1;
     };
 
