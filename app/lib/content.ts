@@ -62,6 +62,8 @@ const WorkEntrySchema = z.object({
   featured: z.boolean(),
   format: z.string(),
   discipline: z.string(),
+  /** Explicit showcase category. Falls back to derivation (see getWorkCategory). */
+  category: z.enum(["models", "rigged", "video", "images"]).optional(),
   client: z.string(),
   engagement: z.string(),
   summary: z.string(),
@@ -156,6 +158,10 @@ const HomeContentSchema = z.object({
   }),
   contact: z.object({
     heading: z.string(),
+    /** Short honest about/positioning line above the contact actions. */
+    intro: z.string().optional(),
+    /** Tiny mono availability label (e.g. "Available — briefs & roles"). */
+    availability: z.string().optional(),
     primaryCta: LinkSchema,
     secondaryCta: LinkSchema,
   }),
@@ -198,6 +204,39 @@ export const getFeaturedEntries = cache(() =>
 export function getWorkEntryBySlug(slug: string) {
   return getWorkEntries().find((entry) => entry.slug === slug);
 }
+
+// ─── Showcase categories ─────────────────────────────────────────────────────
+export type WorkCategory = "models" | "rigged" | "video" | "images";
+
+export const WORK_CATEGORIES: { id: WorkCategory; label: string }[] = [
+  { id: "models", label: "Models" },
+  { id: "rigged", label: "Rigged Characters" },
+  { id: "video", label: "Video" },
+  { id: "images", label: "Images" },
+];
+
+/** Resolve a work entry's category — explicit field first, else derived from
+ *  its media: an interactive specimen = model, a video hero = video, else still. */
+export function getWorkCategory(entry: WorkEntry): WorkCategory {
+  if (entry.category) return entry.category;
+  if (entry.specimen) return "models";
+  if (entry.heroMedia.kind === "video") return "video";
+  return "images";
+}
+
+/** All entries grouped by category, preserving sortOrder within each group. */
+export const getWorkByCategory = cache(() => {
+  const groups: Record<WorkCategory, WorkEntry[]> = {
+    models: [],
+    rigged: [],
+    video: [],
+    images: [],
+  };
+  for (const entry of getWorkEntries()) {
+    groups[getWorkCategory(entry)].push(entry);
+  }
+  return groups;
+});
 
 /** Human-readable PBR map labels present on a specimen, in pipeline order. */
 const MAP_LABELS: Array<[keyof Specimen["textures"], string]> = [
