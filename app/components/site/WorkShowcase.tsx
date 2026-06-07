@@ -4,10 +4,10 @@
  * WorkShowcase — category-tabbed asset browser.
  *
  * Four categories (Models · Rigged Characters · Video · Images). Selecting a
- * tab shows a technical info panel on the left and the asset presentation on
- * the right, with prev/next stepping through that category's assets. Models
- * present the interactive WebGL viewer (poster fallback in reduced/low tiers);
- * video and images present their media directly.
+ * tab shows a typographic info panel on the left and the asset presentation on
+ * the right, stepping through that category's assets. Models present the
+ * interactive WebGL viewer (poster fallback in reduced/low tiers); video and
+ * images present their media directly.
  *
  * Content-driven: receives entries pre-grouped by category from the server.
  */
@@ -26,6 +26,10 @@ const TABS: { id: WorkCategory; label: string }[] = [
   { id: "video", label: "Video" },
   { id: "images", label: "Images" },
 ];
+
+function pad(n: number) {
+  return String(n).padStart(2, "0");
+}
 
 function Presentation({ entry, category }: { entry: WorkEntry; category: WorkCategory }) {
   if (category === "models" && entry.specimen) {
@@ -54,7 +58,7 @@ function Presentation({ entry, category }: { entry: WorkEntry; category: WorkCat
       alt={img.alt}
       width={img.width ?? 1600}
       height={img.height ?? 1000}
-      sizes="(max-width: 900px) 100vw, 56vw"
+      sizes="(max-width: 900px) 100vw, 60vw"
     />
   );
 }
@@ -65,7 +69,9 @@ export function WorkShowcase({ groups }: { groups: Record<WorkCategory, WorkEntr
 
   const items = groups[category];
   const count = items.length;
-  const active = count > 0 ? items[Math.min(index, count - 1)] : null;
+  const idx = count > 0 ? Math.min(index, count - 1) : 0;
+  const active = count > 0 ? items[idx] : null;
+  const label = TABS.find((t) => t.id === category)?.label;
 
   const selectCategory = (next: WorkCategory) => {
     setCategory(next);
@@ -73,16 +79,22 @@ export function WorkShowcase({ groups }: { groups: Record<WorkCategory, WorkEntr
   };
   const step = (dir: number) => {
     if (count < 2) return;
-    setIndex((i) => (i + dir + count) % count);
+    setIndex((i) => (Math.min(i, count - 1) + dir + count) % count);
   };
+
+  const specs: Array<[string, string]> = active
+    ? ([
+        ["Format", `${active.format} · ${active.year}`],
+        ["Discipline", active.discipline],
+        active.role.length ? ["Role", active.role.join(" · ")] : null,
+        active.tools.length ? ["Tools", active.tools.join(" · ")] : null,
+      ].filter(Boolean) as Array<[string, string]>)
+    : [];
 
   return (
     <section id="selected-work" className="showcase" aria-label="Work">
       <div className="showcase__head page-shell">
-        <div className="section-head">
-          <span className="section-head__index">01</span>
-          <h2 className="section-head__title">Work</h2>
-        </div>
+        <h2 className="showcase__heading">Work</h2>
         <div className="showcase__tabs" role="tablist" aria-label="Work categories">
           {TABS.map((tab) => {
             const n = groups[tab.id].length;
@@ -97,7 +109,7 @@ export function WorkShowcase({ groups }: { groups: Record<WorkCategory, WorkEntr
                 onClick={() => selectCategory(tab.id)}
               >
                 <span className="showcase__tab-label">{tab.label}</span>
-                <span className="showcase__tab-count">{String(n).padStart(2, "0")}</span>
+                <span className="showcase__tab-count">{pad(n)}</span>
               </button>
             );
           })}
@@ -107,80 +119,67 @@ export function WorkShowcase({ groups }: { groups: Record<WorkCategory, WorkEntr
       <div className="showcase__stage page-shell">
         {active ? (
           <>
-            {/* ── Left: technical info panel ── */}
+            {/* ── Left: typographic datasheet ── */}
             <div className="showcase__info" key={`info-${active.slug}`}>
-              <span className="showcase__scan" aria-hidden="true" />
-              <p className="showcase__counter">
-                {String(Math.min(index, count - 1) + 1).padStart(2, "0")}
-                <span className="showcase__counter-sep"> / </span>
-                {String(count).padStart(2, "0")}
+              <p className="showcase__eyebrow">
+                <span>{label}</span>
+                <span className="showcase__eyebrow-idx">{pad(idx + 1)} / {pad(count)}</span>
               </p>
               <h3 className="showcase__title">{active.title}</h3>
               <dl className="showcase__specs">
-                <div className="showcase__spec">
-                  <dt>Format</dt>
-                  <dd>{active.format} · {active.year}</dd>
-                </div>
-                <div className="showcase__spec">
-                  <dt>Discipline</dt>
-                  <dd>{active.discipline}</dd>
-                </div>
-                {active.role.length ? (
-                  <div className="showcase__spec">
-                    <dt>Role</dt>
-                    <dd>{active.role.join(" · ")}</dd>
+                {specs.map(([k, v]) => (
+                  <div className="showcase__spec" key={k}>
+                    <dt>{k}</dt>
+                    <dd>{v}</dd>
                   </div>
-                ) : null}
-                {active.tools.length ? (
-                  <div className="showcase__spec">
-                    <dt>Tools</dt>
-                    <dd>{active.tools.join(" · ")}</dd>
-                  </div>
-                ) : null}
+                ))}
               </dl>
               <p className="showcase__summary">{active.summary}</p>
               <Link href={`/work/${active.slug}`} className="showcase__link">
-                Open case study <span aria-hidden="true">→</span>
+                View case study <span className="showcase__link-arrow" aria-hidden="true">→</span>
               </Link>
             </div>
 
-            {/* ── Right: presentation + prev/next ── */}
+            {/* ── Right: presentation reticle + edge stepping ── */}
             <div className="showcase__present">
-              {count > 1 ? (
-                <button
-                  type="button"
-                  className="showcase__nav showcase__nav--prev"
-                  onClick={() => step(-1)}
-                  aria-label="Previous asset"
-                >
-                  <span aria-hidden="true">‹</span>
-                </button>
-              ) : null}
-
               <div className="showcase__media" key={active.slug}>
                 <Presentation entry={active} category={category} />
+                <span className="showcase__corner showcase__corner--tl" aria-hidden="true" />
+                <span className="showcase__corner showcase__corner--tr" aria-hidden="true" />
+                <span className="showcase__corner showcase__corner--bl" aria-hidden="true" />
+                <span className="showcase__corner showcase__corner--br" aria-hidden="true" />
+                <div className="showcase__media-bar" aria-hidden="true">
+                  <span className="showcase__media-name">{active.title}</span>
+                  <span className="showcase__media-index">{pad(idx + 1)} / {pad(count)}</span>
+                </div>
               </div>
 
               {count > 1 ? (
-                <button
-                  type="button"
-                  className="showcase__nav showcase__nav--next"
-                  onClick={() => step(1)}
-                  aria-label="Next asset"
-                >
-                  <span aria-hidden="true">›</span>
-                </button>
+                <>
+                  <button
+                    type="button"
+                    className="showcase__nav showcase__nav--prev"
+                    onClick={() => step(-1)}
+                    aria-label="Previous asset"
+                  >
+                    <span aria-hidden="true">‹</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="showcase__nav showcase__nav--next"
+                    onClick={() => step(1)}
+                    aria-label="Next asset"
+                  >
+                    <span aria-hidden="true">›</span>
+                  </button>
+                </>
               ) : null}
             </div>
           </>
         ) : (
           <div className="showcase__empty">
             <span className="showcase__empty-tick" aria-hidden="true">◊</span>
-            <p>
-              {TABS.find((c) => c.id === category)?.label} — in production.
-              <br />
-              New work landing here soon.
-            </p>
+            <p>{label} — in production. New work landing here soon.</p>
           </div>
         )}
       </div>
