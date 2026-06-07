@@ -21,7 +21,8 @@ export function Header({
     const onScroll = () => {
       const y = window.scrollY;
       setScrolled(y > 18);
-      setMarkShown(!isHome || y > window.innerHeight * 0.72);
+      // Home pins a tall fly-into-smoke intro; keep the bar bare until it clears.
+      setMarkShown(!isHome || y > window.innerHeight * 0.95);
     };
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });

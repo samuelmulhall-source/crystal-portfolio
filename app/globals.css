@@ -1845,10 +1845,47 @@ button, input, textarea { font: inherit; }
   .static-starfield { animation: none; }
 }
 
-/* ═══ Asymmetric hero — identity left, artifact right ════════════════════════ */
-.hero-section--split {
+/* ═══ Hero intro — pinned fly-into-smoke, asymmetric split ═══════════════════ */
+.hero-intro { position: relative; }
+/* Pinned: tall spacer (stage 100vh + one viewport of intro scroll). */
+.hero-intro.is-pinned { height: 200vh; height: 200dvh; }
+.hero-intro:not(.is-pinned) { min-height: 100vh; min-height: 100dvh; }
+
+.hero-intro__stage {
+  position: relative;
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: clamp(5rem, 11vh, 8rem) clamp(1rem, 3vw, 2.5rem) clamp(3rem, 6vh, 5rem);
+}
+.hero-intro.is-pinned .hero-intro__stage { position: sticky; top: 0; }
+
+.hero-intro__content {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   justify-content: center;
 }
+.hero-intro__content > div { display: contents; }
+
+.hero-intro__smoke {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.hero-intro__smoke--back { z-index: 0; }
+.hero-intro__smoke--front { z-index: 3; }
+
 .hero-grid {
   width: min(1200px, calc(100% - 3rem));
   margin: 0 auto;
@@ -1866,31 +1903,31 @@ button, input, textarea { font: inherit; }
   left: 38%;
   width: 130%;
 }
-.hero-section--split .hero-wordmark {
+.hero-intro .hero-wordmark {
   text-align: left;
   font-size: clamp(2.4rem, 7vw, 5.6rem);
 }
-.hero-section--split .hero-statement,
-.hero-section--split .hero-capabilities {
+.hero-intro .hero-statement,
+.hero-intro .hero-capabilities {
   text-align: left;
 }
-.hero-section--split .hero-viewport-wrap {
+.hero-intro .hero-viewport-wrap {
   margin-top: 0;
   justify-content: center;
   /* Pull the artifact in from the right edge so its glow doesn't clip */
   padding-right: clamp(1rem, 4vw, 4rem);
 }
-.hero-section--split .hero-viewport {
+.hero-intro .hero-viewport {
   height: min(54vh, 33rem);
 }
 
 @media (max-width: 880px) {
   .hero-grid { grid-template-columns: 1fr; gap: clamp(1rem, 3vh, 2rem); text-align: center; }
   .hero-core--left { align-items: center; text-align: center; }
-  .hero-section--split .hero-wordmark { text-align: center; }
-  .hero-section--split .hero-statement,
-  .hero-section--split .hero-capabilities { text-align: center; }
-  .hero-section--split .hero-viewport { height: min(42vh, 26rem); }
+  .hero-intro .hero-wordmark { text-align: center; }
+  .hero-intro .hero-statement,
+  .hero-intro .hero-capabilities { text-align: center; }
+  .hero-intro .hero-viewport { height: min(42vh, 26rem); }
   .hero-core--left::before { left: 50%; }
 }
 

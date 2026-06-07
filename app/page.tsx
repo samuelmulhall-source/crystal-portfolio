@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { Footer } from "./components/site/Footer";
 import { Header } from "./components/site/Header";
-import { HeroEntrance } from "./components/site/HeroEntrance";
-import { HeroParallax } from "./components/site/HeroParallax";
+import { HeroIntro } from "./components/site/HeroIntro";
 import { SpecimenPreview } from "./components/site/SpecimenPreview";
 import { WorkShowcase } from "./components/site/WorkShowcase";
 import {
@@ -26,54 +25,48 @@ export default function HomePage() {
     <main className="page-root">
       <Header brandName={site.brand.name} />
 
-      {/* ═══ HERO — asymmetric split: identity left, artifact right ═══ */}
-      <section className="hero-section hero-section--split">
-        <HeroParallax />
-        <HeroEntrance>
-          <div className="hero-grid">
-            <div className="hero-core hero-core--left" data-parallax="0.16">
-              {home.hero.capabilities?.length ? (
-                <p className="hero-capabilities" data-hero-entrance="eyebrow">
-                  {home.hero.capabilities.join("  ·  ")}
-                </p>
-              ) : null}
-              <h1 className="hero-wordmark" data-hero-entrance="title">
-                <span className="hero-wordmark__text">{home.hero.title}</span>
-              </h1>
-              {home.hero.statement ? (
-                <p className="hero-statement" data-hero-entrance="lead">{home.hero.statement}</p>
-              ) : null}
-            </div>
-
-            <div className="hero-viewport-wrap" data-parallax="0.06">
-              <div className="hero-viewport" data-hero-entrance="viewport">
-                <SpecimenPreview
-                  posterAsset={
-                    home.hero.video
-                      ? {
-                          kind: "image",
-                          src: home.hero.video.poster ?? home.hero.video.src,
-                          alt: home.hero.video.alt,
-                          width: 800,
-                          height: 780,
-                        }
-                      : heroEntry.thumbnail
-                  }
-                  motionAsset={home.hero.video ?? heroEntry.heroMedia}
-                  priority
-                />
-              </div>
-            </div>
+      {/* ═══ HERO — pinned fly-into-smoke intro, asymmetric split ═══ */}
+      <HeroIntro>
+        <div className="hero-grid">
+          <div className="hero-core hero-core--left" data-parallax="0.16" data-hero-fade="text">
+            {home.hero.capabilities?.length ? (
+              <p className="hero-capabilities" data-hero-entrance="eyebrow">
+                {home.hero.capabilities.join("  ·  ")}
+              </p>
+            ) : null}
+            <h1 className="hero-wordmark" data-hero-entrance="title">
+              <span className="hero-wordmark__text">{home.hero.title}</span>
+            </h1>
           </div>
 
-          {home.hero.scrollCue ? (
-            <a className="hero-scroll-cue" href="#selected-work" data-hero-entrance="lead">
-              <span>{home.hero.scrollCue}</span>
-              <span className="hero-scroll-cue__arrow" aria-hidden="true">↓</span>
-            </a>
-          ) : null}
-        </HeroEntrance>
-      </section>
+          <div className="hero-viewport-wrap" data-parallax="0.06" data-hero-fade="asset">
+            <div className="hero-viewport" data-hero-entrance="viewport">
+              <SpecimenPreview
+                posterAsset={
+                  home.hero.video
+                    ? {
+                        kind: "image",
+                        src: home.hero.video.poster ?? home.hero.video.src,
+                        alt: home.hero.video.alt,
+                        width: 800,
+                        height: 780,
+                      }
+                    : heroEntry.thumbnail
+                }
+                motionAsset={home.hero.video ?? heroEntry.heroMedia}
+                priority
+              />
+            </div>
+          </div>
+        </div>
+
+        {home.hero.scrollCue ? (
+          <a className="hero-scroll-cue" href="#selected-work" data-hero-entrance="lead" data-hero-fade="cue">
+            <span>{home.hero.scrollCue}</span>
+            <span className="hero-scroll-cue__arrow" aria-hidden="true">↓</span>
+          </a>
+        ) : null}
+      </HeroIntro>
 
       {/* ═══ WORK — category-tabbed asset browser ═══ */}
       <WorkShowcase groups={workGroups} />

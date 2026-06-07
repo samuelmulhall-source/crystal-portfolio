@@ -15,7 +15,6 @@
 
 import { useSyncExternalStore } from "react";
 import VoidBackground from "../VoidBackground";
-import SmokeLayersGate from "../SmokeLayersGate";
 import EffectsOverlay from "../EffectsOverlay";
 import CursorFollower from "../CursorFollower";
 import StaticStarfield from "./StaticStarfield";
@@ -44,7 +43,8 @@ export default function EnhancementLayers() {
   return (
     <>
       {tier <= 1 ? <StaticStarfield /> : <VoidBackground tier={tier} />}
-      {tier >= 2 && <SmokeLayersGate />}
+      {/* Smoke now lives inside the hero (HeroIntro) so its front layer can sit
+          in front of the lantern and scrub with the pinned intro. */}
       {tier >= 3 && <EffectsOverlay />}
       {tier >= 2 && <CursorFollower />}
     </>
