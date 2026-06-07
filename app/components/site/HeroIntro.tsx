@@ -163,30 +163,22 @@ export function HeroIntro({ children }: { children: React.ReactNode }) {
       if (di === lastDrawIdx && Math.abs(cp - lastCp) < 0.0006) return; // settled
       lastCp = cp;
 
-      // ── Cinematic dive: each layer is "passed" by the camera as it accelerates
-      //    into the smoke — translate outward + scale + motion-blur, the lantern
-      //    blooming brighter before it dissolves. Driven by playback (cp) so it
-      //    stays locked to the smoke. ──
+      // ── The text + lantern DROP straight down off the bottom (accelerating,
+      //    like falling) with no opacity change. They sit behind the front
+      //    smoke (z2 < z3), so they fall into it and the smoke swallows them. ──
       const p = cp;
       for (const el of fadeEls) {
         const role = el.dataset.heroFade;
-        if (role === "text") {
-          const m = clamp01(p / 0.46), em = m * m;
-          el.style.opacity = (1 - m).toFixed(3);
-          el.style.transform =
-            `translate(${(-em * 160).toFixed(1)}px, ${(-em * 64).toFixed(1)}px) ` +
-            `scale(${(1 + em * 1.4).toFixed(3)}) rotate(${(-em * 2.4).toFixed(2)}deg)`;
-          el.style.filter = em > 0.001 ? `blur(${(em * 11).toFixed(1)}px)` : "";
-        } else if (role === "asset") {
-          const m = clamp01((p - 0.05) / 0.62), em = m * m;
-          el.style.opacity = (1 - clamp01((p - 0.2) / 0.48)).toFixed(3);
-          el.style.transform =
-            `translate(${(em * 112).toFixed(1)}px, ${(-em * 36).toFixed(1)}px) scale(${(1 + em * 1.05).toFixed(3)})`;
-          el.style.filter = `brightness(${(1 + em * 0.8).toFixed(2)}) blur(${(em * 13).toFixed(1)}px)`;
-        } else if (role === "cue") {
-          const m = clamp01(p / 0.3);
-          el.style.opacity = (1 - clamp01(p / 0.13)).toFixed(3);
-          el.style.transform = `translate(-50%, ${(m * m * 30).toFixed(1)}px)`;
+        el.style.opacity = "1";
+        el.style.filter = "";
+        if (role === "cue") {
+          const m = clamp01(p / 0.4);
+          el.style.transform = `translate(-50%, ${(m * m * 80).toFixed(1)}vh)`;
+        } else {
+          // text + asset — slight rate offset for a touch of depth as they fall
+          const span = role === "asset" ? 0.86 : 0.8;
+          const m = clamp01(p / span);
+          el.style.transform = `translateY(${(m * m * 130).toFixed(1)}vh)`;
         }
       }
 
