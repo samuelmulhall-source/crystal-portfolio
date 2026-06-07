@@ -28,8 +28,12 @@ export function Header({
     return () => window.removeEventListener("scroll", onScroll);
   }, [isHome]);
 
+  // On the home hero, keep the bar minimal — only the Work/Contact nav shows
+  // until the hero scrolls away; then the mark + bar surface reveal.
+  const bare = isHome && !markShown;
+
   return (
-    <header className={`site-header${scrolled ? " is-scrolled" : ""}`}>
+    <header className={`site-header${scrolled ? " is-scrolled" : ""}${bare ? " is-bare" : ""}`}>
       <div className="site-header__inner">
         <Link href="/" className="site-mark" aria-label={brandName}>
           <span className="status-led" />

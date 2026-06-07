@@ -21,7 +21,6 @@ import { voidState } from "../lib/voidState";
 import { getDeviceProfile } from "../lib/deviceTier";
 import { loadGate } from "../lib/loadingOrchestrator";
 
-const CORRIDOR_END = 0.28;
 const PARALLAX_BACK = 8;
 const PARALLAX_FRONT = 22;
 
@@ -141,42 +140,31 @@ export default function SmokeLayers() {
       ctx.drawImage(image, (cw - dw) / 2 + ox, (ch - dh) / 2 + oy, dw, dh);
     }
 
-    // Scroll-linear playback: the smoke sequence advances 1:1 with scroll as
-    // the page moves from the hero into the work section. The original version
-    // looked stuttery because it stepped between discrete frames — here we
-    // CROSS-FADE adjacent frames, so the motion is continuous at any scroll
-    // speed without any time-based / ping-pong drift.
-    const START = (TOTAL - 1) * 0.3; // dense rest frame at scroll 0
-    let smoothF = START;
-    let lastNow = performance.now();
-    let lastDrawF = -1;
+    // Static atmospheric smoke pinned to the hero. Rather than advancing frames
+    // with scroll (which flashed) or fading out, the layers hold one dense frame
+    // and simply scroll UP with the page via a transform — so the smoke leaves
+    // with the hero, never flashes, and never abruptly dissipates. Only the
+    // mouse parallax causes a redraw; everything else is a cheap GPU transform.
+    const STATIC = Math.round((TOTAL - 1) * 0.45);
+    let drawn = false;
     let lastObx = -999, lastOby = -999, lastOfx = -999, lastOfy = -999;
 
-    const tick = (now: number) => {
+    const tick = () => {
       rafRef.current = requestAnimationFrame(tick);
-      const dt = Math.min((now - lastNow) * 0.001, 0.05);
-      lastNow = now;
 
-      const p = voidState.scrollProgress;
-      const corridorP = Math.min(Math.max(p / CORRIDOR_END, 0), 1);
-
-      // Frame position tracks scroll linearly; a light ease removes scroll
-      // micro-jitter without the laggy "rubberband" feel.
-      const targetF = START + corridorP * ((TOTAL - 1) - START);
-      smoothF += (targetF - smoothF) * Math.min(dt * 14, 1);
-
-      // Opacity holds over the hero, then fades out as we cross into work.
-      const fade = 1 - Math.min(Math.max((corridorP - 0.55) / 0.45, 0), 1);
-      const hidden = fade <= 0.001;
+      // Pin to the hero: translate up with scroll. Hide once fully off-screen.
+      const sy = typeof window !== "undefined" ? window.scrollY || 0 : 0;
+      const past = sy > window.innerHeight * 1.15;
+      const transform = `translate3d(0, ${(-sy).toFixed(1)}px, 0)`;
       if (backContainerRef.current) {
-        backContainerRef.current.style.display = hidden ? "none" : "";
-        backContainerRef.current.style.opacity = fade.toFixed(3);
+        backContainerRef.current.style.display = past ? "none" : "";
+        backContainerRef.current.style.transform = transform;
       }
       if (frontContainerRef.current) {
-        frontContainerRef.current.style.display = hidden ? "none" : "";
-        frontContainerRef.current.style.opacity = fade.toFixed(3);
+        frontContainerRef.current.style.display = past ? "none" : "";
+        frontContainerRef.current.style.transform = transform;
       }
-      if (hidden) return;
+      if (past) return;
 
       // Mouse parallax (subtle, smoothed).
       const mx = voidState.mouseNX, my = voidState.mouseNY;
@@ -185,35 +173,29 @@ export default function SmokeLayers() {
       ofx.current = lerp(ofx.current, mx * PARALLAX_FRONT * dpr, 0.09);
       ofy.current = lerp(ofy.current, my * PARALLAX_FRONT * 0.5 * dpr, 0.09);
 
-      // Redraw only when the frame advanced or parallax visibly moved.
       const moved =
         Math.abs(obx.current - lastObx) > 0.4 || Math.abs(oby.current - lastOby) > 0.4 ||
         Math.abs(ofx.current - lastOfx) > 0.4 || Math.abs(ofy.current - lastOfy) > 0.4;
-      if (Math.abs(smoothF - lastDrawF) < 0.01 && !moved) return;
-      lastDrawF = smoothF;
+      if (drawn && !moved) return;
       lastObx = obx.current; lastOby = oby.current; lastOfx = ofx.current; lastOfy = ofy.current;
-
-      // Cross-fade the two frames bracketing the float playhead.
-      const i0 = Math.max(0, Math.min(TOTAL - 1, Math.floor(smoothF)));
-      const i1 = Math.min(TOTAL - 1, i0 + 1);
-      const frac = smoothF - i0;
 
       const bcw = bc.width, bch = bc.height;
       const fcw = fc.width, fch = fc.height;
       const backLift = bch * 0.05;
       const frontLift = fch * 0.07;
 
+      const b = backFrames.current[STATIC];
+      const f = frontFrames.current[STATIC];
+
       bctx.clearRect(0, 0, bcw, bch);
-      const b0 = backFrames.current[i0], b1 = backFrames.current[i1];
-      if (b0) drawCover(bctx, b0, bcw, bch, obx.current, oby.current - backLift, 0.6 * (1 - frac), 1.34);
-      if (b1 && frac > 0.001) drawCover(bctx, b1, bcw, bch, obx.current, oby.current - backLift, 0.6 * frac, 1.34);
+      if (b) drawCover(bctx, b, bcw, bch, obx.current, oby.current - backLift, 0.62, 1.34);
       bctx.globalAlpha = 1;
 
       fctx.clearRect(0, 0, fcw, fch);
-      const f0 = frontFrames.current[i0], f1 = frontFrames.current[i1];
-      if (f0) drawCover(fctx, f0, fcw, fch, ofx.current, ofy.current - frontLift, 0.7 * (1 - frac), 1.46);
-      if (f1 && frac > 0.001) drawCover(fctx, f1, fcw, fch, ofx.current, ofy.current - frontLift, 0.7 * frac, 1.46);
+      if (f) drawCover(fctx, f, fcw, fch, ofx.current, ofy.current - frontLift, 0.72, 1.46);
       fctx.globalAlpha = 1;
+
+      if (b && f) drawn = true; // once the dense frame is loaded, hold it
     };
 
     rafRef.current = requestAnimationFrame(tick);
@@ -235,7 +217,7 @@ export default function SmokeLayers() {
       {/* Back smoke — behind page content */}
       <div
         ref={backContainerRef}
-        style={{ position: "fixed", inset: 0, zIndex: 1, pointerEvents: "none", overflow: "hidden", willChange: "opacity" }}
+        style={{ position: "fixed", inset: 0, zIndex: 1, pointerEvents: "none", overflow: "hidden", willChange: "transform" }}
         aria-hidden="true"
       >
         <canvas ref={backCanvasRef} style={canvasStyle} />
@@ -244,7 +226,7 @@ export default function SmokeLayers() {
       {/* Front smoke — over page content AND the hero asset (lantern) */}
       <div
         ref={frontContainerRef}
-        style={{ position: "fixed", inset: 0, zIndex: 6, pointerEvents: "none", overflow: "hidden", willChange: "opacity" }}
+        style={{ position: "fixed", inset: 0, zIndex: 6, pointerEvents: "none", overflow: "hidden", willChange: "transform" }}
         aria-hidden="true"
       >
         <canvas ref={frontCanvasRef} style={canvasStyle} />

@@ -12,11 +12,53 @@
  * Content-driven: receives entries pre-grouped by category from the server.
  */
 
-import { useState } from "react";
-import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import type { WorkCategory, WorkEntry } from "../../lib/content";
 import { SpecimenViewer } from "./SpecimenViewer";
+
+/** Wireframe HUD reticle that trails the cursor over a 3D model presentation. */
+function ModelReticle() {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    const parent = el?.parentElement;
+    if (!el || !parent) return;
+    let raf = 0;
+    let tx = 0, ty = 0, cx = 0, cy = 0, active = false;
+    const onMove = (e: PointerEvent) => {
+      const r = parent.getBoundingClientRect();
+      tx = e.clientX - r.left;
+      ty = e.clientY - r.top;
+      if (!active) { active = true; cx = tx; cy = ty; el.style.opacity = "1"; }
+    };
+    const onLeave = () => { active = false; el.style.opacity = "0"; };
+    parent.addEventListener("pointermove", onMove);
+    parent.addEventListener("pointerleave", onLeave);
+    const loop = () => {
+      raf = requestAnimationFrame(loop);
+      cx += (tx - cx) * 0.22;
+      cy += (ty - cy) * 0.22;
+      el.style.transform = `translate(${cx.toFixed(1)}px, ${cy.toFixed(1)}px) translate(-50%, -50%)`;
+    };
+    raf = requestAnimationFrame(loop);
+    return () => {
+      cancelAnimationFrame(raf);
+      parent.removeEventListener("pointermove", onMove);
+      parent.removeEventListener("pointerleave", onLeave);
+    };
+  }, []);
+  return (
+    <div ref={ref} className="showcase__reticle" aria-hidden="true">
+      <span className="showcase__reticle-box" />
+      <span className="showcase__reticle-corner showcase__reticle-corner--tl" />
+      <span className="showcase__reticle-corner showcase__reticle-corner--tr" />
+      <span className="showcase__reticle-corner showcase__reticle-corner--bl" />
+      <span className="showcase__reticle-corner showcase__reticle-corner--br" />
+      <span className="showcase__reticle-dot" />
+    </div>
+  );
+}
 
 // Inlined (not imported from content.ts) so this client component never pulls
 // the node:fs-backed content loader into the browser bundle.
@@ -135,19 +177,13 @@ export function WorkShowcase({ groups }: { groups: Record<WorkCategory, WorkEntr
                 ))}
               </dl>
               <p className="showcase__summary">{active.summary}</p>
-              <Link href={`/work/${active.slug}`} className="showcase__link">
-                View case study <span className="showcase__link-arrow" aria-hidden="true">→</span>
-              </Link>
             </div>
 
             {/* ── Right: presentation reticle + edge stepping ── */}
             <div className="showcase__present">
               <div className="showcase__media" key={active.slug}>
                 <Presentation entry={active} category={category} />
-                <span className="showcase__corner showcase__corner--tl" aria-hidden="true" />
-                <span className="showcase__corner showcase__corner--tr" aria-hidden="true" />
-                <span className="showcase__corner showcase__corner--bl" aria-hidden="true" />
-                <span className="showcase__corner showcase__corner--br" aria-hidden="true" />
+                {category === "models" ? <ModelReticle /> : null}
                 <div className="showcase__media-bar" aria-hidden="true">
                   <span className="showcase__media-name">{active.title}</span>
                   <span className="showcase__media-index">{pad(idx + 1)} / {pad(count)}</span>
