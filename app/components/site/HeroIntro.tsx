@@ -20,8 +20,23 @@ import { HeroParallax } from "./HeroParallax";
 import { useQuality } from "./QualityProvider";
 import { getDeviceProfile } from "../../lib/deviceTier";
 import { loadGate } from "../../lib/loadingOrchestrator";
+import { lenisInstance } from "../SmoothScroll";
 
 const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
+
+/** Nearest already-loaded frame to idx — avoids blank flashes while frames
+ *  are still streaming in. */
+function nearestLoaded(
+  frames: (HTMLImageElement | null)[],
+  idx: number,
+): HTMLImageElement | null {
+  if (frames[idx]) return frames[idx];
+  for (let d = 1; d < frames.length; d++) {
+    if (idx - d >= 0 && frames[idx - d]) return frames[idx - d];
+    if (idx + d < frames.length && frames[idx + d]) return frames[idx + d];
+  }
+  return null;
+}
 
 export function HeroIntro({ children }: { children: React.ReactNode }) {
   const { tier } = useQuality();
@@ -92,14 +107,19 @@ export function HeroIntro({ children }: { children: React.ReactNode }) {
     if (!bctx || !fctx) return;
 
     const dpr = Math.min(window.devicePixelRatio || 1, profile.smokeDpr);
-    let lastP = -1;
+    let currentIdx = 0;   // playback head (float)
+    let lastDrawIdx = -1; // last integer frame drawn
+    let lastCp = -1;      // last playback progress applied to content
+    let lastT = performance.now();
+    const MIN_FPS = 42;   // locked playback floor (frames/sec)
+    const CATCHUP = 6;    // extra rate for big scroll jumps
     const resize = () => {
       const w = window.innerWidth, h = window.innerHeight;
       for (const c of [bc, fc]) {
         c.width = w * dpr; c.height = h * dpr;
         c.style.width = `${w}px`; c.style.height = `${h}px`;
       }
-      lastP = -1; // force redraw at new size
+      lastDrawIdx = -1; lastCp = -1; // force redraw at new size
     };
 
     const fadeEls = Array.from(section.querySelectorAll<HTMLElement>("[data-hero-fade]"));
@@ -117,39 +137,69 @@ export function HeroIntro({ children }: { children: React.ReactNode }) {
     };
 
     let raf = 0;
-    const tick = () => {
+    const tick = (now: number) => {
       raf = requestAnimationFrame(tick);
-      const introDist = window.innerHeight || 1;
-      const p = clamp01((window.scrollY || 0) / introDist);
-      if (Math.abs(p - lastP) < 0.001) return;
-      lastP = p;
+      const dt = Math.min((now - lastT) / 1000, 0.05);
+      lastT = now;
 
-      // Dissolve the hero content as the camera flies in.
+      const introDist = window.innerHeight || 1;
+      // Aim at the UN-eased scroll destination (Lenis.targetScroll), not its
+      // soft-tailed animated position, so the frames never creep at gesture end.
+      const dest =
+        lenisInstance && typeof lenisInstance.targetScroll === "number"
+          ? lenisInstance.targetScroll
+          : window.scrollY || 0;
+      const targetIdx = clamp01(dest / introDist) * (TOTAL - 1);
+
+      // Locked-framerate playback toward the target: at least MIN_FPS, faster
+      // for big scroll jumps, never overshooting.
+      const gap = targetIdx - currentIdx;
+      const adist = Math.abs(gap);
+      if (adist < 0.001) currentIdx = targetIdx;
+      else currentIdx += Math.sign(gap) * Math.min(adist, Math.max(MIN_FPS, adist * CATCHUP) * dt);
+
+      const di = Math.round(currentIdx);
+      const cp = clamp01(currentIdx / (TOTAL - 1));
+      if (di === lastDrawIdx && Math.abs(cp - lastCp) < 0.0006) return; // settled
+      lastCp = cp;
+
+      // ── Cinematic dive: each layer is "passed" by the camera as it accelerates
+      //    into the smoke — translate outward + scale + motion-blur, the lantern
+      //    blooming brighter before it dissolves. Driven by playback (cp) so it
+      //    stays locked to the smoke. ──
+      const p = cp;
       for (const el of fadeEls) {
         const role = el.dataset.heroFade;
-        let o = 1;
-        if (role === "text") o = 1 - clamp01(p / 0.5);
-        else if (role === "asset") o = 1 - clamp01((p - 0.12) / 0.62);
-        else if (role === "cue") o = 1 - clamp01(p / 0.16);
-        el.style.opacity = o.toFixed(3);
-        if (role === "asset") el.style.filter = p > 0.001 ? `blur(${(p * 6).toFixed(1)}px)` : "";
+        if (role === "text") {
+          const m = clamp01(p / 0.46), em = m * m;
+          el.style.opacity = (1 - m).toFixed(3);
+          el.style.transform =
+            `translate(${(-em * 160).toFixed(1)}px, ${(-em * 64).toFixed(1)}px) ` +
+            `scale(${(1 + em * 1.4).toFixed(3)}) rotate(${(-em * 2.4).toFixed(2)}deg)`;
+          el.style.filter = em > 0.001 ? `blur(${(em * 11).toFixed(1)}px)` : "";
+        } else if (role === "asset") {
+          const m = clamp01((p - 0.05) / 0.62), em = m * m;
+          el.style.opacity = (1 - clamp01((p - 0.2) / 0.48)).toFixed(3);
+          el.style.transform =
+            `translate(${(em * 112).toFixed(1)}px, ${(-em * 36).toFixed(1)}px) scale(${(1 + em * 1.05).toFixed(3)})`;
+          el.style.filter = `brightness(${(1 + em * 0.8).toFixed(2)}) blur(${(em * 13).toFixed(1)}px)`;
+        } else if (role === "cue") {
+          const m = clamp01(p / 0.3);
+          el.style.opacity = (1 - clamp01(p / 0.13)).toFixed(3);
+          el.style.transform = `translate(-50%, ${(m * m * 30).toFixed(1)}px)`;
+        }
       }
 
-      // Scrub the frame sequence (cross-fade adjacent frames for smoothness).
-      const f = p * (TOTAL - 1);
-      const i0 = Math.min(TOTAL - 1, Math.floor(f));
-      const i1 = Math.min(TOTAL - 1, i0 + 1);
-      const frac = f - i0;
-
-      bctx.clearRect(0, 0, bc.width, bc.height);
-      const b0 = backFrames.current[i0], b1 = backFrames.current[i1];
-      if (b0) drawCover(bctx, b0, 1 - frac);
-      if (b1 && frac > 0.001) drawCover(bctx, b1, frac);
-
-      fctx.clearRect(0, 0, fc.width, fc.height);
-      const ff0 = frontFrames.current[i0], ff1 = frontFrames.current[i1];
-      if (ff0) drawCover(fctx, ff0, 1 - frac);
-      if (ff1 && frac > 0.001) drawCover(fctx, ff1, frac);
+      // ── Smoke: redraw only when the integer frame changes ──
+      if (di !== lastDrawIdx) {
+        lastDrawIdx = di;
+        const bframe = nearestLoaded(backFrames.current, di);
+        const fframe = nearestLoaded(frontFrames.current, di);
+        bctx.clearRect(0, 0, bc.width, bc.height);
+        if (bframe) drawCover(bctx, bframe, 1);
+        fctx.clearRect(0, 0, fc.width, fc.height);
+        if (fframe) drawCover(fctx, fframe, 1);
+      }
     };
 
     resize();

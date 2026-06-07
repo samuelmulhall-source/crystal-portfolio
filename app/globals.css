@@ -1886,6 +1886,14 @@ button, input, textarea { font: inherit; }
 .hero-intro__smoke--back { z-index: 0; }
 .hero-intro__smoke--front { z-index: 3; }
 
+/* Dive-in motion targets — scale from a sensible anchor, GPU-hinted. */
+.hero-intro [data-hero-fade] { will-change: transform, opacity, filter; }
+.hero-intro [data-hero-fade="text"] { transform-origin: left center; }
+.hero-intro [data-hero-fade="asset"] { transform-origin: center center; }
+@media (max-width: 880px) {
+  .hero-intro [data-hero-fade="text"] { transform-origin: center center; }
+}
+
 .hero-grid {
   width: min(1200px, calc(100% - 3rem));
   margin: 0 auto;
