@@ -172,11 +172,12 @@ export function HeroIntro({ children }: { children: React.ReactNode }) {
         el.style.opacity = "1";
         el.style.filter = "";
         if (role === "cue") {
-          const m = clamp01(p / 0.4);
-          el.style.transform = `translate(-50%, ${(m * m * 80).toFixed(1)}vh)`;
+          const m = clamp01(p / 0.16);
+          el.style.transform = `translate(-50%, ${(m * m * 90).toFixed(1)}vh)`;
         } else {
-          // text + asset — slight rate offset for a touch of depth as they fall
-          const span = role === "asset" ? 0.86 : 0.8;
+          // text + asset drop fast — gone within the first fraction of the dive,
+          // a slight rate offset for a touch of depth as they fall.
+          const span = role === "asset" ? 0.26 : 0.22;
           const m = clamp01(p / span);
           el.style.transform = `translateY(${(m * m * 130).toFixed(1)}vh)`;
         }
