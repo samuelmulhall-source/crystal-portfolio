@@ -206,10 +206,14 @@ export function HeroIntro({ children }: { children: React.ReactNode }) {
           el.style.transform = `translate(-50%, ${(m * m * 90).toFixed(1)}vh)`;
         } else {
           // text + asset drop fast — gone within the first fraction of the dive,
-          // a slight rate offset for a touch of depth as they fall.
+          // a slight rate offset for a touch of depth as they fall. They also
+          // drift outward (text left, lantern right) so they read as being
+          // passed by the camera moving in, not just falling straight down.
           const span = role === "asset" ? 0.32 : 0.28;
           const m = clamp01(p / span);
-          el.style.transform = `translateY(${(m * m * 130).toFixed(1)}vh)`;
+          const em = m * m;
+          const driftVw = role === "asset" ? em * 9 : em * -12;
+          el.style.transform = `translate(${driftVw.toFixed(1)}vw, ${(em * 130).toFixed(1)}vh)`;
         }
       }
 
