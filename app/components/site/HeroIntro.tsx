@@ -18,9 +18,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { HeroEntrance } from "./HeroEntrance";
 import { HeroParallax } from "./HeroParallax";
 import { useQuality } from "./QualityProvider";
+import { gsap } from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { getDeviceProfile } from "../../lib/deviceTier";
 import { loadGate } from "../../lib/loadingOrchestrator";
 import { lenisInstance } from "../SmoothScroll";
+
+gsap.registerPlugin(ScrollTrigger);
 
 const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
 
@@ -50,6 +54,7 @@ export function HeroIntro({ children }: { children: React.ReactNode }) {
   const FOLDER_FRONT = `smoke_front${profile.smokeSuffix}`;
 
   const sectionRef = useRef<HTMLElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
   const backRef = useRef<HTMLCanvasElement>(null);
   const frontRef = useRef<HTMLCanvasElement>(null);
   const backFrames = useRef<(HTMLImageElement | null)[]>(new Array(TOTAL).fill(null));
@@ -96,6 +101,26 @@ export function HeroIntro({ children }: { children: React.ReactNode }) {
     })();
     return () => { cancelled = true; };
   }, [pinned, loadFrame, EAGER, BATCH, FOLDER_BACK, FOLDER_FRONT, TOTAL]);
+
+  // Pin the hero for one viewport of scroll. ScrollTrigger handles the spacer,
+  // so the work section follows immediately when the pin releases — no void.
+  useEffect(() => {
+    if (!pinned) return;
+    const stage = stageRef.current;
+    if (!stage) return;
+    const st = ScrollTrigger.create({
+      trigger: stage,
+      start: "top top",
+      end: () => "+=" + (window.innerHeight || 1),
+      pin: true,
+      // No spacer: the work section scrolls up BEHIND the pinned smoke (the
+      // hero sits at a higher z-index) and is fully in place the moment the
+      // pin releases — it rises out from behind the clearing smoke, no void.
+      pinSpacing: false,
+      anticipatePin: 1,
+    });
+    return () => st.kill();
+  }, [pinned]);
 
   // Scroll controller: scrub frames + dissolve content across the pin.
   useEffect(() => {
@@ -203,7 +228,7 @@ export function HeroIntro({ children }: { children: React.ReactNode }) {
 
   return (
     <section ref={sectionRef} className={`hero-intro${pinned ? " is-pinned" : ""}`}>
-      <div className="hero-intro__stage">
+      <div ref={stageRef} className="hero-intro__stage">
         {pinned ? (
           <canvas ref={backRef} className="hero-intro__smoke hero-intro__smoke--back" aria-hidden="true" />
         ) : null}

@@ -1846,9 +1846,10 @@ button, input, textarea { font: inherit; }
 }
 
 /* ═══ Hero intro — pinned fly-into-smoke, asymmetric split ═══════════════════ */
-.hero-intro { position: relative; }
-/* Pinned: tall spacer (stage 100vh + one viewport of intro scroll). */
-.hero-intro.is-pinned { height: 200vh; height: 200dvh; }
+/* Pin handled by GSAP ScrollTrigger (pinSpacing:false) — the work scrolls up
+   behind the pinned smoke. z-index keeps the whole hero (and its smoke) above
+   the work, so the work is revealed as the smoke clears. */
+.hero-intro { position: relative; z-index: 4; }
 .hero-intro:not(.is-pinned) { min-height: 100vh; min-height: 100dvh; }
 
 .hero-intro__stage {
@@ -1862,8 +1863,6 @@ button, input, textarea { font: inherit; }
   overflow: hidden;
   padding: clamp(5rem, 11vh, 8rem) clamp(1rem, 3vw, 2.5rem) clamp(3rem, 6vh, 5rem);
 }
-.hero-intro.is-pinned .hero-intro__stage { position: sticky; top: 0; }
-
 .hero-intro__content {
   position: relative;
   z-index: 2;
