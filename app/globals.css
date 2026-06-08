@@ -1851,6 +1851,9 @@ button, input, textarea { font: inherit; }
    the work, so the work is revealed as the smoke clears. */
 .hero-intro { position: relative; z-index: 4; }
 .hero-intro:not(.is-pinned) { min-height: 100vh; min-height: 100dvh; }
+/* Push the work down so it starts rising a touch later behind the smoke. Must
+   match INTRO_TAIL (0.2) in HeroIntro so it still lands as the pin releases. */
+.hero-intro.is-pinned + .showcase { margin-top: 20vh; margin-top: 20dvh; }
 
 .hero-intro__stage {
   position: relative;

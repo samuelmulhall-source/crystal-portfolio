@@ -28,6 +28,11 @@ gsap.registerPlugin(ScrollTrigger);
 
 const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
 
+// Extra scroll past one viewport before the pin releases. The work section is
+// pushed down by this same fraction (margin-top in CSS) so it starts rising a
+// touch later yet still lands exactly as the pin ends — keep the two in sync.
+const INTRO_TAIL = 0.2;
+
 /** Nearest already-loaded frame to idx — avoids blank flashes while frames
  *  are still streaming in. */
 function nearestLoaded(
@@ -111,7 +116,7 @@ export function HeroIntro({ children }: { children: React.ReactNode }) {
     const st = ScrollTrigger.create({
       trigger: stage,
       start: "top top",
-      end: () => "+=" + (window.innerHeight || 1),
+      end: () => "+=" + (window.innerHeight || 1) * (1 + INTRO_TAIL),
       pin: true,
       // No spacer: the work section scrolls up BEHIND the pinned smoke (the
       // hero sits at a higher z-index) and is fully in place the moment the
@@ -167,7 +172,7 @@ export function HeroIntro({ children }: { children: React.ReactNode }) {
       const dt = Math.min((now - lastT) / 1000, 0.05);
       lastT = now;
 
-      const introDist = window.innerHeight || 1;
+      const introDist = (window.innerHeight || 1) * (1 + INTRO_TAIL);
       // Aim at the UN-eased scroll destination (Lenis.targetScroll), not its
       // soft-tailed animated position, so the frames never creep at gesture end.
       const dest =
@@ -202,7 +207,7 @@ export function HeroIntro({ children }: { children: React.ReactNode }) {
         } else {
           // text + asset drop fast — gone within the first fraction of the dive,
           // a slight rate offset for a touch of depth as they fall.
-          const span = role === "asset" ? 0.26 : 0.22;
+          const span = role === "asset" ? 0.32 : 0.28;
           const m = clamp01(p / span);
           el.style.transform = `translateY(${(m * m * 130).toFixed(1)}vh)`;
         }
