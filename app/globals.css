@@ -1947,6 +1947,17 @@ button, input, textarea { font: inherit; }
   .hero-core--left::before { left: 50%; }
 }
 
+/* Mobile: the long descriptor at full tracking overflows — tighten + wrap. */
+@media (max-width: 560px) {
+  .hero-intro .hero-capabilities {
+    font-size: 0.54rem;
+    letter-spacing: 0.18em;
+    max-width: 22ch;
+    text-wrap: balance;
+  }
+  .hero-intro .hero-wordmark { font-size: clamp(1.7rem, 8.4vw, 2.9rem); letter-spacing: 0.03em; }
+}
+
 /* ═══ Work showcase — editorial datasheet + presentation reticle ═════════════ */
 .showcase {
   position: relative;

@@ -14,7 +14,7 @@
  * mouse parallax and no smoke.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { HeroEntrance } from "./HeroEntrance";
 import { HeroParallax } from "./HeroParallax";
 import { useQuality } from "./QualityProvider";
@@ -27,6 +27,19 @@ import { lenisInstance } from "../SmoothScroll";
 gsap.registerPlugin(ScrollTrigger);
 
 const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
+
+const RM_QUERY = "(prefers-reduced-motion: reduce)";
+function useReducedMotion() {
+  return useSyncExternalStore(
+    (cb) => {
+      const mq = window.matchMedia(RM_QUERY);
+      mq.addEventListener("change", cb);
+      return () => mq.removeEventListener("change", cb);
+    },
+    () => window.matchMedia(RM_QUERY).matches,
+    () => false,
+  );
+}
 
 // Extra scroll past one viewport before the pin releases. The work section is
 // pushed down by this same fraction (margin-top in CSS) so it starts rising a
@@ -49,7 +62,10 @@ function nearestLoaded(
 
 export function HeroIntro({ children }: { children: React.ReactNode }) {
   const { tier } = useQuality();
-  const pinned = tier >= 2;
+  const reducedMotion = useReducedMotion();
+  // Reduced-motion users get the static (non-pinned, no smoke) hero — no
+  // scroll-jacked camera dive.
+  const pinned = tier >= 2 && !reducedMotion;
 
   const profile = useMemo(() => getDeviceProfile(), []);
   const TOTAL = profile.smokeFrames;

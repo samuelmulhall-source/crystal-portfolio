@@ -73,8 +73,30 @@ function pad(n: number) {
   return String(n).padStart(2, "0");
 }
 
-function Presentation({ entry, category }: { entry: WorkEntry; category: WorkCategory }) {
+function Presentation({
+  entry,
+  category,
+  enabled,
+}: {
+  entry: WorkEntry;
+  category: WorkCategory;
+  enabled: boolean;
+}) {
   if (category === "models" && entry.specimen) {
+    // Until the showcase is scrolled into view, show the poster — defers the
+    // WebGL context + FBX/texture load out of the initial page load.
+    if (!enabled) {
+      return (
+        <Image
+          className="showcase__image"
+          src={entry.specimen.poster}
+          alt={entry.title}
+          width={1600}
+          height={1000}
+          sizes="(max-width: 900px) 100vw, 60vw"
+        />
+      );
+    }
     return <SpecimenViewer specimen={entry.specimen} alt={entry.title} className="showcase-viewer" />;
   }
   if (entry.heroMedia.kind === "video") {
@@ -109,6 +131,28 @@ export function WorkShowcase({ groups }: { groups: Record<WorkCategory, WorkEntr
   const [category, setCategory] = useState<WorkCategory>("models");
   const [index, setIndex] = useState(0);
 
+  // Defer the heavy WebGL viewer until the showcase is near the viewport.
+  const sectionRef = useRef<HTMLElement>(null);
+  const [inView, setInView] = useState(false);
+  useEffect(() => {
+    const el = sectionRef.current;
+    if (!el || inView) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setInView(true);
+          io.disconnect();
+        }
+      },
+      // Negative bottom margin: only fire once the showcase is well up into the
+      // viewport (past the pinned hero intro), so the WebGL stays out of the
+      // initial load and the early part of the scroll.
+      { rootMargin: "0px 0px -45% 0px" },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [inView]);
+
   const items = groups[category];
   const count = items.length;
   const idx = count > 0 ? Math.min(index, count - 1) : 0;
@@ -134,7 +178,7 @@ export function WorkShowcase({ groups }: { groups: Record<WorkCategory, WorkEntr
     : [];
 
   return (
-    <section id="selected-work" className="showcase" aria-label="Work">
+    <section ref={sectionRef} id="selected-work" className="showcase" aria-label="Work">
       <div className="showcase__head page-shell">
         <h2 className="showcase__heading">Work</h2>
         <div className="showcase__tabs" role="tablist" aria-label="Work categories">
@@ -182,7 +226,7 @@ export function WorkShowcase({ groups }: { groups: Record<WorkCategory, WorkEntr
             {/* ── Right: presentation reticle + edge stepping ── */}
             <div className="showcase__present">
               <div className="showcase__media" key={active.slug}>
-                <Presentation entry={active} category={category} />
+                <Presentation entry={active} category={category} enabled={inView} />
                 {category === "models" ? <ModelReticle /> : null}
                 <div className="showcase__media-bar" aria-hidden="true">
                   <span className="showcase__media-name">{active.title}</span>
