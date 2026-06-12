@@ -28,6 +28,12 @@ gsap.registerPlugin(ScrollTrigger);
 
 const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
 
+const noopSubscribe = () => () => {};
+/** false on the server + first hydration pass, true thereafter — no mismatch. */
+function useIsClient() {
+  return useSyncExternalStore(noopSubscribe, () => true, () => false);
+}
+
 const RM_QUERY = "(prefers-reduced-motion: reduce)";
 function useReducedMotion() {
   return useSyncExternalStore(
@@ -62,10 +68,12 @@ function nearestLoaded(
 
 export function HeroIntro({ children }: { children: React.ReactNode }) {
   const { tier } = useQuality();
+  const isClient = useIsClient();
   const reducedMotion = useReducedMotion();
   // Reduced-motion users get the static (non-pinned, no smoke) hero — no
-  // scroll-jacked camera dive.
-  const pinned = tier >= 2 && !reducedMotion;
+  // scroll-jacked camera dive. Client-gated: the server can't know the tier,
+  // so it always renders the static hero and the pin mounts after hydration.
+  const pinned = isClient && tier >= 2 && !reducedMotion;
 
   const profile = useMemo(() => getDeviceProfile(), []);
   const TOTAL = profile.smokeFrames;

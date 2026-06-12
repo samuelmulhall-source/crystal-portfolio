@@ -12,7 +12,7 @@ export function MediaBlock({
 }) {
   if (asset.kind === "video") {
     return (
-      <div className={`media-block ${className}`.trim()}>
+      <div className={`media-block media-block--video ${className}`.trim()}>
         <video
           className="media-block__video"
           controls

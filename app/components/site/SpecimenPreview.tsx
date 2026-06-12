@@ -1,9 +1,12 @@
 "use client";
 
 import Image from "next/image";
+import { useSyncExternalStore } from "react";
 import type { MediaAsset } from "../../lib/content";
 import { useDisplayMode } from "./DisplayModeProvider";
 import { useQuality } from "./QualityProvider";
+
+const noopSubscribe = () => () => {};
 
 export function SpecimenPreview({
   posterAsset,
@@ -19,8 +22,13 @@ export function SpecimenPreview({
 }) {
   const { effectiveMode } = useDisplayMode();
   const { tier } = useQuality();
+  // false on the server + first hydration pass — the server can't know the
+  // tier/display mode, so it always renders the poster and the video upgrades
+  // in after mount (also paints the poster faster).
+  const isClient = useSyncExternalStore(noopSubscribe, () => true, () => false);
   // At Lite (tier 1) skip video decode entirely and show the poster image.
-  const shouldAnimate = tier >= 2 && effectiveMode === "enhanced" && motionAsset.kind === "video";
+  const shouldAnimate =
+    isClient && tier >= 2 && effectiveMode === "enhanced" && motionAsset.kind === "video";
 
   if (shouldAnimate && motionAsset.kind === "video") {
     return (

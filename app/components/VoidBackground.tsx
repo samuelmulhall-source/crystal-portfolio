@@ -8,7 +8,7 @@
  * Mouse/scroll/touch events bridge to voidState for decorative parallax.
  */
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useSyncExternalStore } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { voidState } from "../lib/voidState";
@@ -85,24 +85,23 @@ function BackgroundScene({ isMobile, tier }: { isMobile: boolean; tier: QualityT
   );
 }
 
+const MOBILE_QUERY = "(max-width: 768px)";
+const noopSubscribe = () => () => {};
+function subscribeMobile(cb: () => void) {
+  const mq = window.matchMedia(MOBILE_QUERY);
+  mq.addEventListener("change", cb);
+  return () => mq.removeEventListener("change", cb);
+}
+
 export default function VoidBackground({ tier = 3 }: { tier?: QualityTier }) {
-  const [mounted, setMounted] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
+  // false on the server + first hydration pass, true thereafter — no mismatch.
+  const mounted = useSyncExternalStore(noopSubscribe, () => true, () => false);
+  const isMobile = useSyncExternalStore(
+    subscribeMobile,
+    () => window.matchMedia(MOBILE_QUERY).matches,
+    () => false,
+  );
   const [off] = useState(() => layerOff("webgl")); // debug: ?off=webgl
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const mq = window.matchMedia("(max-width: 768px)");
-    const on = () => setIsMobile(mq.matches);
-    on();
-    mq.addEventListener("change", on);
-    return () => mq.removeEventListener("change", on);
-  }, []);
 
   // Mouse/scroll/touch → voidState bridge
   useEffect(() => {

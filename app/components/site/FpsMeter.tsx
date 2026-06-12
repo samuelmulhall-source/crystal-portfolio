@@ -9,17 +9,23 @@
  * itself adds no measurable overhead.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
+
+const noopSubscribe = () => () => {};
 
 export default function FpsMeter() {
   const fpsRef = useRef<HTMLSpanElement>(null);
   const lowRef = useRef<HTMLSpanElement>(null);
-  // Debug-only: show only when ?fps (or ?debug) is in the URL.
-  const [show] = useState(() => {
-    if (typeof window === "undefined") return false;
-    const p = new URLSearchParams(window.location.search);
-    return p.has("fps") || p.has("debug");
-  });
+  // Debug-only: show only when ?fps (or ?debug) is in the URL. Client-gated
+  // (server snapshot = false) so SSR markup always matches the first paint.
+  const show = useSyncExternalStore(
+    noopSubscribe,
+    () => {
+      const p = new URLSearchParams(window.location.search);
+      return p.has("fps") || p.has("debug");
+    },
+    () => false,
+  );
 
   useEffect(() => {
     if (!show) return;

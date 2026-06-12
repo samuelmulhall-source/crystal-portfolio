@@ -7,7 +7,7 @@
  * Uses GLSL ShaderMaterial for point sprites with velocity motion blur.
  */
 
-import React, { useRef, useMemo, useEffect, useContext } from "react";
+import React, { useMemo, useEffect, useContext } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { voidState } from "../lib/voidState";
@@ -118,6 +118,9 @@ export function StarLayer({
     pointsRef.current.rotation.x += dt * cfg.rotSpd * 0.32 * scrollBoost;
 
     const dim = 1 - voidState.scrollProgress * 0.12;
+    // Per-frame uniform updates on a stable ShaderMaterial are the standard
+    // three.js/R3F pattern; the immutability rule is a false positive here.
+    // eslint-disable-next-line react-hooks/immutability
     mat.uniforms.uOpacity.value = 0.90 * dim;
     mat.uniforms.uSize.value    = cfg.size;
     mat.uniforms.uVH.value = (s.gl.domElement).height * 0.5;

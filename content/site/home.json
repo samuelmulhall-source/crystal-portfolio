@@ -11,20 +11,6 @@
       "alt": "Soulbound Lantern — emissive glass and metal study, looping"
     }
   },
-  "selectedWork": {
-    "heading": "Selected work",
-    "featuredSlugs": [
-      "soulbound-lantern",
-      "evening-fishing",
-      "holography-study"
-    ]
-  },
-  "archivePreview": {
-    "heading": "Archive",
-    "limit": 6,
-    "ctaLabel": "Full archive",
-    "ctaHref": "/work"
-  },
   "contact": {
     "heading": "Let's build something",
     "intro": "Independent 3D work — character and asset production, realtime, and motion. Open to freelance briefs and full-time roles.",
