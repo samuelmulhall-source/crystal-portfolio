@@ -1262,6 +1262,14 @@ button, input, textarea { font: inherit; }
    behind the pinned smoke. z-index keeps the whole hero (and its smoke) above
    the work, so the work is revealed as the smoke clears. */
 .hero-intro { position: relative; z-index: 4; }
+/* The pinned hero sits at z-index 4 OVER the work section (z-index 2) so the
+   showcase rises from behind the clearing smoke. That overlap would otherwise
+   let the (decorative) hero swallow clicks meant for the showcase beneath it —
+   so the hero is click-through, with only its genuinely interactive children
+   (the scroll cue) re-enabled. */
+.hero-intro { pointer-events: none; }
+.hero-intro a,
+.hero-intro button { pointer-events: auto; }
 .hero-intro:not(.is-pinned) { min-height: 100vh; min-height: 100dvh; }
 /* Push the work down so it starts rising a touch later behind the smoke. Must
    match INTRO_TAIL (0.2) in HeroIntro so it still lands as the pin releases. */
@@ -1515,7 +1523,7 @@ button, input, textarea { font: inherit; }
   max-width: 42ch;
 }
 /* Glass "Case study" pill — refined entry into the project detail page. */
-.showcase__casestudy {
+.showcase__details {
   display: inline-flex;
   align-items: center;
   align-self: flex-start;
@@ -1539,7 +1547,7 @@ button, input, textarea { font: inherit; }
     0 6px 16px -8px rgba(0, 0, 0, 0.55);
   transition: border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease, background 0.3s ease;
 }
-.showcase__casestudy:hover {
+.showcase__details:hover {
   border-color: rgba(205, 232, 255, 0.4);
   background: linear-gradient(135deg, rgba(190, 225, 255, 0.16), rgba(120, 170, 220, 0.06));
   box-shadow:
@@ -1547,10 +1555,10 @@ button, input, textarea { font: inherit; }
     inset 0 -1px 1px rgba(0, 0, 0, 0.25),
     0 10px 24px -10px rgba(0, 0, 0, 0.6);
 }
-.showcase__casestudy-arrow { transition: transform 0.3s ease; }
-.showcase__casestudy:hover .showcase__casestudy-arrow { transform: translateX(3px); }
+.showcase__details-arrow { transition: transform 0.3s ease; }
+.showcase__details:hover .showcase__details-arrow { transform: translateX(3px); }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .showcase__casestudy { background: rgba(20, 30, 48, 0.82); }
+  .showcase__details { background: rgba(20, 30, 48, 0.82); }
 }
 /* Right — seamless atmospheric presentation */
 .showcase__present { position: relative; }
@@ -1566,6 +1574,14 @@ button, input, textarea { font: inherit; }
     radial-gradient(ellipse 130% 112% at 50% 50%, rgba(8, 16, 28, 0) 50%, rgba(1, 3, 9, 0.92) 100%),
     linear-gradient(180deg, rgba(11, 19, 32, 0.45), rgba(3, 7, 14, 0.6));
 }
+/* Video slides size to the player's own (per-video) ratio — no forced 4/3 box,
+   no atmospheric backing (the glass player carries its own frame). */
+.showcase__media--video {
+  aspect-ratio: auto;
+  background: none;
+  overflow: visible;
+}
+.showcase__media--video::after { display: none; }
 .showcase__media::after {
   content: "";
   position: absolute;
@@ -1848,13 +1864,15 @@ button, input, textarea { font: inherit; }
   border-radius: 9px;
   overflow: hidden;
   background: #05070f;
+  /* Default until the video reports its real ratio (set inline from metadata),
+     so the frame matches each source instead of forcing a fixed box. */
+  aspect-ratio: 16 / 9;
 }
 .glass-video__media {
   display: block;
   width: 100%;
-  height: auto;
-  aspect-ratio: 16 / 10;
-  object-fit: cover;
+  height: 100%;
+  object-fit: contain;
   cursor: pointer;
 }
 .glass-video.is-fullscreen,

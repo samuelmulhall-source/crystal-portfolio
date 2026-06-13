@@ -55,51 +55,12 @@
     }
   ],
   "seo": {
-    "title": "Evening Fishing case study",
+    "title": "Evening Fishing",
     "description": "Environment look development study centered on dusk light, volumetrics, and slow observational motion.",
     "ogImage": "/images/og/evening-fishing.jpg"
   },
   "interactive": {
     "available": false,
     "note": "Presented as rendered motion and stills — final pixels from the production file."
-  },
-  "caseStudy": {
-    "hook": "This piece was built to prove that a quiet frame can still feel authored when the lighting structure and motion hierarchy are doing the heavy lifting.",
-    "brief": [
-      "The goal was not to build a large environment for its own sake. It was to construct a small scene with enough depth, fog, and movement to feel inhabited.",
-      "Everything from the water motion to the volumetric light was tuned toward patience and stillness."
-    ],
-    "sections": [
-      {
-        "title": "Mood before detail",
-        "body": [
-          "The scene works because the value structure is simple. The sky, water, and silhouettes separate cleanly before any fine detail enters the frame.",
-          "That makes the piece more useful as a visual-development reference because the atmosphere lands immediately."
-        ]
-      },
-      {
-        "title": "Environmental motion",
-        "body": [
-          "Subtle movement in the water and fog keeps the render alive without turning the scene into an effects demo.",
-          "The motion design is there to support the light and composition, not compete with them."
-        ]
-      },
-      {
-        "title": "Application",
-        "body": [
-          "This kind of study is most relevant when a brief needs tonal confidence early, whether for a pitch frame, a launch teaser, or a worldbuilding reference.",
-          "It is also a useful indicator of how I approach restraint when the subject needs to feel premium instead of loud."
-        ]
-      }
-    ],
-    "deliverables": [
-      "Environment motion loop",
-      "Lighting and atmosphere study",
-      "Presentation-ready still frames"
-    ],
-    "outcomes": [
-      "A reusable dusk-light workflow for future environment briefs",
-      "A compact reference for restrained environmental storytelling"
-    ]
   }
 }

@@ -52,26 +52,5 @@
   },
   "interactive": {
     "available": false
-  },
-  "caseStudy": {
-    "hook": "A compact study in making a simple object feel precise.",
-    "brief": [
-      "The challenge was to preserve clarity at small sizes while keeping the full-frame render from feeling sterile."
-    ],
-    "sections": [
-      {
-        "title": "Readability first",
-        "body": [
-          "Silhouette, rim light, and tonal grouping do most of the work here.",
-          "The piece is intentionally minimal so the lighting choices stay obvious."
-        ]
-      }
-    ],
-    "deliverables": [
-      "Primary icon render"
-    ],
-    "outcomes": [
-      "A tighter reference for product-style icon framing"
-    ]
   }
 }

@@ -55,44 +55,12 @@
     }
   ],
   "seo": {
-    "title": "Holography Study case study",
+    "title": "Holography Study",
     "description": "Material exploration focused on iridescence, readable highlights, and stylized surface response.",
     "ogImage": "/images/og/holography-study.jpg"
   },
   "interactive": {
     "available": false,
     "note": "This study is intentionally presented as a still-image reference."
-  },
-  "caseStudy": {
-    "hook": "Not every brief needs a large scene. Sometimes the fastest way to establish a visual direction is to isolate the material language and make it undeniable.",
-    "brief": [
-      "This study focused on surface behavior rather than object complexity.",
-      "The intent was to develop a stylized iridescent read that could feel premium and controlled instead of noisy."
-    ],
-    "sections": [
-      {
-        "title": "Controlling a loud material",
-        "body": [
-          "Highly chromatic materials can fall apart quickly when the hue shifts are stronger than the lighting structure. The setup here keeps the palette concentrated and the highlight paths deliberate.",
-          "That balance makes the result more useful for real design work because the material still reads as a designed choice instead of a novelty effect."
-        ]
-      },
-      {
-        "title": "Lighting as part of the shader",
-        "body": [
-          "The lighting was tuned alongside the material rather than after it. That was important because iridescence changes meaning once the highlights move.",
-          "The final frame is less about a single technical trick and more about coordinating several subtle ones."
-        ]
-      }
-    ],
-    "deliverables": [
-      "Primary still frame",
-      "Supporting material references",
-      "Palette and highlight behavior benchmark"
-    ],
-    "outcomes": [
-      "A reusable reference for stylized premium surfaces",
-      "A stronger basis for future product and concept-facing shader work"
-    ]
   }
 }

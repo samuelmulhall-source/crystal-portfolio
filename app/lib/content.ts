@@ -23,11 +23,6 @@ const MediaAssetSchema = z.object({
   variants: z.array(MediaVariantSchema).optional(),
 });
 
-const CaseStudySectionSchema = z.object({
-  title: z.string(),
-  body: z.array(z.string()),
-});
-
 /** Interactive 3D specimen — content-driven FBX + PBR texture set. */
 const SpecimenSchema = z.object({
   modelPath: z.string(),
@@ -44,14 +39,6 @@ const SpecimenSchema = z.object({
     metalnessMap: z.string().optional(),
     transmissionMap: z.string().optional(),
   }),
-});
-
-const CaseStudySchema = z.object({
-  hook: z.string(),
-  brief: z.array(z.string()),
-  sections: z.array(CaseStudySectionSchema),
-  deliverables: z.array(z.string()),
-  outcomes: z.array(z.string()),
 });
 
 /** One named asset inside a collection entry (e.g. an asset pack) — a
@@ -103,7 +90,6 @@ const WorkEntrySchema = z.object({
    *  When present, viewers offer per-asset navigation; `specimen` then acts
    *  as the default/fallback asset. */
   assets: z.array(PackAssetSchema).optional(),
-  caseStudy: CaseStudySchema,
 });
 
 const SiteSettingsSchema = z.object({

@@ -51,26 +51,5 @@
   },
   "interactive": {
     "available": false
-  },
-  "caseStudy": {
-    "hook": "A loose study with no production constraint, useful mainly as a reference for instinct and taste.",
-    "brief": [
-      "The value of this piece is less in the subject and more in the way the frame holds together under stylized lighting."
-    ],
-    "sections": [
-      {
-        "title": "What it tests",
-        "body": [
-          "This frame tests how much detail can be implied rather than stated.",
-          "It also serves as a quick benchmark for color restraint and focal hierarchy."
-        ]
-      }
-    ],
-    "deliverables": [
-      "Primary still frame"
-    ],
-    "outcomes": [
-      "A lightweight visual benchmark for future still-image work"
-    ]
   }
 }

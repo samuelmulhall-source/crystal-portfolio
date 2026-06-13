@@ -55,51 +55,12 @@
     }
   ],
   "seo": {
-    "title": "Soulbound Lantern case study",
+    "title": "Soulbound Lantern",
     "description": "Hero prop presentation study focused on emissive lighting, flame simulation, and premium object framing.",
     "ogImage": "/images/og/soulbound-lantern.jpg"
   },
   "interactive": {
     "available": false,
     "note": "Presented as rendered motion — final pixels from the production file."
-  },
-  "caseStudy": {
-    "hook": "Built as a focused presentation study, this piece asked a simple question: how much atmosphere can a single prop carry before the framing starts to feel ornamental?",
-    "brief": [
-      "The lantern was designed as a hero object that needed to read at first glance and keep revealing detail over a longer look.",
-      "The priority was controlled drama rather than maximal complexity: readable silhouette, believable emissive falloff, and enough motion to imply story without turning the piece into a trailer."
-    ],
-    "sections": [
-      {
-        "title": "Framing the object",
-        "body": [
-          "The camera language stays restrained on purpose. Slow passes and deliberate close framing let the shape, glass, and metal transitions do the work.",
-          "That pacing makes the piece more useful as presentation material because the viewer always knows where to look."
-        ]
-      },
-      {
-        "title": "Lighting and surface response",
-        "body": [
-          "The flame treatment had to illuminate the object without flattening the metalwork, so the lighting balance leans on a tight emissive core with colder fill support.",
-          "Material separation was the second priority: glass, metal, and carved surfaces each needed their own read instead of collapsing into one warm mass."
-        ]
-      },
-      {
-        "title": "What the study proves",
-        "body": [
-          "This project is useful as a client-facing reference because it shows premium prop presentation rather than only raw asset production.",
-          "It also demonstrates how motion, lookdev, and finishing can be kept inside one compact workflow."
-        ]
-      }
-    ],
-    "deliverables": [
-      "Hero prop motion piece",
-      "Lighting pass exploration",
-      "Presentation-ready poster frame"
-    ],
-    "outcomes": [
-      "A polished showcase template for future hero object presentations",
-      "A clearer process for balancing emissive sources against material readability"
-    ]
   }
 }

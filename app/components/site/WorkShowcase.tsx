@@ -14,26 +14,14 @@
  * Content-driven: receives entries pre-grouped by category from the server.
  */
 
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import type { PackAsset, WorkCategory, WorkEntry } from "../../lib/content";
 import { SpecimenViewer } from "./SpecimenViewer";
-import { useQuality } from "./QualityProvider";
+import { GlassVideo } from "./GlassVideo";
 
 const REDUCED_QUERY = "(prefers-reduced-motion: reduce)";
-const subscribeReduced = (cb: () => void) => {
-  const mq = window.matchMedia(REDUCED_QUERY);
-  mq.addEventListener("change", cb);
-  return () => mq.removeEventListener("change", cb);
-};
-function useReducedMotion() {
-  return useSyncExternalStore(
-    subscribeReduced,
-    () => window.matchMedia(REDUCED_QUERY).matches,
-    () => false,
-  );
-}
 
 /** Wireframe HUD reticle that trails the cursor over a 3D model presentation.
  *  Pointer-fine only; the rAF loop runs only while the cursor is over the
@@ -128,13 +116,10 @@ function Presentation({
   slide,
   category,
   enabled,
-  ambient,
 }: {
   slide: Slide;
   category: WorkCategory;
   enabled: boolean;
-  /** Whether decorative autoplay video is allowed (tier + reduced motion). */
-  ambient: boolean;
 }) {
   const { entry } = slide;
   const specimen = slide.asset?.specimen ?? entry.specimen;
@@ -157,31 +142,12 @@ function Presentation({
       <SpecimenViewer specimen={specimen} alt={slideTitle(slide)} className="showcase-viewer" />
     );
   }
-  if (entry.heroMedia.kind === "video" && ambient) {
-    return (
-      <video
-        className="showcase__video"
-        autoPlay
-        loop
-        muted
-        playsInline
-        preload="metadata"
-        poster={entry.heroMedia.poster ?? entry.thumbnail.src}
-      >
-        <source src={entry.heroMedia.src} type="video/mp4" />
-      </video>
-    );
-  }
   if (entry.heroMedia.kind === "video") {
-    // Reduced motion / low tier: a still frame instead of autoplaying video.
+    // The glass player carries its own chrome and matches each video's ratio.
     return (
-      <Image
-        className="showcase__image"
-        src={entry.heroMedia.poster ?? entry.thumbnail.src}
-        alt={entry.heroMedia.alt}
-        width={1600}
-        height={1000}
-        sizes="(max-width: 900px) 100vw, 60vw"
+      <GlassVideo
+        src={entry.heroMedia.src}
+        poster={entry.heroMedia.poster ?? entry.thumbnail.src}
       />
     );
   }
@@ -201,8 +167,6 @@ function Presentation({
 export function WorkShowcase({ groups }: { groups: Record<WorkCategory, WorkEntry[]> }) {
   const [category, setCategory] = useState<WorkCategory>("models");
   const [index, setIndex] = useState(0);
-  const { tier } = useQuality();
-  const reducedMotion = useReducedMotion();
   const tabRefs = useRef<Partial<Record<WorkCategory, HTMLButtonElement | null>>>({});
 
   // Defer the heavy WebGL viewer until the showcase is near the viewport.
@@ -232,7 +196,6 @@ export function WorkShowcase({ groups }: { groups: Record<WorkCategory, WorkEntr
   const idx = count > 0 ? Math.min(index, count - 1) : 0;
   const active = count > 0 ? slides[idx] : null;
   const label = TABS.find((t) => t.id === category)?.label;
-  const ambient = !reducedMotion && tier >= 2;
 
   const selectCategory = useCallback((next: WorkCategory) => {
     setCategory(next);
@@ -342,28 +305,28 @@ export function WorkShowcase({ groups }: { groups: Record<WorkCategory, WorkEntr
               <p className="showcase__summary">{active.entry.summary}</p>
               <Link
                 href={`/work/${active.entry.slug}`}
-                className="showcase__casestudy"
-                aria-label={`Open case study: ${active.entry.title}`}
+                className="showcase__details"
+                aria-label={`View details: ${active.entry.title}`}
               >
-                <span className="showcase__casestudy-label">Case study</span>
-                <span className="showcase__casestudy-arrow" aria-hidden="true">→</span>
+                <span className="showcase__details-label">View details</span>
+                <span className="showcase__details-arrow" aria-hidden="true">→</span>
               </Link>
             </div>
 
             {/* ── Right: presentation reticle + edge stepping ── */}
             <div className="showcase__present">
-              <div className="showcase__media" key={active.entry.slug}>
-                <Presentation
-                  slide={active}
-                  category={category}
-                  enabled={inView}
-                  ambient={ambient}
-                />
+              <div
+                className={`showcase__media${category === "video" ? " showcase__media--video" : ""}`}
+                key={active.entry.slug}
+              >
+                <Presentation slide={active} category={category} enabled={inView} />
                 {category === "models" ? <ModelReticle /> : null}
-                <div className="showcase__media-bar" aria-hidden="true">
-                  <span className="showcase__media-name">{slideTitle(active)}</span>
-                  <span className="showcase__media-index">{pad(idx + 1)} / {pad(count)}</span>
-                </div>
+                {category !== "video" ? (
+                  <div className="showcase__media-bar" aria-hidden="true">
+                    <span className="showcase__media-name">{slideTitle(active)}</span>
+                    <span className="showcase__media-index">{pad(idx + 1)} / {pad(count)}</span>
+                  </div>
+                ) : null}
               </div>
 
               {count > 1 ? (

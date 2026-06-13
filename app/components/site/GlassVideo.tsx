@@ -46,6 +46,9 @@ export function GlassVideo({
   const [ended, setEnded] = useState(false);
   const [failed, setFailed] = useState(false);
   const [touchControls, setTouchControls] = useState(false);
+  // Natural aspect ratio of THIS video — set from metadata so the frame matches
+  // the source instead of forcing a fixed box.
+  const [ratio, setRatio] = useState<number | null>(null);
 
   // Swap native controls for the glass chrome only once JS is live.
   // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -171,7 +174,10 @@ export function GlassVideo({
       setCurrent(v.currentTime);
       setBuffering(false);
     };
-    const onMeta = () => setDuration(v.duration);
+    const onMeta = () => {
+      setDuration(v.duration);
+      if (v.videoWidth > 0 && v.videoHeight > 0) setRatio(v.videoWidth / v.videoHeight);
+    };
     const onWaiting = () => setBuffering(true);
     const onPlaying = () => setBuffering(false);
     const onEnded = () => setEnded(true);
@@ -221,6 +227,7 @@ export function GlassVideo({
       role="group"
       aria-label="Video player"
       onKeyDown={onKeyDown}
+      style={ratio && !fullscreen ? ({ aspectRatio: String(ratio) } as React.CSSProperties) : undefined}
     >
       <video
         ref={videoRef}

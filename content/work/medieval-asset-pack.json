@@ -168,43 +168,5 @@
         }
       }
     }
-  ],
-  "caseStudy": {
-    "hook": "An in-progress pack of game-ready medieval props built to share one material language — so every asset reads as part of the same world.",
-    "brief": [
-      "Each prop had to work twice: as a hero object that survives close inspection, and as set dressing that reads instantly at gameplay distance.",
-      "The pack is built asset-by-asset with a shared kit of metal, wood, leather, and glass treatments, keeping wear logic and value structure consistent across the set."
-    ],
-    "sections": [
-      {
-        "title": "Silhouette first",
-        "body": [
-          "Every asset starts from a clean shape read — ornament is only allowed to accumulate where it doesn't muddy the outline.",
-          "The dagger pushes detail density the furthest; the bow holds the opposite end with calm, almost minimal forms. The pack needs both extremes to prove the material kit scales."
-        ]
-      },
-      {
-        "title": "One material language",
-        "body": [
-          "Metal wear, wood grain, and leather wrap details share masks and grunge logic across assets, so props sit together naturally in a scene.",
-          "Texture sets are full PBR — albedo, normal, roughness, metalness, and transmission where the design calls for it — authored in Substance Painter on Blender meshes."
-        ]
-      },
-      {
-        "title": "Built for realtime",
-        "body": [
-          "Everything in the viewer above renders from the production FBX and texture sets in WebGL — the same files a game engine would ingest.",
-          "The inspector exposes wireframe, polycount, and texture resolution per asset, because that's what a technical reviewer actually wants to check."
-        ]
-      }
-    ],
-    "deliverables": [
-      "Five game-ready props with full PBR texture sets",
-      "Shared material kit (metal / wood / leather / glass treatments)",
-      "Realtime WebGL presentation with technical inspector"
-    ],
-    "outcomes": [
-      "The pack is in active production — more assets land here as they're finished"
-    ]
-  }
+  ]
 }

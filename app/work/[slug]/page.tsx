@@ -63,7 +63,6 @@ export default async function WorkDetailPage({ params }: WorkPageProps) {
   }
 
   const relatedEntries = getRelatedEntries(entry.slug);
-  const { caseStudy } = entry;
   // Don't repeat the hero media inside the gallery.
   const gallery = entry.gallery.filter((asset) => asset.src !== entry.heroMedia.src);
 
@@ -120,24 +119,7 @@ export default async function WorkDetailPage({ params }: WorkPageProps) {
 
         <section className="page-shell detail-grid">
           <div className="detail-grid__main">
-            <div className="rich-copy">
-              <p className="eyebrow">Case study</p>
-              <p className="standfirst">{caseStudy.hook}</p>
-              {caseStudy.brief.map((paragraph) => (
-                <p key={paragraph}>{paragraph}</p>
-              ))}
-            </div>
-
             <div className="section-stack">
-              {caseStudy.sections.map((section) => (
-                <section className="story-section" key={section.title}>
-                  <h2>{section.title}</h2>
-                  {section.body.map((paragraph) => (
-                    <p key={paragraph}>{paragraph}</p>
-                  ))}
-                </section>
-              ))}
-
               <section className="story-section">
                 <h2>Specifications</h2>
                 <div className="spec-grid">
@@ -180,21 +162,19 @@ export default async function WorkDetailPage({ params }: WorkPageProps) {
                 ))}
               </ul>
             </div>
-            {caseStudy.deliverables.length ? (
+            <div>
+              <p className="eyebrow">Tools</p>
+              <ul className="fact-list">
+                {entry.tools.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </div>
+            {entry.specimen ? (
               <div>
-                <p className="eyebrow">Deliverables</p>
+                <p className="eyebrow">Maps</p>
                 <ul className="fact-list">
-                  {caseStudy.deliverables.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-            {caseStudy.outcomes.length ? (
-              <div>
-                <p className="eyebrow">Outcomes</p>
-                <ul className="fact-list">
-                  {caseStudy.outcomes.map((item) => (
+                  {getSpecimenMaps(entry.specimen).map((item) => (
                     <li key={item}>{item}</li>
                   ))}
                 </ul>
