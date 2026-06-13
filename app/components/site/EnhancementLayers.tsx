@@ -14,11 +14,16 @@
  */
 
 import { useSyncExternalStore } from "react";
-import VoidBackground from "../VoidBackground";
-import EffectsOverlay from "../EffectsOverlay";
-import CursorFollower from "../CursorFollower";
+import dynamic from "next/dynamic";
 import StaticStarfield from "./StaticStarfield";
 import { useQuality } from "./QualityProvider";
+
+// Lazy-loaded: VoidBackground pulls three.js (~220 KB gz) — keeping it out of
+// the static import graph keeps first-load JS light on every route. The
+// decorative layers only ever render client-side at tier >= 2 anyway.
+const VoidBackground = dynamic(() => import("../VoidBackground"), { ssr: false });
+const EffectsOverlay = dynamic(() => import("../EffectsOverlay"), { ssr: false });
+const CursorFollower = dynamic(() => import("../CursorFollower"), { ssr: false });
 
 const noopSubscribe = () => () => {};
 /** false on the server + first hydration pass, true thereafter — no mismatch. */
@@ -26,8 +31,23 @@ function useIsClient() {
   return useSyncExternalStore(noopSubscribe, () => true, () => false);
 }
 
+const REDUCED_QUERY = "(prefers-reduced-motion: reduce)";
+const subscribeReduced = (cb: () => void) => {
+  const mq = window.matchMedia(REDUCED_QUERY);
+  mq.addEventListener("change", cb);
+  return () => mq.removeEventListener("change", cb);
+};
+function useReducedMotion() {
+  return useSyncExternalStore(
+    subscribeReduced,
+    () => window.matchMedia(REDUCED_QUERY).matches,
+    () => false,
+  );
+}
+
 export default function EnhancementLayers() {
   const isClient = useIsClient();
+  const reducedMotion = useReducedMotion();
   const { tier } = useQuality();
 
   if (!isClient) {
@@ -38,6 +58,11 @@ export default function EnhancementLayers() {
         aria-hidden="true"
       />
     );
+  }
+
+  // Reduced motion: the calm static field, no animated decoration, native cursor.
+  if (reducedMotion) {
+    return <StaticStarfield />;
   }
 
   return (

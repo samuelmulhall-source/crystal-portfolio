@@ -3,9 +3,10 @@
 ## Product goal
 - Build a clients-first portfolio that keeps the atmospheric identity but makes the primary experience clear, modern, and easy to evaluate.
 - The default information architecture is:
-  - `/` curated landing page
-  - `/work` archive
-  - `/work/[slug]` project detail pages
+  - `/` curated landing page — pinned hero intro → unified Work showcase (`#selected-work`) → contact.
+  - `/work` the same Work showcase without the hero (a direct, hero-free entry point that deep links and the footer/CTAs point at).
+  - `/work/[slug]` project detail / case-study pages.
+- The Work showcase is one component (`WorkShowcase`) shared by `/` and `/work`; the home scroll and the header "Work" link land at the same place. Categories are tabbed (Models · Rigged Characters · Video · Images); collection entries (asset packs) expand into one steppable slide per asset.
 - The old HUD-first cinematic journey is not the default product. Do not reintroduce it into the main navigation or content-discovery flow.
 
 ## Audience and decision filter
@@ -18,19 +19,16 @@
 
 ## Visual system rules
 - Keep the mood: deep midnight backgrounds, slate surfaces, soft ice text, restrained cyan accents.
-- Typography is intentional and split by role:
-  - primary: Space Grotesk
-  - technical/meta: IBM Plex Mono
-- Tiny uppercase mono is for labels and metadata only.
-- Primary CTAs, headings, and body copy must never depend on hover or hidden chrome to become legible.
+- Typography is intentional. Roles: **Archivo** for body/UI/display (CSS var `--font-archivo`), **IBM Plex Mono** for meta/labels (`--font-plex-mono`), and the self-hosted **VTKS Trunkset** woff2 for the hero wordmark only (`--font-display`). Mono is for labels, indices, and technical readouts — never body copy.
+- Glass UI (frosted `backdrop-filter` + specular edge) is for small chrome only — showcase tab selection, case-study pill, video frame + player controls, the inspector toggle. Never on the pinned site header: full-width `backdrop-filter` over the animated starfield is the proven perf killer.
 - Motion is accent, not scaffolding. The site must still feel complete with reduced motion and reduced effects.
 
 ## Architecture rules
-- Content is the source of truth. Do not rebuild the site around directory-scan order or hardcoded scene arrays.
-- Work entries live in `content/work/` and should generate archive/detail behavior without component edits.
+- Work entries live in `content/work/` and should generate showcase/detail behavior without component edits (categories derive from media; an explicit `category` field overrides; `assets[]` makes an entry a steppable pack).
 - Global settings live in `content/site/`.
-- The main site must remain static-export friendly and readable without WebGL.
-- Interactive or immersive work, if brought back later, must be optional and layered on top of the content system rather than replacing it.
+- The main site must remain static-export friendly and readable without WebGL. The Work showcase carries an `sr-only` static link list so every entry is reachable without JS.
+- Field-QA URL flags are sanctioned, not debug cruft: `?off=<layer>`, `?fps`/`?debug`, `?q=1|2|3`, `?displayMode=`. They are read-only and never affect content.
+
 
 ## Performance posture
 - Default stance: progressive enhancement.
@@ -41,33 +39,11 @@
 
 ## Content and copy rules
 - Write for external evaluation, not for internal lore.
-- Be specific about what a piece demonstrates: framing, lookdev, mood, material control, presentation, or realtime thinking.
 - Do not invent client outcomes, production metrics, or collaboration details that are not real.
-- If information is missing, state the work honestly as a personal study, R&D piece, or exploratory build.
 
-## Claude collaboration protocol
-- Claude is a design/content copilot and review partner, not the final product owner.
-- Loop Claude in at four checkpoints:
-  - after content schema or IA changes
-  - after major visual-system changes
-  - after the first new project-detail template changes materially
-  - during final design QA and copy review
-- Loop the user and Claude in before changing:
-  - target audience
-  - route structure
-  - typography system
-  - content schema shape
-  - progressive-enhancement policy
+## Pending (owner to resolve)
+- **Email / contact:** all contact CTAs point at X (`x.com/multiscatter`). A real email is intentionally deferred until the custom domain is chosen (email will attach there). Add a `mailto:` to `content/site/settings.json` (`contact.primaryHref`) once the domain lands.
+- **Content is intentionally minimal** while the structure settles; full copy/media arrive later. The empty **Rigged Characters** tab is kept on purpose as a placeholder for incoming work.
+- **OG image:** generated 1200×630 JPEGs live in `public/images/og/` (built from posters via `sharp`). Regenerate when hero art changes.
 
-## Current branch execution brief
-- Current milestone: overhaul the default experience around typed content, archive/detail routes, and a lighter atmospheric shell.
-- Required review artifacts for major milestones:
-  - desktop home screenshot
-  - mobile home screenshot
-  - archive screenshot
-  - one project-detail screenshot
-  - lint/build results
-- Migration priority:
-  - featured case studies first
-  - supporting archive entries second
-  - immersive/legacy experiments only after the main portfolio path is strong
+

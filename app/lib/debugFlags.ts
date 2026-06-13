@@ -12,7 +12,9 @@
  *   ?off=smoke,cursor     disable several at once
  *
  * Whichever flag makes the FPS jump back up identifies the bottleneck.
- * This module is debug-only and intended to be removed afterward.
+ * Kept as a sanctioned field-QA surface (read-only, no content impact):
+ * together with ?fps and ?q=1|2|3 it allows on-device diagnosis without
+ * a rebuild. Documented in CLAUDE.md.
  */
 
 export type DebugLayer = "smoke" | "webgl" | "cursor" | "effects" | "scroll";

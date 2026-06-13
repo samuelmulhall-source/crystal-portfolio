@@ -51,23 +51,17 @@
       "src": "/Image renders/fourteenth_image.webp",
       "alt": "Supporting still study with similar restrained lighting",
       "width": 2048,
-      "height": 1152,
-      "variants": [
-        {
-          "label": "png",
-          "src": "/Image renders/fourteenth_image.png"
-        }
-      ]
+      "height": 1152
     }
   ],
   "seo": {
     "title": "Evening Fishing case study",
     "description": "Environment look development study centered on dusk light, volumetrics, and slow observational motion.",
-    "ogImage": "/images/posters/evening-fishing.webp"
+    "ogImage": "/images/og/evening-fishing.jpg"
   },
   "interactive": {
     "available": false,
-    "note": "This study is presented as motion and still frames in the current site build."
+    "note": "Presented as rendered motion and stills — final pixels from the production file."
   },
   "caseStudy": {
     "hook": "This piece was built to prove that a quiet frame can still feel authored when the lighting structure and motion hierarchy are doing the heavy lifting.",
@@ -86,7 +80,7 @@
       {
         "title": "Environmental motion",
         "body": [
-          "Subtle movement in the water and fog keeps the render alive without turning the scene into a effects demo.",
+          "Subtle movement in the water and fog keeps the render alive without turning the scene into an effects demo.",
           "The motion design is there to support the light and composition, not compete with them."
         ]
       },

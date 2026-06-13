@@ -54,6 +54,15 @@ const CaseStudySchema = z.object({
   outcomes: z.array(z.string()),
 });
 
+/** One named asset inside a collection entry (e.g. an asset pack) — a
+ *  steppable specimen with its own title and optional one-line summary. */
+const PackAssetSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  summary: z.string().optional(),
+  specimen: SpecimenSchema,
+});
+
 const WorkEntrySchema = z.object({
   slug: z.string(),
   title: z.string(),
@@ -90,6 +99,10 @@ const WorkEntrySchema = z.object({
     note: z.string().optional(),
   }),
   specimen: SpecimenSchema.optional(),
+  /** Collection entries (asset packs): the named assets users step through.
+   *  When present, viewers offer per-asset navigation; `specimen` then acts
+   *  as the default/fallback asset. */
+  assets: z.array(PackAssetSchema).optional(),
   caseStudy: CaseStudySchema,
 });
 
@@ -156,6 +169,7 @@ const HomeContentSchema = z.object({
 
 export type MediaAsset = z.infer<typeof MediaAssetSchema>;
 export type Specimen = z.infer<typeof SpecimenSchema>;
+export type PackAsset = z.infer<typeof PackAssetSchema>;
 export type WorkEntry = z.infer<typeof WorkEntrySchema>;
 export type SiteSettings = z.infer<typeof SiteSettingsSchema>;
 export type HomeContent = z.infer<typeof HomeContentSchema>;

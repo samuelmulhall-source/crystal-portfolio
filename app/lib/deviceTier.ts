@@ -101,7 +101,11 @@ function detect(): DeviceProfile {
     smokeEager: tier === "low" ? 12 : 20,
   };
 
-  if (typeof console !== "undefined") {
+  // Only log the device profile when field-QA tooling is requested.
+  if (
+    typeof window !== "undefined" &&
+    /[?&](debug|fps|q=)/.test(window.location.search)
+  ) {
     console.log(
       `[deviceTier] ${tier} | cores=${cores} mem=${memory}GB gpu=${gpuTier} software=${isSoftware} mobile=${isMobile} dpr=${dpr.toFixed(1)}`
     );

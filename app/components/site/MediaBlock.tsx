@@ -1,5 +1,6 @@
 import Image from "next/image";
 import type { MediaAsset } from "../../lib/content";
+import { GlassVideo } from "./GlassVideo";
 
 export function MediaBlock({
   asset,
@@ -13,15 +14,7 @@ export function MediaBlock({
   if (asset.kind === "video") {
     return (
       <div className={`media-block media-block--video ${className}`.trim()}>
-        <video
-          className="media-block__video"
-          controls
-          preload="metadata"
-          playsInline
-          poster={asset.poster}
-        >
-          <source src={asset.src} />
-        </video>
+        <GlassVideo src={asset.src} poster={asset.poster} />
       </div>
     );
   }

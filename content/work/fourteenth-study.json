@@ -26,13 +26,7 @@
     "src": "/Image renders/fourteenth_image.webp",
     "alt": "Fourteenth study still image",
     "width": 2048,
-    "height": 1152,
-    "variants": [
-      {
-        "label": "png",
-        "src": "/Image renders/fourteenth_image.png"
-      }
-    ]
+    "height": 1152
   },
   "heroMedia": {
     "kind": "image",
@@ -53,7 +47,7 @@
   "seo": {
     "title": "Fourteenth Study project",
     "description": "Personal still-image study exploring atmosphere, material contrast, and composition.",
-    "ogImage": "/Image renders/fourteenth_image.png"
+    "ogImage": "/images/og/fourteenth-study.jpg"
   },
   "interactive": {
     "available": false

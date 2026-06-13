@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Archivo, IBM_Plex_Mono } from "next/font/google";
 import localFont from "next/font/local";
-import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import { DisplayModeProvider } from "./components/site/DisplayModeProvider";
 import { DisplayModeScript } from "./components/site/DisplayModeScript";
@@ -12,17 +11,18 @@ import SmoothScroll from "./components/SmoothScroll";
 import FpsMeter from "./components/site/FpsMeter";
 import { getSiteSettings } from "./lib/content";
 
-// Body / UI — clean modern grotesque (var name kept to avoid CSS churn)
+// Body / UI typeface — Archivo (clean modern grotesque).
 const archivo = Archivo({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
-  variable: "--font-space-grotesk",
+  variable: "--font-archivo",
   display: "swap",
 });
 
-// Hero wordmark — VTKS Trunkset (self-hosted display)
+// Hero wordmark — VTKS Trunkset (self-hosted display, subset to A-Z/a-z/0-9
+// as woff2: 274 KB ttf → 117 KB; it renders exactly one word).
 const displayFont = localFont({
-  src: "./fonts/vtks-trunkset.ttf",
+  src: "./fonts/vtks-trunkset-subset.woff2",
   variable: "--font-display",
   display: "swap",
 });
@@ -98,7 +98,6 @@ export default function RootLayout({
             <FpsMeter />
           </QualityProvider>
         </DisplayModeProvider>
-        <Analytics />
       </body>
     </html>
   );

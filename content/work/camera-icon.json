@@ -27,26 +27,14 @@
     "src": "/Image renders/cam_icon_fullscale_medium-dark-lightrim.webp",
     "alt": "Camera icon render with rim lighting",
     "width": 2048,
-    "height": 1152,
-    "variants": [
-      {
-        "label": "png",
-        "src": "/Image renders/cam_icon_fullscale_medium-dark-lightrim.png"
-      }
-    ]
+    "height": 1152
   },
   "heroMedia": {
     "kind": "image",
     "src": "/Image renders/cam_icon_fullscale_medium-dark-lightrim.webp",
     "alt": "Camera icon render with rim lighting",
     "width": 2048,
-    "height": 1152,
-    "variants": [
-      {
-        "label": "png",
-        "src": "/Image renders/cam_icon_fullscale_medium-dark-lightrim.png"
-      }
-    ]
+    "height": 1152
   },
   "gallery": [
     {
@@ -60,7 +48,7 @@
   "seo": {
     "title": "Camera Icon project",
     "description": "Small-format render study focused on silhouette, rim light, and readable product-style presentation.",
-    "ogImage": "/Image renders/cam_icon_fullscale_medium-dark-lightrim.png"
+    "ogImage": "/images/og/camera-icon.jpg"
   },
   "interactive": {
     "available": false

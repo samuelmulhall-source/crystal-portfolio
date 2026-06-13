@@ -14,7 +14,8 @@ export function Footer({
       <div className="site-footer__inner">
         <p className="site-footer__mark">{brandName}</p>
         <div className="site-footer__links">
-          <Link href="/work">Archive</Link>
+          <Link href="/work">Work</Link>
+          <Link href="/#contact">Contact</Link>
           <a href={xUrl} target="_blank" rel="noreferrer">
             {xHandle}
           </a>

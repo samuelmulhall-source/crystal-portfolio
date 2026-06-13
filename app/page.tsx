@@ -87,6 +87,16 @@ export default function HomePage() {
           {home.contact.intro ? (
             <p className="contact-intro">{home.contact.intro}</p>
           ) : null}
+          <dl className="contact-meta">
+            <div>
+              <dt>Discipline</dt>
+              <dd>{site.brand.studioLabel}</dd>
+            </div>
+            <div>
+              <dt>Based</dt>
+              <dd>{site.brand.location}</dd>
+            </div>
+          </dl>
           <div className="contact-actions">
             <a className="button-link" href={home.contact.primaryCta.href}>
               {home.contact.primaryCta.label}

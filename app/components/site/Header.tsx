@@ -48,14 +48,16 @@ export function Header({
 
         <nav className="site-nav" aria-label="Primary navigation">
           <Magnetic strength={0.5}>
-            <Link href="/work" className={pathname.startsWith("/work") ? "is-active" : ""}>
+            <Link
+              href={isHome ? "#selected-work" : "/#selected-work"}
+              className={pathname.startsWith("/work") ? "is-active" : ""}
+              aria-current={pathname.startsWith("/work") ? "page" : undefined}
+            >
               Work
             </Link>
           </Magnetic>
           <Magnetic strength={0.5}>
-            <Link href="/#contact" className={pathname === "/#contact" ? "is-active" : ""}>
-              Contact
-            </Link>
+            <Link href="/#contact">Contact</Link>
           </Magnetic>
         </nav>
       </div>

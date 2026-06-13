@@ -260,7 +260,10 @@ export function HeroIntro({ children }: { children: React.ReactNode }) {
   }, [pinned, ready, profile.smokeDpr, TOTAL]);
 
   return (
-    <section ref={sectionRef} className={`hero-intro${pinned ? " is-pinned" : ""}`}>
+    <section
+      ref={sectionRef}
+      className={`hero-intro${pinned ? " is-pinned" : ""}${pinned && !ready ? " is-loading" : ""}`}
+    >
       <div ref={stageRef} className="hero-intro__stage">
         {pinned ? (
           <canvas ref={backRef} className="hero-intro__smoke hero-intro__smoke--back" aria-hidden="true" />

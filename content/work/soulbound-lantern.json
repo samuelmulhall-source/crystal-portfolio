@@ -35,14 +35,14 @@
   },
   "heroMedia": {
     "kind": "video",
-    "src": "/Video renders/Soulbound Lantern (multiple versions).mp4",
+    "src": "/Video renders/soulbound-lantern.mp4",
     "poster": "/images/posters/soulbound-lantern.webp",
     "alt": "Soulbound Lantern animated showcase"
   },
   "gallery": [
     {
       "kind": "video",
-      "src": "/Video renders/Soulbound Lantern (multiple versions).mp4",
+      "src": "/Video renders/soulbound-lantern.mp4",
       "poster": "/images/posters/soulbound-lantern.webp",
       "alt": "Soulbound Lantern animated showcase"
     },
@@ -51,23 +51,17 @@
       "src": "/Image renders/holography_scaled.webp",
       "alt": "Iridescent material study used as a supporting palette reference",
       "width": 2048,
-      "height": 1152,
-      "variants": [
-        {
-          "label": "png",
-          "src": "/Image renders/holography_scaled.png"
-        }
-      ]
+      "height": 1152
     }
   ],
   "seo": {
     "title": "Soulbound Lantern case study",
     "description": "Hero prop presentation study focused on emissive lighting, flame simulation, and premium object framing.",
-    "ogImage": "/images/posters/soulbound-lantern.webp"
+    "ogImage": "/images/og/soulbound-lantern.jpg"
   },
   "interactive": {
     "available": false,
-    "note": "Immersive specimen previews are being rebuilt as an optional route."
+    "note": "Presented as rendered motion — final pixels from the production file."
   },
   "caseStudy": {
     "hook": "Built as a focused presentation study, this piece asked a simple question: how much atmosphere can a single prop carry before the framing starts to feel ornamental?",

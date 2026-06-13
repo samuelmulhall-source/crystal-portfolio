@@ -29,26 +29,14 @@
     "src": "/Image renders/holography_scaled.webp",
     "alt": "Iridescent holography material study",
     "width": 2048,
-    "height": 1152,
-    "variants": [
-      {
-        "label": "png",
-        "src": "/Image renders/holography_scaled.png"
-      }
-    ]
+    "height": 1152
   },
   "heroMedia": {
     "kind": "image",
     "src": "/Image renders/holography_scaled.webp",
     "alt": "Iridescent holography material study",
     "width": 2048,
-    "height": 1152,
-    "variants": [
-      {
-        "label": "png",
-        "src": "/Image renders/holography_scaled.png"
-      }
-    ]
+    "height": 1152
   },
   "gallery": [
     {
@@ -56,32 +44,20 @@
       "src": "/Image renders/holography_scaled.webp",
       "alt": "Primary holography material frame",
       "width": 2048,
-      "height": 1152,
-      "variants": [
-        {
-          "label": "png",
-          "src": "/Image renders/holography_scaled.png"
-        }
-      ]
+      "height": 1152
     },
     {
       "kind": "image",
       "src": "/Image renders/cam_icon_fullscale_medium-dark-lightrim.webp",
       "alt": "Supporting icon render showing controlled rim-light treatment",
       "width": 2048,
-      "height": 1152,
-      "variants": [
-        {
-          "label": "png",
-          "src": "/Image renders/cam_icon_fullscale_medium-dark-lightrim.png"
-        }
-      ]
+      "height": 1152
     }
   ],
   "seo": {
     "title": "Holography Study case study",
     "description": "Material exploration focused on iridescence, readable highlights, and stylized surface response.",
-    "ogImage": "/Image renders/holography_scaled.png"
+    "ogImage": "/images/og/holography-study.jpg"
   },
   "interactive": {
     "available": false,

@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { Footer } from "../../components/site/Footer";
 import { Header } from "../../components/site/Header";
 import { MediaBlock } from "../../components/site/MediaBlock";
+import { PackViewer } from "../../components/site/PackViewer";
 import { PageEntrance } from "../../components/site/PageEntrance";
 import { SpecimenViewer } from "../../components/site/SpecimenViewer";
 import { WorkCard } from "../../components/site/WorkCard";
@@ -62,6 +63,9 @@ export default async function WorkDetailPage({ params }: WorkPageProps) {
   }
 
   const relatedEntries = getRelatedEntries(entry.slug);
+  const { caseStudy } = entry;
+  // Don't repeat the hero media inside the gallery.
+  const gallery = entry.gallery.filter((asset) => asset.src !== entry.heroMedia.src);
 
   return (
     <main className="page-root">
@@ -71,8 +75,8 @@ export default async function WorkDetailPage({ params }: WorkPageProps) {
         <PageEntrance>
         <section className="case-study__hero page-shell">
           <div className="case-study__copy">
-            <Link className="text-link text-link--muted" href="/work" data-entrance="eyebrow">
-              Back to archive
+            <Link className="text-link text-link--muted" href="/#selected-work" data-entrance="eyebrow">
+              Back to work
             </Link>
             <p className="eyebrow" data-entrance="eyebrow">{entry.discipline}</p>
             <h1 className="page-title" data-entrance="title">{entry.title}</h1>
@@ -100,8 +104,14 @@ export default async function WorkDetailPage({ params }: WorkPageProps) {
             </ul>
           </div>
 
-          {entry.specimen ? (
-            <SpecimenViewer specimen={entry.specimen} alt={`${entry.title} interactive 3D model`} />
+          {entry.assets?.length ? (
+            <PackViewer assets={entry.assets} packTitle={entry.title} />
+          ) : entry.specimen ? (
+            <SpecimenViewer
+              specimen={entry.specimen}
+              alt={`${entry.title} interactive 3D model`}
+              allowZoom
+            />
           ) : (
             <MediaBlock asset={entry.heroMedia} priority />
           )}
@@ -110,16 +120,26 @@ export default async function WorkDetailPage({ params }: WorkPageProps) {
 
         <section className="page-shell detail-grid">
           <div className="detail-grid__main">
-            {entry.description?.trim() ? (
-              <div className="rich-copy">
-                <p className="eyebrow">Overview</p>
-                <p className="standfirst">{entry.description}</p>
-              </div>
-            ) : null}
+            <div className="rich-copy">
+              <p className="eyebrow">Case study</p>
+              <p className="standfirst">{caseStudy.hook}</p>
+              {caseStudy.brief.map((paragraph) => (
+                <p key={paragraph}>{paragraph}</p>
+              ))}
+            </div>
 
             <div className="section-stack">
+              {caseStudy.sections.map((section) => (
+                <section className="story-section" key={section.title}>
+                  <h2>{section.title}</h2>
+                  {section.body.map((paragraph) => (
+                    <p key={paragraph}>{paragraph}</p>
+                  ))}
+                </section>
+              ))}
+
               <section className="story-section">
-                <h2>How it was made</h2>
+                <h2>Specifications</h2>
                 <div className="spec-grid">
                   <div>
                     <span>Software</span>
@@ -153,12 +173,6 @@ export default async function WorkDetailPage({ params }: WorkPageProps) {
 
           <aside className="fact-panel">
             <div>
-              <p className="eyebrow">Made</p>
-              <ul className="fact-list">
-                <li>{entry.created ?? entry.year}</li>
-              </ul>
-            </div>
-            <div>
               <p className="eyebrow">Role</p>
               <ul className="fact-list">
                 {entry.role.map((item) => (
@@ -166,19 +180,21 @@ export default async function WorkDetailPage({ params }: WorkPageProps) {
                 ))}
               </ul>
             </div>
-            <div>
-              <p className="eyebrow">Tools</p>
-              <ul className="fact-list">
-                {entry.tools.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
-            </div>
-            {entry.specimen ? (
+            {caseStudy.deliverables.length ? (
               <div>
-                <p className="eyebrow">Maps</p>
+                <p className="eyebrow">Deliverables</p>
                 <ul className="fact-list">
-                  {getSpecimenMaps(entry.specimen).map((item) => (
+                  {caseStudy.deliverables.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+            {caseStudy.outcomes.length ? (
+              <div>
+                <p className="eyebrow">Outcomes</p>
+                <ul className="fact-list">
+                  {caseStudy.outcomes.map((item) => (
                     <li key={item}>{item}</li>
                   ))}
                 </ul>
@@ -186,21 +202,21 @@ export default async function WorkDetailPage({ params }: WorkPageProps) {
             ) : null}
             {entry.interactive.note ? (
               <div className="fact-panel__note">
-                <p className="eyebrow">Interactive</p>
+                <p className="eyebrow">Presentation</p>
                 <p>{entry.interactive.note}</p>
               </div>
             ) : null}
           </aside>
         </section>
 
-        {!entry.specimen && entry.gallery.length > 0 ? (
+        {!entry.specimen && gallery.length > 0 ? (
           <section className="section page-shell">
             <div className="section-heading">
               <p className="eyebrow">Gallery</p>
               <h2>Supporting frames and media</h2>
             </div>
             <div className="gallery-grid">
-              {entry.gallery.map((asset, index) => (
+              {gallery.map((asset, index) => (
                 <MediaBlock key={`${entry.slug}-${asset.src}-${index}`} asset={asset} />
               ))}
             </div>
@@ -216,29 +232,31 @@ export default async function WorkDetailPage({ params }: WorkPageProps) {
             </div>
             <div className="contact-panel">
               <p className="contact-panel__availability">{site.contact.availability}</p>
-              <div className="hero-actions">
+              <div className="contact-actions">
                 <a className="button-link" href={site.contact.primaryHref}>
                   {site.contact.primaryLabel}
                 </a>
                 <Link className="button-link button-link--ghost" href="/work">
-                  Back to archive
+                  View all work
                 </Link>
               </div>
             </div>
           </div>
         </section>
 
-        <section className="section page-shell">
-          <div className="section-heading">
-            <p className="eyebrow">More</p>
-            <h2>Related work</h2>
-          </div>
-          <div className="feature-grid">
-            {relatedEntries.map((relatedEntry) => (
-              <WorkCard key={relatedEntry.slug} entry={relatedEntry} />
-            ))}
-          </div>
-        </section>
+        {relatedEntries.length > 0 ? (
+          <section className="section page-shell">
+            <div className="section-heading">
+              <p className="eyebrow">More</p>
+              <h2>Related work</h2>
+            </div>
+            <div className="feature-grid">
+              {relatedEntries.map((relatedEntry) => (
+                <WorkCard key={relatedEntry.slug} entry={relatedEntry} />
+              ))}
+            </div>
+          </section>
+        ) : null}
       </article>
 
       <Footer

@@ -7,16 +7,16 @@ export default function NotFound() {
   const site = getSiteSettings();
 
   return (
-    <main className="page-root">
+    <main className="page-root page-root--sub">
       <Header brandName={site.brand.name} />
       <section className="subpage-hero page-shell">
         <p className="eyebrow">Not found</p>
-        <h1 className="page-title">That project is not in the current archive.</h1>
+        <h1 className="page-title">That page does not exist.</h1>
         <p className="lede">
-          The portfolio has been rebuilt around a cleaner archive and case-study flow. Use the archive to keep browsing.
+          The link may be old or mistyped. Everything current lives in the work showcase.
         </p>
         <Link className="button-link" href="/work">
-          Open archive
+          View work
         </Link>
       </section>
       <Footer

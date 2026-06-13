@@ -1,0 +1,210 @@
+{
+  "slug": "medieval-asset-pack",
+  "title": "Medieval Asset Pack",
+  "sortOrder": 6,
+  "year": "2026",
+  "featured": false,
+  "format": "Game Asset Pack",
+  "discipline": "Realtime asset production",
+  "category": "models",
+  "client": "Self initiated asset pack",
+  "engagement": "Game-ready prop production",
+  "summary": "Five realtime props from an in-progress medieval asset pack — sword, ornate dagger, kite shield, recurve bow, and torch — built game-ready with full PBR sets and a shared material language.",
+  "tags": [
+    "Game asset",
+    "Asset pack",
+    "Hero prop",
+    "PBR"
+  ],
+  "role": [
+    "Modeling",
+    "Texturing",
+    "Material lookdev"
+  ],
+  "tools": [
+    "Blender",
+    "Substance Painter"
+  ],
+  "thumbnail": {
+    "kind": "image",
+    "src": "/images/posters/sword.webp",
+    "alt": "Medieval asset pack — sword render",
+    "width": 1200,
+    "height": 900
+  },
+  "heroMedia": {
+    "kind": "image",
+    "src": "/images/posters/sword.webp",
+    "alt": "Medieval asset pack — sword render",
+    "width": 1200,
+    "height": 900
+  },
+  "gallery": [
+    {
+      "kind": "image",
+      "src": "/images/posters/ornate-dagger.webp",
+      "alt": "Ornate dagger 3D asset render",
+      "width": 1200,
+      "height": 900
+    },
+    {
+      "kind": "image",
+      "src": "/images/posters/shield.webp",
+      "alt": "Kite shield 3D asset render",
+      "width": 1200,
+      "height": 900
+    },
+    {
+      "kind": "image",
+      "src": "/images/posters/bow.webp",
+      "alt": "Recurve bow 3D asset render",
+      "width": 1200,
+      "height": 900
+    },
+    {
+      "kind": "image",
+      "src": "/images/posters/torch.webp",
+      "alt": "Torch 3D asset render",
+      "width": 1200,
+      "height": 900
+    }
+  ],
+  "seo": {
+    "title": "Medieval Asset Pack",
+    "description": "Five game-ready medieval props with full PBR texture sets, presented in a realtime WebGL inspector with wireframe and mesh stats.",
+    "ogImage": "/images/og/medieval-asset-pack.jpg"
+  },
+  "interactive": {
+    "available": true,
+    "sourcePath": "/models/Weapons/Sword/sword.fbx",
+    "note": "Live WebGL viewer — drag to orbit. Each asset renders in real time from the production FBX and PBR texture set; the inspector exposes wireframe, polycount, and texture stats."
+  },
+  "specimen": {
+    "modelPath": "/models/Weapons/Sword/sword.fbx",
+    "poster": "/images/posters/sword.webp",
+    "extraModelPath": "/models/Weapons/Sword/sword_wrap.fbx",
+    "textures": {
+      "map": "/models/Weapons/Sword/sword_color.webp",
+      "normalMap": "/models/Weapons/Sword/sword_normal.webp",
+      "roughnessMap": "/models/Weapons/Sword/sword_roughness.webp",
+      "metalnessMap": "/models/Weapons/Sword/sword_metallic.webp",
+      "transmissionMap": "/models/Weapons/Sword/sword_transmission.webp"
+    }
+  },
+  "assets": [
+    {
+      "id": "sword",
+      "title": "Sword",
+      "summary": "Stylized arming sword — crisp silhouette, layered material separation, glass-and-metal read.",
+      "specimen": {
+        "modelPath": "/models/Weapons/Sword/sword.fbx",
+        "poster": "/images/posters/sword.webp",
+        "extraModelPath": "/models/Weapons/Sword/sword_wrap.fbx",
+        "textures": {
+          "map": "/models/Weapons/Sword/sword_color.webp",
+          "normalMap": "/models/Weapons/Sword/sword_normal.webp",
+          "roughnessMap": "/models/Weapons/Sword/sword_roughness.webp",
+          "metalnessMap": "/models/Weapons/Sword/sword_metallic.webp",
+          "transmissionMap": "/models/Weapons/Sword/sword_transmission.webp"
+        }
+      }
+    },
+    {
+      "id": "ornate-dagger",
+      "title": "Ornate Dagger",
+      "summary": "Ceremonial dagger — ornamental detail density without losing the underlying shape read.",
+      "specimen": {
+        "modelPath": "/models/Weapons/Ornate Dagger/Ornate Dagger.fbx",
+        "poster": "/images/posters/ornate-dagger.webp",
+        "textures": {
+          "map": "/models/Weapons/Ornate Dagger/ornate_dagger_color.webp",
+          "normalMap": "/models/Weapons/Ornate Dagger/ornate_dagger_normal.webp",
+          "roughnessMap": "/models/Weapons/Ornate Dagger/ornate_dagger_roughness.webp",
+          "metalnessMap": "/models/Weapons/Ornate Dagger/ornate_dagger_metallic.webp"
+        }
+      }
+    },
+    {
+      "id": "shield",
+      "title": "Kite Shield",
+      "summary": "Kite shield — wear patterns and layered materials that hold up at a broad read.",
+      "specimen": {
+        "modelPath": "/models/Weapons/Shield/Shield.fbx",
+        "poster": "/images/posters/shield.webp",
+        "textures": {
+          "map": "/models/Weapons/Shield/Shield_color.webp",
+          "normalMap": "/models/Weapons/Shield/Shield_normal.webp",
+          "roughnessMap": "/models/Weapons/Shield/shield_roughness.webp",
+          "metalnessMap": "/models/Weapons/Shield/Shield_metallic.webp"
+        }
+      }
+    },
+    {
+      "id": "bow",
+      "title": "Recurve Bow",
+      "summary": "Recurve bow — clean silhouette with natural material breakup.",
+      "specimen": {
+        "modelPath": "/models/Weapons/bow/Bow.fbx",
+        "poster": "/images/posters/bow.webp",
+        "textures": {
+          "map": "/models/Weapons/bow/bow_color.webp",
+          "normalMap": "/models/Weapons/bow/bow_normal.webp",
+          "roughnessMap": "/models/Weapons/bow/bow_roughness.webp"
+        }
+      }
+    },
+    {
+      "id": "torch",
+      "title": "Torch",
+      "summary": "Fantasy torch — layered wood, metal, and weathered surfaces in a compact prop.",
+      "specimen": {
+        "modelPath": "/models/Torch/torch.fbx",
+        "poster": "/images/posters/torch.webp",
+        "textures": {
+          "map": "/models/Torch/Torch_color.webp",
+          "normalMap": "/models/Torch/torch_normal.webp",
+          "roughnessMap": "/models/Torch/torch_roughness.webp",
+          "metalnessMap": "/models/Torch/torch_metallic.webp"
+        }
+      }
+    }
+  ],
+  "caseStudy": {
+    "hook": "An in-progress pack of game-ready medieval props built to share one material language — so every asset reads as part of the same world.",
+    "brief": [
+      "Each prop had to work twice: as a hero object that survives close inspection, and as set dressing that reads instantly at gameplay distance.",
+      "The pack is built asset-by-asset with a shared kit of metal, wood, leather, and glass treatments, keeping wear logic and value structure consistent across the set."
+    ],
+    "sections": [
+      {
+        "title": "Silhouette first",
+        "body": [
+          "Every asset starts from a clean shape read — ornament is only allowed to accumulate where it doesn't muddy the outline.",
+          "The dagger pushes detail density the furthest; the bow holds the opposite end with calm, almost minimal forms. The pack needs both extremes to prove the material kit scales."
+        ]
+      },
+      {
+        "title": "One material language",
+        "body": [
+          "Metal wear, wood grain, and leather wrap details share masks and grunge logic across assets, so props sit together naturally in a scene.",
+          "Texture sets are full PBR — albedo, normal, roughness, metalness, and transmission where the design calls for it — authored in Substance Painter on Blender meshes."
+        ]
+      },
+      {
+        "title": "Built for realtime",
+        "body": [
+          "Everything in the viewer above renders from the production FBX and texture sets in WebGL — the same files a game engine would ingest.",
+          "The inspector exposes wireframe, polycount, and texture resolution per asset, because that's what a technical reviewer actually wants to check."
+        ]
+      }
+    ],
+    "deliverables": [
+      "Five game-ready props with full PBR texture sets",
+      "Shared material kit (metal / wood / leather / glass treatments)",
+      "Realtime WebGL presentation with technical inspector"
+    ],
+    "outcomes": [
+      "The pack is in active production — more assets land here as they're finished"
+    ]
+  }
+}

@@ -22,14 +22,14 @@
       "hero asset design",
       "portfolio case study"
     ],
-    "defaultOgImage": "/images/posters/site-og.svg"
+    "defaultOgImage": "/images/og/site-og.jpg"
   },
   "contact": {
     "primaryLabel": "Message on X",
     "primaryHref": "https://x.com/multiscatter",
-    "secondaryLabel": "Browse archive",
+    "secondaryLabel": "View work",
     "secondaryHref": "/work",
-    "availability": "Open to commissions, visual development briefs, and collaborative R&D."
+    "availability": "Available — open to freelance briefs, commissions, and full-time roles."
   },
   "social": {
     "xHandle": "@multiscatter",
@@ -42,7 +42,7 @@
   },
   "qualityPresets": {
     "defaultMode": "auto",
-    "enhancedMinDeviceMemory": 8,
-    "enhancedMinHardwareConcurrency": 8
+    "enhancedMinDeviceMemory": 4,
+    "enhancedMinHardwareConcurrency": 4
   }
 }

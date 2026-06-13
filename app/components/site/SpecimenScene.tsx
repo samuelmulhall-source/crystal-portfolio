@@ -18,12 +18,32 @@ import type { Specimen } from "../../lib/content";
 
 type TexKey = "map" | "normalMap" | "roughnessMap" | "metalnessMap" | "transmissionMap";
 
+/** Technical readout computed from the loaded geometry + texture set. */
+export type SpecimenStats = {
+  triangles: number;
+  vertices: number;
+  meshes: number;
+  maps: number;
+  /** Largest texture dimension in px (e.g. 2048). */
+  maxTextureSize: number;
+};
+
 /** Encode a public path so spaces in filenames resolve correctly. */
 function enc(p: string) {
   return p.split("/").map(encodeURIComponent).join("/");
 }
 
-function SpecimenModel({ specimen, onReady }: { specimen: Specimen; onReady?: () => void }) {
+function SpecimenModel({
+  specimen,
+  wireframe = false,
+  onReady,
+  onStats,
+}: {
+  specimen: Specimen;
+  wireframe?: boolean;
+  onReady?: () => void;
+  onStats?: (stats: SpecimenStats) => void;
+}) {
   // Stable path array → no conditional hooks. useLoader with an array returns
   // results in order; primary is always [0], optional extra is [1].
   const paths = useMemo(() => {
@@ -58,7 +78,7 @@ function SpecimenModel({ specimen, onReady }: { specimen: Specimen; onReady?: ()
 
   // Build a merged group, replace materials (with maps already loaded),
   // auto-center + normalize scale — all in one synchronous pass.
-  const { object, normScale, centreOffset } = useMemo(() => {
+  const { object, normScale, centreOffset, stats } = useMemo(() => {
     // Clone the colour map so its colour space can be set without mutating the
     // shared loader-cached texture (other maps default to NoColorSpace, which
     // is already correct for normal/roughness/metalness/transmission).
@@ -70,6 +90,10 @@ function SpecimenModel({ specimen, onReady }: { specimen: Specimen; onReady?: ()
 
     const labelLike = /(normal\s*map|tangent|tris|polygon|vertex|uv\s*map|debug|label)/i;
 
+    let triangles = 0;
+    let vertices = 0;
+    let meshes = 0;
+
     group.traverse((o) => {
       if (labelLike.test(o.name)) {
         o.visible = false;
@@ -77,28 +101,47 @@ function SpecimenModel({ specimen, onReady }: { specimen: Specimen; onReady?: ()
       }
       if ((o as THREE.Mesh).isMesh) {
         const mesh = o as THREE.Mesh;
+        const geo = mesh.geometry as THREE.BufferGeometry;
+        meshes += 1;
+        vertices += geo.attributes.position?.count ?? 0;
+        triangles += Math.round(
+          (geo.index ? geo.index.count : geo.attributes.position?.count ?? 0) / 3,
+        );
         const prev = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
         prev.forEach((m) => (m as THREE.Material)?.dispose());
-        mesh.material = new THREE.MeshPhysicalMaterial({
-          color: 0xffffff,
-          map: colorMap,
-          normalMap: tex.normalMap ?? null,
-          normalMapType: THREE.TangentSpaceNormalMap,
-          roughnessMap: tex.roughnessMap ?? null,
-          roughness: tex.roughnessMap ? 0.95 : 0.7,
-          metalnessMap: tex.metalnessMap ?? null,
-          metalness: tex.metalnessMap ? 0.95 : 0.1,
-          transmissionMap: tex.transmissionMap ?? null,
-          transmission: tex.transmissionMap ? 0.5 : 0,
-          thickness: tex.transmissionMap ? 0.5 : 0,
-          ior: 1.5,
-          envMapIntensity: 0.9,
-          clearcoat: 0.12,
-          clearcoatRoughness: 0.14,
-          side: THREE.FrontSide,
-        });
+        mesh.material = wireframe
+          ? // Tech view — ice line-art wireframe, matches the site's HUD language.
+            new THREE.MeshBasicMaterial({
+              color: 0x9fdcff,
+              wireframe: true,
+              transparent: true,
+              opacity: 0.5,
+            })
+          : new THREE.MeshPhysicalMaterial({
+              color: 0xffffff,
+              map: colorMap,
+              normalMap: tex.normalMap ?? null,
+              normalMapType: THREE.TangentSpaceNormalMap,
+              roughnessMap: tex.roughnessMap ?? null,
+              roughness: tex.roughnessMap ? 0.95 : 0.7,
+              metalnessMap: tex.metalnessMap ?? null,
+              metalness: tex.metalnessMap ? 0.95 : 0.1,
+              transmissionMap: tex.transmissionMap ?? null,
+              transmission: tex.transmissionMap ? 0.5 : 0,
+              thickness: tex.transmissionMap ? 0.5 : 0,
+              ior: 1.5,
+              envMapIntensity: 0.9,
+              clearcoat: 0.12,
+              clearcoatRoughness: 0.14,
+              side: THREE.FrontSide,
+            });
       }
     });
+
+    const maxTextureSize = texList.reduce((max, texture) => {
+      const img = texture.image as { width?: number; height?: number } | undefined;
+      return Math.max(max, img?.width ?? 0, img?.height ?? 0);
+    }, 0);
 
     const box = new THREE.Box3().setFromObject(group);
     const size = new THREE.Vector3();
@@ -109,14 +152,26 @@ function SpecimenModel({ specimen, onReady }: { specimen: Specimen; onReady?: ()
     const ns = maxDim > 0 ? 2.4 / maxDim : 1;
     const off = center.clone().negate().multiplyScalar(ns);
     off.y += specimen.yOffset ?? 0;
-    return { object: group, normScale: ns, centreOffset: off };
-  }, [loaded, tex, specimen.yOffset]);
+    return {
+      object: group,
+      normScale: ns,
+      centreOffset: off,
+      stats: {
+        triangles,
+        vertices,
+        meshes,
+        maps: texList.length,
+        maxTextureSize,
+      } satisfies SpecimenStats,
+    };
+  }, [loaded, tex, texList, specimen.yOffset, wireframe]);
 
   // Signal readiness once the model is mounted (assets resolved via Suspense).
   useEffect(() => {
+    onStats?.(stats);
     const id = requestAnimationFrame(() => onReady?.());
     return () => cancelAnimationFrame(id);
-  }, [onReady]);
+  }, [onReady, onStats, stats]);
 
   return (
     <group position={[centreOffset.x, centreOffset.y, centreOffset.z]}>
@@ -155,10 +210,18 @@ function StudioLights() {
 
 export default function SpecimenScene({
   specimen,
+  wireframe = false,
+  allowZoom = false,
   onReady,
+  onStats,
 }: {
   specimen: Specimen;
+  wireframe?: boolean;
+  /** Wheel-zoom hijacks page scroll — only enable in deliberate inspection
+   *  contexts (detail pages), never mid-scroll surfaces like the showcase. */
+  allowZoom?: boolean;
   onReady?: () => void;
+  onStats?: (stats: SpecimenStats) => void;
 }) {
   const [interacting, setInteracting] = useState(false);
 
@@ -178,11 +241,16 @@ export default function SpecimenScene({
     >
       <StudioLights />
       <Suspense fallback={null}>
-        <SpecimenModel specimen={specimen} onReady={onReady} />
+        <SpecimenModel
+          specimen={specimen}
+          wireframe={wireframe}
+          onReady={onReady}
+          onStats={onStats}
+        />
       </Suspense>
       <OrbitControls
         enablePan={false}
-        enableZoom
+        enableZoom={allowZoom}
         minDistance={2.8}
         maxDistance={7}
         autoRotate={!interacting}

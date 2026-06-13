@@ -5,43 +5,74 @@
  *
  * Four categories (Models · Rigged Characters · Video · Images). Selecting a
  * tab shows a typographic info panel on the left and the asset presentation on
- * the right, stepping through that category's assets. Models present the
- * interactive WebGL viewer (poster fallback in reduced/low tiers); video and
- * images present their media directly.
+ * the right, stepping through that category's slides. Collection entries
+ * (asset packs) expand into one slide per asset, so a pack is browsed inside
+ * the same stepping model. Models present the interactive WebGL inspector
+ * (poster fallback in reduced/low tiers); video and images present their
+ * media directly.
  *
  * Content-driven: receives entries pre-grouped by category from the server.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Image from "next/image";
-import type { WorkCategory, WorkEntry } from "../../lib/content";
+import Link from "next/link";
+import type { PackAsset, WorkCategory, WorkEntry } from "../../lib/content";
 import { SpecimenViewer } from "./SpecimenViewer";
+import { useQuality } from "./QualityProvider";
 
-/** Wireframe HUD reticle that trails the cursor over a 3D model presentation. */
+const REDUCED_QUERY = "(prefers-reduced-motion: reduce)";
+const subscribeReduced = (cb: () => void) => {
+  const mq = window.matchMedia(REDUCED_QUERY);
+  mq.addEventListener("change", cb);
+  return () => mq.removeEventListener("change", cb);
+};
+function useReducedMotion() {
+  return useSyncExternalStore(
+    subscribeReduced,
+    () => window.matchMedia(REDUCED_QUERY).matches,
+    () => false,
+  );
+}
+
+/** Wireframe HUD reticle that trails the cursor over a 3D model presentation.
+ *  Pointer-fine only; the rAF loop runs only while the cursor is over the
+ *  stage, and not at all under reduced motion. */
 function ModelReticle() {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = ref.current;
     const parent = el?.parentElement;
     if (!el || !parent) return;
+    if (!window.matchMedia("(pointer: fine)").matches) return;
+    if (window.matchMedia(REDUCED_QUERY).matches) return;
     let raf = 0;
-    let tx = 0, ty = 0, cx = 0, cy = 0, active = false;
-    const onMove = (e: PointerEvent) => {
-      const r = parent.getBoundingClientRect();
-      tx = e.clientX - r.left;
-      ty = e.clientY - r.top;
-      if (!active) { active = true; cx = tx; cy = ty; el.style.opacity = "1"; }
-    };
-    const onLeave = () => { active = false; el.style.opacity = "0"; };
-    parent.addEventListener("pointermove", onMove);
-    parent.addEventListener("pointerleave", onLeave);
+    let tx = 0, ty = 0, cx = 0, cy = 0, running = false;
     const loop = () => {
       raf = requestAnimationFrame(loop);
       cx += (tx - cx) * 0.22;
       cy += (ty - cy) * 0.22;
       el.style.transform = `translate(${cx.toFixed(1)}px, ${cy.toFixed(1)}px) translate(-50%, -50%)`;
     };
-    raf = requestAnimationFrame(loop);
+    const onMove = (e: PointerEvent) => {
+      const r = parent.getBoundingClientRect();
+      tx = e.clientX - r.left;
+      ty = e.clientY - r.top;
+      if (!running) {
+        running = true;
+        cx = tx;
+        cy = ty;
+        el.style.opacity = "1";
+        raf = requestAnimationFrame(loop);
+      }
+    };
+    const onLeave = () => {
+      running = false;
+      el.style.opacity = "0";
+      cancelAnimationFrame(raf);
+    };
+    parent.addEventListener("pointermove", onMove);
+    parent.addEventListener("pointerleave", onLeave);
     return () => {
       cancelAnimationFrame(raf);
       parent.removeEventListener("pointermove", onMove);
@@ -73,33 +104,60 @@ function pad(n: number) {
   return String(n).padStart(2, "0");
 }
 
+/** One steppable unit: a whole entry, or one named asset of a pack entry. */
+type Slide = { entry: WorkEntry; asset?: PackAsset };
+
+function toSlides(entries: WorkEntry[]): Slide[] {
+  return entries.flatMap((entry) =>
+    entry.assets?.length
+      ? entry.assets.map((asset) => ({ entry, asset }))
+      : [{ entry }],
+  );
+}
+
+/** Poster/thumb source for a slide — pack assets use their specimen poster. */
+function slideThumb(slide: Slide): string {
+  return slide.asset?.specimen.poster ?? slide.entry.thumbnail.src;
+}
+
+function slideTitle(slide: Slide): string {
+  return slide.asset ? slide.asset.title : slide.entry.title;
+}
+
 function Presentation({
-  entry,
+  slide,
   category,
   enabled,
+  ambient,
 }: {
-  entry: WorkEntry;
+  slide: Slide;
   category: WorkCategory;
   enabled: boolean;
+  /** Whether decorative autoplay video is allowed (tier + reduced motion). */
+  ambient: boolean;
 }) {
-  if (category === "models" && entry.specimen) {
+  const { entry } = slide;
+  const specimen = slide.asset?.specimen ?? entry.specimen;
+  if (category === "models" && specimen) {
     // Until the showcase is scrolled into view, show the poster — defers the
     // WebGL context + FBX/texture load out of the initial page load.
     if (!enabled) {
       return (
         <Image
           className="showcase__image"
-          src={entry.specimen.poster}
-          alt={entry.title}
+          src={specimen.poster}
+          alt={slideTitle(slide)}
           width={1600}
           height={1000}
           sizes="(max-width: 900px) 100vw, 60vw"
         />
       );
     }
-    return <SpecimenViewer specimen={entry.specimen} alt={entry.title} className="showcase-viewer" />;
+    return (
+      <SpecimenViewer specimen={specimen} alt={slideTitle(slide)} className="showcase-viewer" />
+    );
   }
-  if (entry.heroMedia.kind === "video") {
+  if (entry.heroMedia.kind === "video" && ambient) {
     return (
       <video
         className="showcase__video"
@@ -112,6 +170,19 @@ function Presentation({
       >
         <source src={entry.heroMedia.src} type="video/mp4" />
       </video>
+    );
+  }
+  if (entry.heroMedia.kind === "video") {
+    // Reduced motion / low tier: a still frame instead of autoplaying video.
+    return (
+      <Image
+        className="showcase__image"
+        src={entry.heroMedia.poster ?? entry.thumbnail.src}
+        alt={entry.heroMedia.alt}
+        width={1600}
+        height={1000}
+        sizes="(max-width: 900px) 100vw, 60vw"
+      />
     );
   }
   const img = entry.heroMedia.kind === "image" ? entry.heroMedia : entry.thumbnail;
@@ -130,6 +201,9 @@ function Presentation({
 export function WorkShowcase({ groups }: { groups: Record<WorkCategory, WorkEntry[]> }) {
   const [category, setCategory] = useState<WorkCategory>("models");
   const [index, setIndex] = useState(0);
+  const { tier } = useQuality();
+  const reducedMotion = useReducedMotion();
+  const tabRefs = useRef<Partial<Record<WorkCategory, HTMLButtonElement | null>>>({});
 
   // Defer the heavy WebGL viewer until the showcase is near the viewport.
   const sectionRef = useRef<HTMLElement>(null);
@@ -153,46 +227,86 @@ export function WorkShowcase({ groups }: { groups: Record<WorkCategory, WorkEntr
     return () => io.disconnect();
   }, [inView]);
 
-  const items = groups[category];
-  const count = items.length;
+  const slides = toSlides(groups[category]);
+  const count = slides.length;
   const idx = count > 0 ? Math.min(index, count - 1) : 0;
-  const active = count > 0 ? items[idx] : null;
+  const active = count > 0 ? slides[idx] : null;
   const label = TABS.find((t) => t.id === category)?.label;
+  const ambient = !reducedMotion && tier >= 2;
 
-  const selectCategory = (next: WorkCategory) => {
+  const selectCategory = useCallback((next: WorkCategory) => {
     setCategory(next);
     setIndex(0);
-  };
+  }, []);
   const step = (dir: number) => {
     if (count < 2) return;
     setIndex((i) => (Math.min(i, count - 1) + dir + count) % count);
   };
 
+  // APG tabs pattern: arrow keys move focus AND selection (automatic
+  // activation); Home/End jump to the first/last tab.
+  const onTabKeyDown = (e: React.KeyboardEvent, current: WorkCategory) => {
+    const order = TABS.map((t) => t.id);
+    const pos = order.indexOf(current);
+    let next: WorkCategory | null = null;
+    if (e.key === "ArrowRight") next = order[(pos + 1) % order.length];
+    else if (e.key === "ArrowLeft") next = order[(pos - 1 + order.length) % order.length];
+    else if (e.key === "Home") next = order[0];
+    else if (e.key === "End") next = order[order.length - 1];
+    if (!next) return;
+    e.preventDefault();
+    selectCategory(next);
+    tabRefs.current[next]?.focus();
+  };
+
   const specs: Array<[string, string]> = active
     ? ([
-        ["Format", `${active.format} · ${active.year}`],
-        ["Discipline", active.discipline],
-        active.role.length ? ["Role", active.role.join(" · ")] : null,
-        active.tools.length ? ["Tools", active.tools.join(" · ")] : null,
+        ["Format", `${active.entry.format} · ${active.entry.year}`],
+        ["Discipline", active.entry.discipline],
+        active.entry.role.length ? ["Role", active.entry.role.join(" · ")] : null,
+        active.entry.tools.length ? ["Tools", active.entry.tools.join(" · ")] : null,
       ].filter(Boolean) as Array<[string, string]>)
     : [];
 
   return (
     <section ref={sectionRef} id="selected-work" className="showcase" aria-label="Work">
+      {/* Static index of every entry — reachable without JS, invisible with it. */}
+      <nav className="sr-only" aria-label="All work entries">
+        <ul>
+          {TABS.flatMap((tab) =>
+            groups[tab.id].map((entry) => (
+              <li key={entry.slug}>
+                <Link href={`/work/${entry.slug}`}>{entry.title}</Link>
+              </li>
+            )),
+          )}
+        </ul>
+      </nav>
+
       <div className="showcase__head page-shell">
-        <h2 className="showcase__heading">Work</h2>
+        <div className="showcase__head-title">
+          <span className="showcase__index" aria-hidden="true">01</span>
+          <h2 className="showcase__heading">Work</h2>
+        </div>
         <div className="showcase__tabs" role="tablist" aria-label="Work categories">
           {TABS.map((tab) => {
-            const n = groups[tab.id].length;
+            const n = toSlides(groups[tab.id]).length;
             const isActive = tab.id === category;
             return (
               <button
                 key={tab.id}
+                ref={(el) => {
+                  tabRefs.current[tab.id] = el;
+                }}
                 type="button"
                 role="tab"
+                id={`showcase-tab-${tab.id}`}
                 aria-selected={isActive}
+                aria-controls="showcase-panel"
+                tabIndex={isActive ? 0 : -1}
                 className={`showcase__tab${isActive ? " is-active" : ""}`}
                 onClick={() => selectCategory(tab.id)}
+                onKeyDown={(e) => onTabKeyDown(e, tab.id)}
               >
                 <span className="showcase__tab-label">{tab.label}</span>
                 <span className="showcase__tab-count">{pad(n)}</span>
@@ -202,16 +316,21 @@ export function WorkShowcase({ groups }: { groups: Record<WorkCategory, WorkEntr
         </div>
       </div>
 
-      <div className="showcase__stage page-shell">
+      <div
+        className="showcase__stage page-shell"
+        id="showcase-panel"
+        role="tabpanel"
+        aria-labelledby={`showcase-tab-${category}`}
+      >
         {active ? (
           <>
             {/* ── Left: typographic datasheet ── */}
-            <div className="showcase__info" key={`info-${active.slug}`}>
+            <div className="showcase__info" key={`info-${active.entry.slug}`}>
               <p className="showcase__eyebrow">
                 <span>{label}</span>
                 <span className="showcase__eyebrow-idx">{pad(idx + 1)} / {pad(count)}</span>
               </p>
-              <h3 className="showcase__title">{active.title}</h3>
+              <h3 className="showcase__title">{active.entry.title}</h3>
               <dl className="showcase__specs">
                 {specs.map(([k, v]) => (
                   <div className="showcase__spec" key={k}>
@@ -220,16 +339,29 @@ export function WorkShowcase({ groups }: { groups: Record<WorkCategory, WorkEntr
                   </div>
                 ))}
               </dl>
-              <p className="showcase__summary">{active.summary}</p>
+              <p className="showcase__summary">{active.entry.summary}</p>
+              <Link
+                href={`/work/${active.entry.slug}`}
+                className="showcase__casestudy"
+                aria-label={`Open case study: ${active.entry.title}`}
+              >
+                <span className="showcase__casestudy-label">Case study</span>
+                <span className="showcase__casestudy-arrow" aria-hidden="true">→</span>
+              </Link>
             </div>
 
             {/* ── Right: presentation reticle + edge stepping ── */}
             <div className="showcase__present">
-              <div className="showcase__media" key={active.slug}>
-                <Presentation entry={active} category={category} enabled={inView} />
+              <div className="showcase__media" key={active.entry.slug}>
+                <Presentation
+                  slide={active}
+                  category={category}
+                  enabled={inView}
+                  ambient={ambient}
+                />
                 {category === "models" ? <ModelReticle /> : null}
                 <div className="showcase__media-bar" aria-hidden="true">
-                  <span className="showcase__media-name">{active.title}</span>
+                  <span className="showcase__media-name">{slideTitle(active)}</span>
                   <span className="showcase__media-index">{pad(idx + 1)} / {pad(count)}</span>
                 </div>
               </div>
@@ -252,6 +384,29 @@ export function WorkShowcase({ groups }: { groups: Record<WorkCategory, WorkEntr
                   >
                     <span aria-hidden="true">›</span>
                   </button>
+
+                  {/* Index rail — every slide scannable and one click away. */}
+                  <div className="showcase__rail" role="group" aria-label={`${label} index`}>
+                    {slides.map((slide, i) => (
+                      <button
+                        key={`${slide.entry.slug}-${slide.asset?.id ?? "main"}`}
+                        type="button"
+                        className={`showcase__rail-thumb${i === idx ? " is-active" : ""}`}
+                        onClick={() => setIndex(i)}
+                        aria-label={`${slideTitle(slide)} (${i + 1} of ${count})`}
+                        aria-current={i === idx ? "true" : undefined}
+                      >
+                        <Image
+                          src={slideThumb(slide)}
+                          alt=""
+                          width={120}
+                          height={90}
+                          sizes="72px"
+                        />
+                        <span className="showcase__rail-label">{slideTitle(slide)}</span>
+                      </button>
+                    ))}
+                  </div>
                 </>
               ) : null}
             </div>
