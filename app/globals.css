@@ -1084,37 +1084,6 @@ button, input, textarea { font: inherit; }
 
 .case-study__meta strong { font-size: 1rem; color: var(--text-primary); font-weight: 500; }
 
-/* Data-driven "how it was made" spec — mirrors the meta cards */
-.spec-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.8rem; }
-.spec-grid div {
-  padding: 0.95rem 1.05rem;
-  border-radius: 8px;
-  border: 1px solid rgba(184, 240, 255, 0.06);
-  background: rgba(255, 255, 255, 0.02);
-  display: grid;
-  gap: 0.4rem;
-}
-.spec-grid span {
-  font-family: var(--font-plex-mono), monospace;
-  font-size: 0.62rem;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
-.spec-grid strong { font-size: 0.95rem; color: var(--text-primary); font-weight: 500; line-height: 1.4; }
-@media (max-width: 640px) { .spec-grid { grid-template-columns: 1fr; } }
-
-.detail-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 2rem; }
-.detail-grid__main, .section-stack, .rich-copy { display: grid; gap: 1.5rem; }
-.standfirst { font-size: 1.35rem; line-height: 1.65; color: var(--ice-bright); }
-.story-section { display: grid; gap: 0.9rem; padding-top: 1rem; }
-.story-section h2 { font-size: clamp(1.6rem, 2.6vw, 2.4rem); }
-
-.fact-panel { align-self: start; padding: 1.4rem; display: grid; gap: 1.25rem; position: sticky; top: 6rem; }
-.fact-list { display: grid; gap: 0.75rem; }
-.fact-list li { color: var(--text-secondary); }
-.fact-panel__note { display: grid; gap: 0.55rem; padding-top: 0.5rem; border-top: 1px solid rgba(184, 240, 255, 0.06); }
-
 /* ─── Contact ─────────────────────────────────────────────────────────────── */
 .contact-section { padding: 5rem 0; position: relative; }
 
@@ -1181,7 +1150,6 @@ button, input, textarea { font: inherit; }
   .site-nav { gap: 1.5rem; }
   .spotlight, .contact-section__inner, .case-study__hero, .detail-grid { grid-template-columns: 1fr; }
   .feature-grid, .archive-preview-grid, .archive__grid, .gallery-grid, .capability-grid { grid-template-columns: 1fr; }
-  .fact-panel { position: static; }
 }
 
 @media (max-width: 720px) {
@@ -1607,47 +1575,6 @@ button, input, textarea { font: inherit; }
 .specimen-viewer.showcase-viewer .specimen-viewer__hint,
 .specimen-viewer.showcase-viewer .specimen-viewer__loading { bottom: 3rem; }
 .specimen-viewer.showcase-viewer .specimen-viewer__poster { object-fit: contain; }
-
-/* Wireframe HUD reticle that trails the cursor over a model */
-.showcase__reticle {
-  position: absolute;
-  top: 0; left: 0;
-  width: 56px; height: 56px;
-  z-index: 2;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 240ms ease;
-  will-change: transform, opacity;
-}
-.showcase__reticle-box {
-  position: absolute;
-  inset: 0;
-  border: 1px solid rgba(184, 240, 255, 0.5);
-  border-radius: 2px;
-  box-shadow: 0 0 12px rgba(120, 200, 255, 0.18), inset 0 0 12px rgba(120, 200, 255, 0.1);
-  animation: reticle-spin 9s linear infinite;
-}
-@keyframes reticle-spin { to { transform: rotate(90deg); } }
-.showcase__reticle-corner {
-  position: absolute;
-  width: 8px; height: 8px;
-  border: 1px solid rgba(206, 240, 255, 0.85);
-}
-.showcase__reticle-corner--tl { top: -4px; left: -4px; border-right: none; border-bottom: none; }
-.showcase__reticle-corner--tr { top: -4px; right: -4px; border-left: none; border-bottom: none; }
-.showcase__reticle-corner--bl { bottom: -4px; left: -4px; border-right: none; border-top: none; }
-.showcase__reticle-corner--br { bottom: -4px; right: -4px; border-left: none; border-top: none; }
-.showcase__reticle-dot {
-  position: absolute;
-  top: 50%; left: 50%;
-  width: 3px; height: 3px;
-  margin: -1.5px 0 0 -1.5px;
-  border-radius: 50%;
-  background: rgba(206, 240, 255, 0.9);
-}
-@media (prefers-reduced-motion: reduce) {
-  .showcase__reticle-box { animation: none; }
-}
 
 .showcase__media-bar {
   position: absolute;

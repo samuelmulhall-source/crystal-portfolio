@@ -7,12 +7,9 @@ import { MediaBlock } from "../../components/site/MediaBlock";
 import { PackViewer } from "../../components/site/PackViewer";
 import { PageEntrance } from "../../components/site/PageEntrance";
 import { SpecimenViewer } from "../../components/site/SpecimenViewer";
-import { WorkCard } from "../../components/site/WorkCard";
 import {
   getModelFormat,
-  getRelatedEntries,
   getSiteSettings,
-  getSpecimenMaps,
   getWorkEntries,
   getWorkEntryBySlug,
 } from "../../lib/content";
@@ -62,7 +59,6 @@ export default async function WorkDetailPage({ params }: WorkPageProps) {
     notFound();
   }
 
-  const relatedEntries = getRelatedEntries(entry.slug);
   // Don't repeat the hero media inside the gallery.
   const gallery = entry.gallery.filter((asset) => asset.src !== entry.heroMedia.src);
 
@@ -117,78 +113,6 @@ export default async function WorkDetailPage({ params }: WorkPageProps) {
         </section>
         </PageEntrance>
 
-        <section className="page-shell detail-grid">
-          <div className="detail-grid__main">
-            <div className="section-stack">
-              <section className="story-section">
-                <h2>Specifications</h2>
-                <div className="spec-grid">
-                  <div>
-                    <span>Software</span>
-                    <strong>{entry.tools.join(" · ")}</strong>
-                  </div>
-                  <div>
-                    <span>Discipline</span>
-                    <strong>{entry.discipline}</strong>
-                  </div>
-                  {entry.specimen ? (
-                    <>
-                      <div>
-                        <span>Geometry</span>
-                        <strong>{getModelFormat(entry.specimen.modelPath)} · realtime mesh</strong>
-                      </div>
-                      <div>
-                        <span>Texture set</span>
-                        <strong>{getSpecimenMaps(entry.specimen).join(" · ")} · PBR</strong>
-                      </div>
-                    </>
-                  ) : (
-                    <div>
-                      <span>Output</span>
-                      <strong>{entry.format}</strong>
-                    </div>
-                  )}
-                </div>
-              </section>
-            </div>
-          </div>
-
-          <aside className="fact-panel">
-            <div>
-              <p className="eyebrow">Role</p>
-              <ul className="fact-list">
-                {entry.role.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
-            </div>
-            <div>
-              <p className="eyebrow">Tools</p>
-              <ul className="fact-list">
-                {entry.tools.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
-            </div>
-            {entry.specimen ? (
-              <div>
-                <p className="eyebrow">Maps</p>
-                <ul className="fact-list">
-                  {getSpecimenMaps(entry.specimen).map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-            {entry.interactive.note ? (
-              <div className="fact-panel__note">
-                <p className="eyebrow">Presentation</p>
-                <p>{entry.interactive.note}</p>
-              </div>
-            ) : null}
-          </aside>
-        </section>
-
         {!entry.specimen && gallery.length > 0 ? (
           <section className="section page-shell">
             <div className="section-heading">
@@ -223,20 +147,6 @@ export default async function WorkDetailPage({ params }: WorkPageProps) {
             </div>
           </div>
         </section>
-
-        {relatedEntries.length > 0 ? (
-          <section className="section page-shell">
-            <div className="section-heading">
-              <p className="eyebrow">More</p>
-              <h2>Related work</h2>
-            </div>
-            <div className="feature-grid">
-              {relatedEntries.map((relatedEntry) => (
-                <WorkCard key={relatedEntry.slug} entry={relatedEntry} />
-              ))}
-            </div>
-          </section>
-        ) : null}
       </article>
 
       <Footer

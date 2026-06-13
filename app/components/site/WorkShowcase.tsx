@@ -21,64 +21,6 @@ import type { PackAsset, WorkCategory, WorkEntry } from "../../lib/content";
 import { SpecimenViewer } from "./SpecimenViewer";
 import { GlassVideo } from "./GlassVideo";
 
-const REDUCED_QUERY = "(prefers-reduced-motion: reduce)";
-
-/** Wireframe HUD reticle that trails the cursor over a 3D model presentation.
- *  Pointer-fine only; the rAF loop runs only while the cursor is over the
- *  stage, and not at all under reduced motion. */
-function ModelReticle() {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const el = ref.current;
-    const parent = el?.parentElement;
-    if (!el || !parent) return;
-    if (!window.matchMedia("(pointer: fine)").matches) return;
-    if (window.matchMedia(REDUCED_QUERY).matches) return;
-    let raf = 0;
-    let tx = 0, ty = 0, cx = 0, cy = 0, running = false;
-    const loop = () => {
-      raf = requestAnimationFrame(loop);
-      cx += (tx - cx) * 0.22;
-      cy += (ty - cy) * 0.22;
-      el.style.transform = `translate(${cx.toFixed(1)}px, ${cy.toFixed(1)}px) translate(-50%, -50%)`;
-    };
-    const onMove = (e: PointerEvent) => {
-      const r = parent.getBoundingClientRect();
-      tx = e.clientX - r.left;
-      ty = e.clientY - r.top;
-      if (!running) {
-        running = true;
-        cx = tx;
-        cy = ty;
-        el.style.opacity = "1";
-        raf = requestAnimationFrame(loop);
-      }
-    };
-    const onLeave = () => {
-      running = false;
-      el.style.opacity = "0";
-      cancelAnimationFrame(raf);
-    };
-    parent.addEventListener("pointermove", onMove);
-    parent.addEventListener("pointerleave", onLeave);
-    return () => {
-      cancelAnimationFrame(raf);
-      parent.removeEventListener("pointermove", onMove);
-      parent.removeEventListener("pointerleave", onLeave);
-    };
-  }, []);
-  return (
-    <div ref={ref} className="showcase__reticle" aria-hidden="true">
-      <span className="showcase__reticle-box" />
-      <span className="showcase__reticle-corner showcase__reticle-corner--tl" />
-      <span className="showcase__reticle-corner showcase__reticle-corner--tr" />
-      <span className="showcase__reticle-corner showcase__reticle-corner--bl" />
-      <span className="showcase__reticle-corner showcase__reticle-corner--br" />
-      <span className="showcase__reticle-dot" />
-    </div>
-  );
-}
-
 // Inlined (not imported from content.ts) so this client component never pulls
 // the node:fs-backed content loader into the browser bundle.
 const TABS: { id: WorkCategory; label: string }[] = [
@@ -320,7 +262,6 @@ export function WorkShowcase({ groups }: { groups: Record<WorkCategory, WorkEntr
                 key={active.entry.slug}
               >
                 <Presentation slide={active} category={category} enabled={inView} />
-                {category === "models" ? <ModelReticle /> : null}
                 {category !== "video" ? (
                   <div className="showcase__media-bar" aria-hidden="true">
                     <span className="showcase__media-name">{slideTitle(active)}</span>
