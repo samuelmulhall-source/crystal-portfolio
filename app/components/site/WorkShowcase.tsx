@@ -245,14 +245,6 @@ export function WorkShowcase({ groups }: { groups: Record<WorkCategory, WorkEntr
                 ))}
               </dl>
               <p className="showcase__summary">{active.entry.summary}</p>
-              <Link
-                href={`/work/${active.entry.slug}`}
-                className="showcase__details"
-                aria-label={`View details: ${active.entry.title}`}
-              >
-                <span className="showcase__details-label">View details</span>
-                <span className="showcase__details-arrow" aria-hidden="true">→</span>
-              </Link>
             </div>
 
             {/* ── Right: presentation reticle + edge stepping ── */}
@@ -318,7 +310,8 @@ export function WorkShowcase({ groups }: { groups: Record<WorkCategory, WorkEntr
         ) : (
           <div className="showcase__empty">
             <span className="showcase__empty-tick" aria-hidden="true">◊</span>
-            <p>{label} — in production. New work landing here soon.</p>
+            <p className="showcase__empty-label">{label}</p>
+            <p className="showcase__empty-note">In production — new work landing here soon.</p>
           </div>
         )}
       </div>
