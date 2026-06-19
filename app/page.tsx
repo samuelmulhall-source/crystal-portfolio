@@ -75,7 +75,6 @@ export default function HomePage() {
       <section id="contact" className="contact-section">
         <div className="page-shell contact-section__inner">
           <div className="section-head">
-            <span className="section-head__index">02</span>
             <h2 className="section-head__title">{home.contact.heading}</h2>
             {home.contact.availability ? (
               <span className="contact-status">
@@ -84,9 +83,6 @@ export default function HomePage() {
               </span>
             ) : null}
           </div>
-          {home.contact.intro ? (
-            <p className="contact-intro">{home.contact.intro}</p>
-          ) : null}
           <dl className="contact-meta">
             <div>
               <dt>Discipline</dt>

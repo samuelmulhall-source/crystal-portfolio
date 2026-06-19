@@ -7,9 +7,10 @@
  *   enhanced                 → lazy-loaded WebGL viewer over the poster
  *
  * The poster always renders first so there is never a blank frame or layout
- * shift; the canvas fades in on top once the model is ready. Once running,
- * the viewer doubles as a technical inspector: wireframe view plus a mesh /
- * texture readout computed from the loaded production files.
+ * shift; the canvas fades in on top once the model is ready. Once running, the
+ * viewer doubles as a technical inspector: a channel selector shows the shaded
+ * material, the wireframe, or any individual PBR map flat on the surface, plus a
+ * mesh / texture readout computed from the loaded production files.
  */
 
 import dynamic from "next/dynamic";
@@ -17,7 +18,7 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useDisplayMode } from "./DisplayModeProvider";
 import type { Specimen } from "../../lib/content";
-import type { SpecimenStats } from "./SpecimenScene";
+import type { SpecimenChannel, SpecimenStats } from "./SpecimenScene";
 
 const SpecimenScene = dynamic(() => import("./SpecimenScene"), { ssr: false });
 
@@ -31,6 +32,16 @@ function fmtTexSize(px: number) {
   if (px >= 1024) return `${Math.round(px / 1024)}K`;
   return px > 0 ? `${px}px` : "";
 }
+
+/** Channel buttons in pipeline order, label → texture key. Only the maps a
+ *  specimen actually has are offered. */
+const TEX_CHANNELS: { id: SpecimenChannel; label: string }[] = [
+  { id: "map", label: "Albedo" },
+  { id: "normalMap", label: "Normal" },
+  { id: "roughnessMap", label: "Rough" },
+  { id: "metalnessMap", label: "Metal" },
+  { id: "transmissionMap", label: "Transmit" },
+];
 
 export function SpecimenViewer({
   specimen,
@@ -47,7 +58,7 @@ export function SpecimenViewer({
   const { effectiveMode } = useDisplayMode();
   const [mounted, setMounted] = useState(false);
   const [sceneReady, setSceneReady] = useState(false);
-  const [wireframe, setWireframe] = useState(false);
+  const [channel, setChannel] = useState<SpecimenChannel>("material");
   const [stats, setStats] = useState<SpecimenStats | null>(null);
 
   // Client-mount guard: keeps the first client render matching SSR (poster
@@ -56,18 +67,26 @@ export function SpecimenViewer({
   useEffect(() => setMounted(true), []);
 
   // A new specimen (asset stepping) streams in fresh geometry — drop the old
-  // readout and fade the poster back in until the next model is ready.
+  // readout, reset the channel, and fade the poster back in until ready.
   // (Render-time state adjustment per react.dev — avoids an effect cascade.)
   const [prevModelPath, setPrevModelPath] = useState(specimen.modelPath);
   if (prevModelPath !== specimen.modelPath) {
     setPrevModelPath(specimen.modelPath);
     setSceneReady(false);
     setStats(null);
+    setChannel("material");
   }
 
   const enhanced = mounted && effectiveMode === "enhanced";
   const format = (specimen.modelPath.split(".").pop() ?? "").toUpperCase();
   const texLabel = stats && stats.maps > 0 ? `${fmtTexSize(stats.maxTextureSize)} PBR ×${stats.maps}` : null;
+
+  // Build the channel options from the maps this specimen actually carries.
+  const channels: { id: SpecimenChannel; label: string }[] = [
+    { id: "material", label: "Shaded" },
+    ...TEX_CHANNELS.filter((c) => specimen.textures[c.id as keyof Specimen["textures"]]),
+    { id: "wireframe", label: "Wire" },
+  ];
 
   return (
     <div className={`specimen-viewer${className ? ` ${className}` : ""}`}>
@@ -85,7 +104,7 @@ export function SpecimenViewer({
         <div className={`specimen-viewer__stage${sceneReady ? " is-ready" : ""}`}>
           <SpecimenScene
             specimen={specimen}
-            wireframe={wireframe}
+            channel={channel}
             allowZoom={allowZoom}
             onReady={() => setSceneReady(true)}
             onStats={setStats}
@@ -122,16 +141,21 @@ export function SpecimenViewer({
         </span>
       ) : null}
 
-      {/* Wireframe toggle — the inspector's tech view */}
+      {/* Channel selector — shaded material, wireframe, or any individual map */}
       {enhanced && sceneReady ? (
-        <button
-          type="button"
-          className={`specimen-viewer__wire${wireframe ? " is-active" : ""}`}
-          onClick={() => setWireframe((w) => !w)}
-          aria-pressed={wireframe}
-        >
-          Wireframe
-        </button>
+        <div className="specimen-viewer__channels" role="group" aria-label="Inspect channel">
+          {channels.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              className={`specimen-viewer__channel${channel === c.id ? " is-active" : ""}`}
+              onClick={() => setChannel(c.id)}
+              aria-pressed={channel === c.id}
+            >
+              {c.label}
+            </button>
+          ))}
+        </div>
       ) : null}
     </div>
   );

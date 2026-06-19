@@ -559,13 +559,6 @@ button, input, textarea { font: inherit; }
   border-bottom: 1px solid rgba(184, 240, 255, 0.09);
 }
 
-.section-head__index {
-  font-family: var(--font-plex-mono), monospace;
-  font-size: 0.7rem;
-  letter-spacing: 0.2em;
-  color: rgba(184, 240, 255, 0.4);
-}
-
 .section-head__title {
   margin: 0;
   flex: 1;
@@ -729,31 +722,42 @@ button, input, textarea { font: inherit; }
 @keyframes loading-pulse { 50% { opacity: 0.45; } }
 
 /* Inspector wireframe toggle — small glass pill, top-right of the viewer. */
-.specimen-viewer__wire {
+/* Channel selector — glass segmented control, top-right of the viewer. */
+.specimen-viewer__channels {
   position: absolute;
   top: 0.7rem;
-  right: 0.8rem;
+  right: 0.7rem;
   z-index: 4;
-  padding: 0.36rem 0.75rem;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.25rem;
+  max-width: calc(100% - 1.4rem);
+  padding: 0.22rem;
+  border-radius: 999px;
+  background: rgba(8, 14, 26, 0.55);
+  border: 1px solid rgba(205, 232, 255, 0.14);
+  backdrop-filter: blur(8px) saturate(1.6);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+.specimen-viewer__channel {
+  padding: 0.3rem 0.6rem;
   border-radius: 999px;
   cursor: pointer;
   font-family: var(--font-plex-mono), monospace;
-  font-size: 0.56rem;
-  letter-spacing: 0.18em;
+  font-size: 0.54rem;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: rgba(214, 236, 255, 0.82);
-  background: rgba(8, 14, 26, 0.58);
-  border: 1px solid rgba(205, 232, 255, 0.16);
-  backdrop-filter: blur(8px) saturate(1.6);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
-  transition: color 0.25s ease, border-color 0.25s ease, background 0.25s ease;
+  color: rgba(205, 232, 255, 0.66);
+  background: transparent;
+  border: 1px solid transparent;
+  transition: color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
 }
-.specimen-viewer__wire:hover { color: var(--ice-bright); border-color: rgba(205, 232, 255, 0.32); }
-.specimen-viewer__wire.is-active {
-  color: var(--ice-bright);
-  background: linear-gradient(135deg, rgba(190, 225, 255, 0.14), rgba(120, 170, 220, 0.05));
-  border-color: rgba(205, 232, 255, 0.35);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 0 18px -6px rgba(159, 220, 255, 0.45);
+.specimen-viewer__channel:hover { color: var(--ice-bright); }
+.specimen-viewer__channel.is-active {
+  color: #eaf7ff;
+  background: linear-gradient(135deg, rgba(190, 225, 255, 0.16), rgba(120, 170, 220, 0.06));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 0 16px -6px rgba(159, 220, 255, 0.45);
 }
 
 /* Pack viewer — asset selector pills above the inspector on detail pages. */
@@ -1164,7 +1168,6 @@ button, input, textarea { font: inherit; }
 @media (min-width: 1600px) {
   :root { --shell: min(1480px, calc(100% - 6rem)); }
   .showcase__heading { font-size: clamp(2.4rem, 3vw, 3.2rem); }
-  .showcase__stage { gap: clamp(2.5rem, 4vw, 4.5rem); }
 }
 @media (min-width: 2040px) {
   :root { --shell: min(1640px, calc(100% - 8rem)); }
@@ -1178,9 +1181,11 @@ button, input, textarea { font: inherit; }
   .spotlight, .contact-section__inner, .case-study__hero, .detail-grid { grid-template-columns: 1fr; }
   .feature-grid, .archive-preview-grid, .archive__grid, .gallery-grid, .capability-grid { grid-template-columns: 1fr; }
   /* Collapse the showcase to one column here too (was 900) so the 901–960 band
-     doesn't keep a starved two-column datasheet. */
+     doesn't keep a starved two-column datasheet. The resize divider is a
+     desktop-only affordance — hide it when stacked. */
   .showcase__stage { grid-template-columns: 1fr; }
   .showcase__present { order: -1; }
+  .showcase__divider { display: none; }
 }
 
 @media (max-width: 720px) {
@@ -1403,18 +1408,6 @@ button, input, textarea { font: inherit; }
   margin-bottom: clamp(2.25rem, 5vh, 3.5rem);
   border-bottom: 1px solid rgba(184, 240, 255, 0.12);
 }
-.showcase__head-title {
-  display: flex;
-  align-items: baseline;
-  gap: 0.85rem;
-}
-.showcase__index {
-  font-family: var(--font-plex-mono), monospace;
-  font-size: 0.7rem;
-  letter-spacing: 0.2em;
-  color: rgba(184, 240, 255, 0.5);
-  font-variant-numeric: tabular-nums;
-}
 .showcase__heading {
   margin: 0;
   font-weight: 500;
@@ -1465,11 +1458,37 @@ button, input, textarea { font: inherit; }
 
 .showcase__stage {
   display: grid;
-  grid-template-columns: 0.72fr 1.28fr;
-  gap: clamp(2rem, 5vw, 4.5rem);
+  /* info | divider track | viewer — the divider IS the gap and is draggable.
+     --col-info/--col-present are set inline as the user resizes; fallbacks
+     reproduce the original 0.72/1.28 split. */
+  grid-template-columns: var(--col-info, 0.72fr) clamp(2rem, 5vw, 4.5rem) var(--col-present, 1.28fr);
   align-items: center;
   min-height: clamp(25rem, 56vh, 40rem);
 }
+
+/* Resize divider — a thin grabbable track between the datasheet and the viewer. */
+.showcase__divider {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: col-resize;
+  touch-action: none;
+}
+.showcase__divider-grip {
+  width: 2px;
+  height: clamp(40px, 8vh, 72px);
+  border-radius: 2px;
+  background: rgba(184, 240, 255, 0.16);
+  transition: background 0.2s ease, height 0.2s ease, box-shadow 0.2s ease;
+}
+.showcase__divider:hover .showcase__divider-grip,
+.showcase__divider:focus-visible .showcase__divider-grip {
+  background: rgba(184, 240, 255, 0.5);
+  height: clamp(56px, 11vh, 96px);
+  box-shadow: 0 0 14px rgba(159, 220, 255, 0.4);
+}
+.showcase__divider:focus-visible { outline: none; }
 
 /* Left — borderless typographic datasheet */
 .showcase__info { display: flex; flex-direction: column; }
@@ -1743,14 +1762,6 @@ button, input, textarea { font: inherit; }
   letter-spacing: 0.2em;
   text-transform: uppercase;
   color: rgba(184, 240, 255, 0.55);
-}
-.contact-intro {
-  max-width: 56ch;
-  margin: clamp(1rem, 2vh, 1.5rem) 0 0;
-  font-size: clamp(1rem, 1.4vw, 1.16rem);
-  line-height: 1.6;
-  color: rgba(214, 230, 250, 0.78);
-  text-wrap: pretty;
 }
 /* Identity readout — who/where, in the mono meta voice. */
 .contact-meta {

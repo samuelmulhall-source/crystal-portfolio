@@ -18,6 +18,10 @@ import type { Specimen } from "../../lib/content";
 
 type TexKey = "map" | "normalMap" | "roughnessMap" | "metalnessMap" | "transmissionMap";
 
+/** What the inspector renders on the model. "material" = full PBR; "wireframe"
+ *  = ice line-art; the rest show that raw texture map flat on the surface. */
+export type SpecimenChannel = "material" | "wireframe" | TexKey;
+
 /** Technical readout computed from the loaded geometry + texture set. */
 export type SpecimenStats = {
   triangles: number;
@@ -35,12 +39,12 @@ function enc(p: string) {
 
 function SpecimenModel({
   specimen,
-  wireframe = false,
+  channel = "material",
   onReady,
   onStats,
 }: {
   specimen: Specimen;
-  wireframe?: boolean;
+  channel?: SpecimenChannel;
   onReady?: () => void;
   onStats?: (stats: SpecimenStats) => void;
 }) {
@@ -85,6 +89,53 @@ function SpecimenModel({
     const colorMap = tex.map ? tex.map.clone() : null;
     if (colorMap) colorMap.colorSpace = THREE.SRGBColorSpace;
 
+    // Build the ONE material the chosen channel renders. For a raw texture
+    // channel, show that map flat + unlit on the surface (cloned to sRGB so it
+    // reads like the source file); fall back to PBR if the map is absent.
+    function rawMap(key: TexKey): THREE.Texture | null {
+      const src = key === "map" ? colorMap : tex[key];
+      if (!src) return null;
+      const disp = src.clone();
+      disp.colorSpace = THREE.SRGBColorSpace;
+      disp.needsUpdate = true;
+      return disp;
+    }
+    function buildMaterial(): THREE.Material {
+      if (channel === "wireframe") {
+        // Tech view — ice line-art wireframe, matches the site's HUD language.
+        return new THREE.MeshBasicMaterial({
+          color: 0x9fdcff,
+          wireframe: true,
+          transparent: true,
+          opacity: 0.5,
+        });
+      }
+      if (channel !== "material") {
+        const m = rawMap(channel);
+        if (m) return new THREE.MeshBasicMaterial({ map: m, side: THREE.FrontSide });
+        // map not present on this specimen → fall through to PBR
+      }
+      return new THREE.MeshPhysicalMaterial({
+        color: 0xffffff,
+        map: colorMap,
+        normalMap: tex.normalMap ?? null,
+        normalMapType: THREE.TangentSpaceNormalMap,
+        roughnessMap: tex.roughnessMap ?? null,
+        roughness: tex.roughnessMap ? 0.95 : 0.7,
+        metalnessMap: tex.metalnessMap ?? null,
+        metalness: tex.metalnessMap ? 0.95 : 0.1,
+        transmissionMap: tex.transmissionMap ?? null,
+        transmission: tex.transmissionMap ? 0.5 : 0,
+        thickness: tex.transmissionMap ? 0.5 : 0,
+        ior: 1.5,
+        envMapIntensity: 0.9,
+        clearcoat: 0.12,
+        clearcoatRoughness: 0.14,
+        side: THREE.FrontSide,
+      });
+    }
+    const channelMat = buildMaterial();
+
     const group = new THREE.Group();
     loaded.forEach((g) => group.add(g.clone()));
 
@@ -109,32 +160,8 @@ function SpecimenModel({
         );
         const prev = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
         prev.forEach((m) => (m as THREE.Material)?.dispose());
-        mesh.material = wireframe
-          ? // Tech view — ice line-art wireframe, matches the site's HUD language.
-            new THREE.MeshBasicMaterial({
-              color: 0x9fdcff,
-              wireframe: true,
-              transparent: true,
-              opacity: 0.5,
-            })
-          : new THREE.MeshPhysicalMaterial({
-              color: 0xffffff,
-              map: colorMap,
-              normalMap: tex.normalMap ?? null,
-              normalMapType: THREE.TangentSpaceNormalMap,
-              roughnessMap: tex.roughnessMap ?? null,
-              roughness: tex.roughnessMap ? 0.95 : 0.7,
-              metalnessMap: tex.metalnessMap ?? null,
-              metalness: tex.metalnessMap ? 0.95 : 0.1,
-              transmissionMap: tex.transmissionMap ?? null,
-              transmission: tex.transmissionMap ? 0.5 : 0,
-              thickness: tex.transmissionMap ? 0.5 : 0,
-              ior: 1.5,
-              envMapIntensity: 0.9,
-              clearcoat: 0.12,
-              clearcoatRoughness: 0.14,
-              side: THREE.FrontSide,
-            });
+        // One shared material across meshes — same treatment, cheaper.
+        mesh.material = channelMat;
       }
     });
 
@@ -164,7 +191,7 @@ function SpecimenModel({
         maxTextureSize,
       } satisfies SpecimenStats,
     };
-  }, [loaded, tex, texList, specimen.yOffset, wireframe]);
+  }, [loaded, tex, texList, specimen.yOffset, channel]);
 
   // Signal readiness once the model is mounted (assets resolved via Suspense).
   useEffect(() => {
@@ -210,13 +237,13 @@ function StudioLights() {
 
 export default function SpecimenScene({
   specimen,
-  wireframe = false,
+  channel = "material",
   allowZoom = false,
   onReady,
   onStats,
 }: {
   specimen: Specimen;
-  wireframe?: boolean;
+  channel?: SpecimenChannel;
   /** Wheel-zoom hijacks page scroll — only enable in deliberate inspection
    *  contexts (detail pages), never mid-scroll surfaces like the showcase. */
   allowZoom?: boolean;
@@ -243,7 +270,7 @@ export default function SpecimenScene({
       <Suspense fallback={null}>
         <SpecimenModel
           specimen={specimen}
-          wireframe={wireframe}
+          channel={channel}
           onReady={onReady}
           onStats={onStats}
         />

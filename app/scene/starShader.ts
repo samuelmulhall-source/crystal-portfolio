@@ -33,10 +33,10 @@ export function makeHoloStarMat(hasVelocity: boolean): THREE.ShaderMaterial {
 
       void main() {
         vColor = color;
-        // Per-star twinkle: async brightness pulse
-        float rate = 1.5 + aSeed * 2.5;
+        // Per-star twinkle: slow async brightness pulse
+        float rate = 0.45 + aSeed * 0.85;
         float phase = aSeed * 6.2832;
-        vTwinkle = 0.72 + 0.28 * sin(uTime * rate + phase);
+        vTwinkle = 0.74 + 0.26 * sin(uTime * rate + phase);
 
         vec4 mv = modelViewMatrix * vec4(position, 1.0);
         float nat = uSize * projectionMatrix[1][1] * uVH / (-mv.z);
@@ -77,10 +77,10 @@ export function makeHoloStarMat(hasVelocity: boolean): THREE.ShaderMaterial {
 
       void main() {
         vColor = color;
-        // Per-star twinkle: async brightness pulse
-        float rate = 1.5 + aSeed * 2.5;
+        // Per-star twinkle: slow async brightness pulse
+        float rate = 0.45 + aSeed * 0.85;
         float phase = aSeed * 6.2832;
-        vTwinkle = 0.72 + 0.28 * sin(uTime * rate + phase);
+        vTwinkle = 0.74 + 0.26 * sin(uTime * rate + phase);
 
         vec4 mv = modelViewMatrix * vec4(position, 1.0);
         float nat = uSize * projectionMatrix[1][1] * uVH / (-mv.z);

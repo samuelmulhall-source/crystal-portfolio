@@ -21,14 +21,14 @@ import StarHoverSystem from "../scene/StarHoverSystem";
 
 // ─── Star layer config ─────────────────────────────────────────────────────
 const LAYERS_DESKTOP = [
-  { count: 1800, rMin: 14, rMax: 30, rotSpd: 0.007, size: 0.22, seed: 11111 },
-  { count: 1400, rMin: 26, rMax: 44, rotSpd: 0.011, size: 0.28, seed: 22222 },
-  { count:  900, rMin: 36, rMax: 58, rotSpd: 0.017, size: 0.36, seed: 33333 },
+  { count: 1800, rMin: 14, rMax: 30, rotSpd: 0.0030, size: 0.22, seed: 11111 },
+  { count: 1400, rMin: 26, rMax: 44, rotSpd: 0.0046, size: 0.28, seed: 22222 },
+  { count:  900, rMin: 36, rMax: 58, rotSpd: 0.0072, size: 0.36, seed: 33333 },
 ] as const;
 const LAYERS_MOBILE = [
-  { count: 600, rMin: 14, rMax: 30, rotSpd: 0.008, size: 0.24, seed: 11111 },
-  { count: 500, rMin: 26, rMax: 44, rotSpd: 0.012, size: 0.30, seed: 22222 },
-  { count: 350, rMin: 36, rMax: 58, rotSpd: 0.018, size: 0.36, seed: 33333 },
+  { count: 600, rMin: 14, rMax: 30, rotSpd: 0.0034, size: 0.24, seed: 11111 },
+  { count: 500, rMin: 26, rMax: 44, rotSpd: 0.0050, size: 0.30, seed: 22222 },
+  { count: 350, rMin: 36, rMax: 58, rotSpd: 0.0076, size: 0.36, seed: 33333 },
 ] as const;
 
 /** Simple mouse-parallax camera rig for the content-first starfield. */

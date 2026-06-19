@@ -133,6 +133,45 @@ export function WorkShowcase({ groups }: { groups: Record<WorkCategory, WorkEntr
     return () => io.disconnect();
   }, [inView]);
 
+  // Resizable split — the info/viewer column ratio (info fraction). Default
+  // matches the static 0.72fr/1.28fr layout; a draggable divider reapportions
+  // it on desktop, and the rest of the section reflows around the viewer.
+  const stageRef = useRef<HTMLDivElement>(null);
+  const [infoFr, setInfoFr] = useState(0.36);
+  const MIN_FR = 0.26;
+  const MAX_FR = 0.6;
+  const dragging = useRef(false);
+  const applyRatioFromX = useCallback((clientX: number) => {
+    const el = stageRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const f = Math.min(MAX_FR, Math.max(MIN_FR, (clientX - r.left) / r.width));
+    setInfoFr(f);
+  }, []);
+  const onDividerPointerDown = useCallback(
+    (e: React.PointerEvent) => {
+      dragging.current = true;
+      e.currentTarget.setPointerCapture(e.pointerId);
+      applyRatioFromX(e.clientX);
+    },
+    [applyRatioFromX],
+  );
+  const onDividerPointerMove = useCallback(
+    (e: React.PointerEvent) => {
+      if (dragging.current) applyRatioFromX(e.clientX);
+    },
+    [applyRatioFromX],
+  );
+  const onDividerPointerUp = useCallback((e: React.PointerEvent) => {
+    dragging.current = false;
+    e.currentTarget.releasePointerCapture(e.pointerId);
+  }, []);
+  const onDividerKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === "ArrowLeft") { e.preventDefault(); setInfoFr((f) => Math.max(MIN_FR, f - 0.03)); }
+    else if (e.key === "ArrowRight") { e.preventDefault(); setInfoFr((f) => Math.min(MAX_FR, f + 0.03)); }
+    else if (e.key === "Home") { e.preventDefault(); setInfoFr(0.36); }
+  }, []);
+
   const slides = toSlides(groups[category]);
   const count = slides.length;
   const idx = count > 0 ? Math.min(index, count - 1) : 0;
@@ -189,10 +228,7 @@ export function WorkShowcase({ groups }: { groups: Record<WorkCategory, WorkEntr
       </nav>
 
       <div className="showcase__head page-shell">
-        <div className="showcase__head-title">
-          <span className="showcase__index" aria-hidden="true">01</span>
-          <h2 className="showcase__heading">Work</h2>
-        </div>
+        <h2 className="showcase__heading">Work</h2>
         <div className="showcase__tabs" role="tablist" aria-label="Work categories">
           {TABS.map((tab) => {
             const n = toSlides(groups[tab.id]).length;
@@ -222,10 +258,16 @@ export function WorkShowcase({ groups }: { groups: Record<WorkCategory, WorkEntr
       </div>
 
       <div
+        ref={stageRef}
         className="showcase__stage page-shell"
         id="showcase-panel"
         role="tabpanel"
         aria-labelledby={`showcase-tab-${category}`}
+        style={
+          active
+            ? ({ "--col-info": `${infoFr * 2}fr`, "--col-present": `${(1 - infoFr) * 2}fr` } as React.CSSProperties)
+            : undefined
+        }
       >
         {active ? (
           <>
@@ -245,6 +287,24 @@ export function WorkShowcase({ groups }: { groups: Record<WorkCategory, WorkEntr
                 ))}
               </dl>
               <p className="showcase__summary">{active.entry.summary}</p>
+            </div>
+
+            {/* Draggable divider — resize the viewer, the datasheet reflows. */}
+            <div
+              className="showcase__divider"
+              role="separator"
+              aria-orientation="vertical"
+              aria-label="Resize the model viewer"
+              aria-valuenow={Math.round(infoFr * 100)}
+              aria-valuemin={Math.round(MIN_FR * 100)}
+              aria-valuemax={Math.round(MAX_FR * 100)}
+              tabIndex={0}
+              onPointerDown={onDividerPointerDown}
+              onPointerMove={onDividerPointerMove}
+              onPointerUp={onDividerPointerUp}
+              onKeyDown={onDividerKeyDown}
+            >
+              <span className="showcase__divider-grip" aria-hidden="true" />
             </div>
 
             {/* ── Right: presentation reticle + edge stepping ── */}
