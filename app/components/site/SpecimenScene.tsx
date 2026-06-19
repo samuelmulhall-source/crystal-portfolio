@@ -115,22 +115,25 @@ function SpecimenModel({
         if (m) return new THREE.MeshBasicMaterial({ map: m, side: THREE.FrontSide });
         // map not present on this specimen → fall through to PBR
       }
+      const hasGlass = !!tex.transmissionMap;
       return new THREE.MeshPhysicalMaterial({
         color: 0xffffff,
         map: colorMap,
         normalMap: tex.normalMap ?? null,
         normalMapType: THREE.TangentSpaceNormalMap,
         roughnessMap: tex.roughnessMap ?? null,
-        roughness: tex.roughnessMap ? 0.95 : 0.7,
+        // Lower roughness overall, and lower still where there's glass, so the
+        // transmission refraction (IOR) reads sharp instead of frosted.
+        roughness: tex.roughnessMap ? (hasGlass ? 0.55 : 0.85) : hasGlass ? 0.12 : 0.55,
         metalnessMap: tex.metalnessMap ?? null,
         metalness: tex.metalnessMap ? 0.95 : 0.1,
         transmissionMap: tex.transmissionMap ?? null,
-        transmission: tex.transmissionMap ? 0.5 : 0,
-        thickness: tex.transmissionMap ? 0.5 : 0,
+        transmission: hasGlass ? 0.92 : 0,
+        thickness: hasGlass ? 0.9 : 0,
         ior: 1.5,
-        envMapIntensity: 0.9,
+        envMapIntensity: 1.05,
         clearcoat: 0.12,
-        clearcoatRoughness: 0.14,
+        clearcoatRoughness: 0.1,
         side: THREE.FrontSide,
       });
     }

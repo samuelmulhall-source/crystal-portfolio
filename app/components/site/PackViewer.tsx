@@ -29,7 +29,7 @@ export function PackViewer({ assets, packTitle }: { assets: PackAsset[]; packTit
             onClick={() => setActiveId(asset.id)}
             aria-pressed={asset.id === active.id}
           >
-            {asset.title}
+            <span>{asset.title}</span>
           </button>
         ))}
       </div>

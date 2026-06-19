@@ -15,6 +15,8 @@
   /* One shared content column so header, content, and footer all align on every
      screen size. Grows with the viewport, capped so line length stays sane. */
   --shell:          min(1320px, calc(100% - 3rem));
+  /* Skew angle for the angled "chip" selects (tabs, channel + pack pills). */
+  --chip-skew:      -11deg;
 }
 
 @theme inline {
@@ -722,7 +724,7 @@ button, input, textarea { font: inherit; }
 @keyframes loading-pulse { 50% { opacity: 0.45; } }
 
 /* Inspector wireframe toggle — small glass pill, top-right of the viewer. */
-/* Channel selector — glass segmented control, top-right of the viewer. */
+/* Channel selector — glass segmented control of angled chips, top-right. */
 .specimen-viewer__channels {
   position: absolute;
   top: 0.7rem;
@@ -731,18 +733,19 @@ button, input, textarea { font: inherit; }
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: 0.25rem;
+  gap: 0.3rem;
   max-width: calc(100% - 1.4rem);
-  padding: 0.22rem;
-  border-radius: 999px;
+  padding: 0.28rem 0.4rem;
+  border-radius: 4px;
   background: rgba(8, 14, 26, 0.55);
   border: 1px solid rgba(205, 232, 255, 0.14);
   backdrop-filter: blur(8px) saturate(1.6);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
 }
 .specimen-viewer__channel {
-  padding: 0.3rem 0.6rem;
-  border-radius: 999px;
+  padding: 0.3rem 0.62rem;
+  border-radius: 2px;
+  transform: skewX(var(--chip-skew));
   cursor: pointer;
   font-family: var(--font-plex-mono), monospace;
   font-size: 0.54rem;
@@ -751,13 +754,15 @@ button, input, textarea { font: inherit; }
   color: rgba(205, 232, 255, 0.66);
   background: transparent;
   border: 1px solid transparent;
-  transition: color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+  transition: color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
-.specimen-viewer__channel:hover { color: var(--ice-bright); }
+.specimen-viewer__channel > span { display: inline-block; transform: skewX(calc(-1 * var(--chip-skew))); }
+.specimen-viewer__channel:hover { color: var(--ice-bright); border-color: rgba(205, 232, 255, 0.18); }
 .specimen-viewer__channel.is-active {
   color: #eaf7ff;
-  background: linear-gradient(135deg, rgba(190, 225, 255, 0.16), rgba(120, 170, 220, 0.06));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 0 16px -6px rgba(159, 220, 255, 0.45);
+  background: linear-gradient(135deg, rgba(190, 225, 255, 0.18), rgba(120, 170, 220, 0.06));
+  border-color: rgba(205, 232, 255, 0.3);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 0 16px -6px rgba(159, 220, 255, 0.5);
 }
 
 /* Pack viewer — asset selector pills above the inspector on detail pages. */
@@ -768,8 +773,9 @@ button, input, textarea { font: inherit; }
   gap: 0.45rem;
 }
 .pack-viewer__pill {
-  padding: 0.42rem 0.85rem;
-  border-radius: 999px;
+  padding: 0.42rem 0.95rem;
+  border-radius: 2px;
+  transform: skewX(var(--chip-skew));
   cursor: pointer;
   font-family: var(--font-plex-mono), monospace;
   font-size: 0.6rem;
@@ -780,6 +786,7 @@ button, input, textarea { font: inherit; }
   border: 1px solid rgba(205, 232, 255, 0.14);
   transition: color 0.25s ease, border-color 0.25s ease, background 0.25s ease, box-shadow 0.25s ease;
 }
+.pack-viewer__pill > span { display: inline-block; transform: skewX(calc(-1 * var(--chip-skew))); }
 .pack-viewer__pill:hover { color: var(--ice-bright); border-color: rgba(205, 232, 255, 0.3); }
 .pack-viewer__pill.is-active {
   color: var(--ice-bright);
@@ -1429,8 +1436,11 @@ button, input, textarea { font: inherit; }
   display: inline-flex;
   align-items: baseline;
   gap: 0.45rem;
-  padding: 0.5rem 1rem;
-  border-radius: 999px;
+  padding: 0.5rem 1.1rem;
+  /* Angled parallelogram chip — sharp, technical, HUD-flavoured. The box is
+     skewed; its text spans are counter-skewed back upright. */
+  border-radius: 2px;
+  transform: skewX(var(--chip-skew));
   background: none;
   border: 1px solid transparent;
   cursor: pointer;
@@ -1441,8 +1451,9 @@ button, input, textarea { font: inherit; }
   color: rgba(206, 224, 245, 0.62);
   transition: color 220ms ease, background 260ms ease, border-color 260ms ease, box-shadow 260ms ease;
 }
+.showcase__tab > span { display: inline-block; transform: skewX(calc(-1 * var(--chip-skew))); }
 .showcase__tab:hover { color: rgba(225, 240, 255, 0.92); }
-/* Active category = liquid-glass pill (frost + specular edge) */
+/* Active category = liquid-glass parallelogram (frost + specular edge) */
 .showcase__tab.is-active {
   color: #eaf7ff;
   background: linear-gradient(135deg, rgba(190, 225, 255, 0.1), rgba(120, 170, 220, 0.03));

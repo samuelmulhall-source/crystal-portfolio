@@ -152,7 +152,7 @@ export function SpecimenViewer({
               onClick={() => setChannel(c.id)}
               aria-pressed={channel === c.id}
             >
-              {c.label}
+              <span>{c.label}</span>
             </button>
           ))}
         </div>
