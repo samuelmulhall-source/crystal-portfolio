@@ -75,7 +75,10 @@ work; it never gets in its way.
   `pointer-events: none` (with only its real links re-enabled) or it silently eats every
   click meant for the showcase.
 - Write `backdrop-filter` **unprefixed only** — Tailwind v4's lightningcss emits the
-  `-webkit-` form and strips `url()` filters.
+  `-webkit-` form and strips `url()` filters. Real glass refraction (the SVG
+  `feDisplacementMap` in `GlassRefraction.tsx`) survives by going through
+  `var(--glass-refract, )` — lightningcss never sees a `url()` literal, and the var
+  is set at runtime only in Chromium (Safari/Firefox fall back to plain clear glass).
 - Field-QA URL flags are sanctioned, read-only, and never affect content:
   `?off=<layer>`, `?fps`/`?debug`, `?q=1|2|3`, `?displayMode=reduced`.
 

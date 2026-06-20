@@ -7,6 +7,7 @@ import { DisplayModeScript } from "./components/site/DisplayModeScript";
 import { QualityProvider } from "./components/site/QualityProvider";
 import EnhancementLayers from "./components/site/EnhancementLayers";
 import ConsoleFilter from "./components/ConsoleFilter";
+import GlassRefraction from "./components/GlassRefraction";
 import SmoothScroll from "./components/SmoothScroll";
 import FpsMeter from "./components/site/FpsMeter";
 import { getSiteSettings } from "./lib/content";
@@ -81,6 +82,7 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body>
+        <GlassRefraction />
         <DisplayModeScript
           enhancedMinDeviceMemory={siteSettings.qualityPresets.enhancedMinDeviceMemory}
           enhancedMinHardwareConcurrency={siteSettings.qualityPresets.enhancedMinHardwareConcurrency}

@@ -739,7 +739,7 @@ button, input, textarea { font: inherit; }
   border-radius: 4px;
   background: rgba(8, 14, 26, 0.42);
   border: 1px solid rgba(205, 232, 255, 0.16);
-  backdrop-filter: blur(4px) saturate(1.9) brightness(1.05);
+  backdrop-filter: var(--glass-refract, ) blur(4px) saturate(1.9) brightness(1.05);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 .specimen-viewer__channel {
@@ -791,7 +791,7 @@ button, input, textarea { font: inherit; }
 .pack-viewer__pill.is-active {
   color: var(--ice-bright);
   background: linear-gradient(135deg, rgba(190, 225, 255, 0.12), rgba(120, 170, 220, 0.02));
-  backdrop-filter: blur(3px) saturate(2) brightness(1.08);
+  backdrop-filter: var(--glass-refract, ) blur(3px) saturate(2) brightness(1.08);
   border-color: rgba(210, 236, 255, 0.36);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.5),
@@ -1461,7 +1461,7 @@ button, input, textarea { font: inherit; }
 .showcase__tab.is-active {
   color: #eaf7ff;
   background: linear-gradient(135deg, rgba(190, 225, 255, 0.12), rgba(120, 170, 220, 0.02));
-  backdrop-filter: blur(3px) saturate(2) brightness(1.08);
+  backdrop-filter: var(--glass-refract, ) blur(3px) saturate(2) brightness(1.08);
   border-color: rgba(210, 236, 255, 0.34);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.5),
@@ -1872,7 +1872,7 @@ button, input, textarea { font: inherit; }
   cursor: pointer;
   color: rgba(230, 244, 255, 0.95);
   background: linear-gradient(135deg, rgba(190, 225, 255, 0.18), rgba(120, 170, 220, 0.04));
-  backdrop-filter: blur(5px) saturate(2) brightness(1.06);
+  backdrop-filter: var(--glass-refract, ) blur(5px) saturate(2) brightness(1.06);
   border: 1px solid rgba(210, 236, 255, 0.4);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.55),
@@ -1922,7 +1922,7 @@ button, input, textarea { font: inherit; }
   border-radius: 12px;
   color: rgba(232, 244, 255, 0.95);
   background: linear-gradient(135deg, rgba(22, 34, 55, 0.5), rgba(10, 18, 32, 0.42));
-  backdrop-filter: blur(9px) saturate(1.9) brightness(1.04);
+  backdrop-filter: var(--glass-refract, ) blur(9px) saturate(1.9) brightness(1.04);
   border: 1px solid rgba(210, 236, 255, 0.22);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.34),
