@@ -694,7 +694,7 @@ button, input, textarea { font: inherit; }
   font-variant-numeric: tabular-nums;
   /* Local scrim so the readout stays legible over a bright/white model. */
   background: rgba(2, 6, 14, 0.5);
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(2px);
   border: 1px solid rgba(205, 232, 255, 0.1);
 }
 
@@ -739,7 +739,7 @@ button, input, textarea { font: inherit; }
   border-radius: 4px;
   background: rgba(8, 14, 26, 0.42);
   border: 1px solid rgba(205, 232, 255, 0.16);
-  backdrop-filter: var(--glass-refract, ) blur(4px) saturate(1.9) brightness(1.05);
+  backdrop-filter: var(--glass-refract, ) blur(0.5px) saturate(1.7) brightness(1.05);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 .specimen-viewer__channel {
@@ -791,7 +791,7 @@ button, input, textarea { font: inherit; }
 .pack-viewer__pill.is-active {
   color: var(--ice-bright);
   background: linear-gradient(135deg, rgba(190, 225, 255, 0.12), rgba(120, 170, 220, 0.02));
-  backdrop-filter: var(--glass-refract, ) blur(3px) saturate(2) brightness(1.08);
+  backdrop-filter: var(--glass-refract, ) blur(0.5px) saturate(1.7) brightness(1.08);
   border-color: rgba(210, 236, 255, 0.36);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.5),
@@ -1461,7 +1461,7 @@ button, input, textarea { font: inherit; }
 .showcase__tab.is-active {
   color: #eaf7ff;
   background: linear-gradient(135deg, rgba(190, 225, 255, 0.12), rgba(120, 170, 220, 0.02));
-  backdrop-filter: var(--glass-refract, ) blur(3px) saturate(2) brightness(1.08);
+  backdrop-filter: var(--glass-refract, ) blur(0.5px) saturate(1.7) brightness(1.08);
   border-color: rgba(210, 236, 255, 0.34);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.5),
@@ -1871,12 +1871,13 @@ button, input, textarea { font: inherit; }
   border-radius: 999px;
   cursor: pointer;
   color: rgba(230, 244, 255, 0.95);
-  background: linear-gradient(135deg, rgba(190, 225, 255, 0.18), rgba(120, 170, 220, 0.04));
-  backdrop-filter: var(--glass-refract, ) blur(5px) saturate(2) brightness(1.06);
-  border: 1px solid rgba(210, 236, 255, 0.4);
+  background: linear-gradient(135deg, rgba(190, 225, 255, 0.14), rgba(120, 170, 220, 0.02));
+  backdrop-filter: var(--glass-refract, ) blur(0.5px) saturate(1.8) brightness(1.07);
+  border: 1px solid rgba(216, 240, 255, 0.45);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.55),
-    inset 0 -2px 3px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    inset 0 0 0 1px rgba(190, 225, 255, 0.08),
+    inset 0 -3px 6px -2px rgba(0, 0, 0, 0.3),
     0 8px 24px -8px rgba(0, 0, 0, 0.6);
   transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), background 0.25s ease, border-color 0.25s ease;
 }
@@ -1921,13 +1922,16 @@ button, input, textarea { font: inherit; }
   padding: 0.5rem 0.75rem;
   border-radius: 12px;
   color: rgba(232, 244, 255, 0.95);
-  background: linear-gradient(135deg, rgba(22, 34, 55, 0.5), rgba(10, 18, 32, 0.42));
-  backdrop-filter: var(--glass-refract, ) blur(9px) saturate(1.9) brightness(1.04);
-  border: 1px solid rgba(210, 236, 255, 0.22);
+  /* Clear glass: a faint cool tint, not an opaque panel — the refraction +
+     specular rim carry the look. The bottom scrim handles legibility. */
+  background: linear-gradient(135deg, rgba(26, 40, 64, 0.26), rgba(10, 18, 32, 0.2));
+  backdrop-filter: var(--glass-refract, ) blur(0.5px) saturate(1.7) brightness(1.06);
+  border: 1px solid rgba(216, 240, 255, 0.34);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.34),
-    inset 0 -1px 1px rgba(0, 0, 0, 0.3),
-    0 10px 26px -14px rgba(0, 0, 0, 0.75);
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    inset 0 0 0 1px rgba(190, 225, 255, 0.06),
+    inset 0 -6px 12px -6px rgba(0, 0, 0, 0.4),
+    0 10px 26px -14px rgba(0, 0, 0, 0.7);
   opacity: 0;
   transform: translateX(-50%) translateY(6px);
   transition: opacity 0.3s ease, transform 0.3s ease;

@@ -55,12 +55,12 @@ export default function GlassRefraction() {
           height="150%"
           colorInterpolationFilters="sRGB"
         >
-          <feTurbulence type="fractalNoise" baseFrequency="0.008" numOctaves="2" seed="11" result="noise" />
-          <feGaussianBlur in="noise" stdDeviation="2" result="softNoise" />
+          <feTurbulence type="fractalNoise" baseFrequency="0.005" numOctaves="2" seed="11" result="noise" />
+          <feGaussianBlur in="noise" stdDeviation="2.5" result="softNoise" />
           <feDisplacementMap
             in="SourceGraphic"
             in2="softNoise"
-            scale="7"
+            scale="9"
             xChannelSelector="R"
             yChannelSelector="G"
           />
