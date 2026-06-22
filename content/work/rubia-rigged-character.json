@@ -1,0 +1,51 @@
+{
+  "slug": "rubia-rigged-character",
+  "title": "Rubia",
+  "sortOrder": 4,
+  "year": "2026",
+  "featured": false,
+  "format": "Rigged Character",
+  "discipline": "Rigged character — realtime",
+  "category": "rigged",
+  "client": "Self initiated",
+  "engagement": "Rigging & realtime presentation",
+  "summary": "A rigged character with full skeleton and skinning, shown live in the realtime viewer with an idle animation. Drag to orbit; toggle wireframe and read the mesh stats.",
+  "tags": [
+    "Rigged character",
+    "Skinning",
+    "Realtime"
+  ],
+  "role": [],
+  "tools": [],
+  "thumbnail": {
+    "kind": "image",
+    "src": "/images/posters/rubia.webp",
+    "alt": "Rubia rigged character",
+    "width": 1200,
+    "height": 900
+  },
+  "heroMedia": {
+    "kind": "image",
+    "src": "/images/posters/rubia.webp",
+    "alt": "Rubia rigged character",
+    "width": 1200,
+    "height": 900
+  },
+  "gallery": [],
+  "seo": {
+    "title": "Rubia — rigged character",
+    "description": "A rigged character shown live in a realtime WebGL viewer with skeleton, skinning, an idle animation, wireframe, and mesh stats.",
+    "ogImage": "/images/og/rigged-rubia.jpg"
+  },
+  "interactive": {
+    "available": true,
+    "sourcePath": "/Rigged Characters/Rigged_Rubia_char_with_eyes_2.fbx",
+    "note": "Live WebGL viewer — drag to orbit. The character renders in real time from the rigged FBX with its idle animation; the inspector exposes wireframe and mesh stats."
+  },
+  "specimen": {
+    "modelPath": "/Rigged Characters/Rigged_Rubia_char_with_eyes_2.fbx",
+    "poster": "/images/posters/rubia.webp",
+    "rigged": true,
+    "textures": {}
+  }
+}

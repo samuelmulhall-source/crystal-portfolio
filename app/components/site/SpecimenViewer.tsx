@@ -8,14 +8,14 @@
  *
  * The poster always renders first so there is never a blank frame or layout
  * shift; the canvas fades in on top once the model is ready. Once running, the
- * viewer doubles as a technical inspector: a channel selector shows the shaded
- * material, the wireframe, or any individual PBR map flat on the surface, plus a
- * mesh / texture readout computed from the loaded production files.
+ * viewer doubles as a technical inspector: a channel selector (shaded material,
+ * wireframe, or any individual PBR map), and — for rigged characters — an
+ * animation clip selector plus a drag-to-pose mode that exposes IK handles.
  */
 
 import dynamic from "next/dynamic";
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useDisplayMode } from "./DisplayModeProvider";
 import type { Specimen } from "../../lib/content";
 import type { SpecimenChannel, SpecimenStats } from "./SpecimenScene";
@@ -43,6 +43,16 @@ const TEX_CHANNELS: { id: SpecimenChannel; label: string }[] = [
   { id: "transmissionMap", label: "Transmit" },
 ];
 
+/** Clip names from the FBX are noise ("...animation_1.004"); label them cleanly:
+ *  a T-pose/bind clip becomes "Rest", the rest become sequential "Loop N". */
+function labelClips(names: string[]): { idx: number; label: string }[] {
+  let n = 0;
+  return names.map((name, idx) => {
+    const rest = /t-?pose|rest|bind|a-?pose|(^|\|)0_/i.test(name);
+    return { idx, label: rest ? "Rest" : `Loop ${++n}` };
+  });
+}
+
 export function SpecimenViewer({
   specimen,
   alt,
@@ -60,6 +70,9 @@ export function SpecimenViewer({
   const [sceneReady, setSceneReady] = useState(false);
   const [channel, setChannel] = useState<SpecimenChannel>("material");
   const [stats, setStats] = useState<SpecimenStats | null>(null);
+  const [clips, setClips] = useState<string[]>([]);
+  const [clipIndex, setClipIndex] = useState(0);
+  const [poseMode, setPoseMode] = useState(false);
 
   // Client-mount guard: keeps the first client render matching SSR (poster
   // only), then enables the WebGL stage. Matches the codebase convention.
@@ -67,16 +80,20 @@ export function SpecimenViewer({
   useEffect(() => setMounted(true), []);
 
   // A new specimen (asset stepping) streams in fresh geometry — drop the old
-  // readout, reset the channel, and fade the poster back in until ready.
-  // (Render-time state adjustment per react.dev — avoids an effect cascade.)
+  // readout/state and fade the poster back in until ready. (Render-time state
+  // adjustment per react.dev — avoids an effect cascade.)
   const [prevModelPath, setPrevModelPath] = useState(specimen.modelPath);
   if (prevModelPath !== specimen.modelPath) {
     setPrevModelPath(specimen.modelPath);
     setSceneReady(false);
     setStats(null);
     setChannel("material");
+    setClips([]);
+    setClipIndex(0);
+    setPoseMode(false);
   }
 
+  const rigged = !!specimen.rigged;
   const enhanced = mounted && effectiveMode === "enhanced";
   const format = (specimen.modelPath.split(".").pop() ?? "").toUpperCase();
   const texLabel = stats && stats.maps > 0 ? `${fmtTexSize(stats.maxTextureSize)} PBR ×${stats.maps}` : null;
@@ -87,6 +104,7 @@ export function SpecimenViewer({
     ...TEX_CHANNELS.filter((c) => specimen.textures[c.id as keyof Specimen["textures"]]),
     { id: "wireframe", label: "Wire" },
   ];
+  const clipLabels = useMemo(() => labelClips(clips), [clips]);
 
   return (
     <div className={`specimen-viewer${className ? ` ${className}` : ""}`}>
@@ -105,12 +123,19 @@ export function SpecimenViewer({
           <SpecimenScene
             specimen={specimen}
             channel={channel}
+            clipIndex={clipIndex}
+            poseMode={poseMode}
             allowZoom={allowZoom}
             onReady={() => setSceneReady(true)}
             onStats={setStats}
+            onClips={setClips}
           />
           <span className="specimen-viewer__hint" aria-hidden="true">
-            {allowZoom ? "Drag to rotate · scroll to zoom" : "Drag to rotate"}
+            {poseMode
+              ? "Drag the handles to pose the rig"
+              : allowZoom
+                ? "Drag to rotate · scroll to zoom"
+                : "Drag to rotate"}
           </span>
         </div>
       ) : null}
@@ -141,20 +166,59 @@ export function SpecimenViewer({
         </span>
       ) : null}
 
-      {/* Channel selector — shaded material, wireframe, or any individual map */}
+      {/* Inspector controls — channel, and (rigged) animation + pose mode */}
       {enhanced && sceneReady ? (
-        <div className="specimen-viewer__channels" role="group" aria-label="Inspect channel">
-          {channels.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              className={`specimen-viewer__channel${channel === c.id ? " is-active" : ""}`}
-              onClick={() => setChannel(c.id)}
-              aria-pressed={channel === c.id}
-            >
-              <span>{c.label}</span>
-            </button>
-          ))}
+        <div className="specimen-viewer__controls">
+          <div className="specimen-viewer__chips" role="group" aria-label="Inspect channel">
+            {channels.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                className={`specimen-viewer__channel${channel === c.id ? " is-active" : ""}`}
+                onClick={() => setChannel(c.id)}
+                aria-pressed={channel === c.id}
+              >
+                <span>{c.label}</span>
+              </button>
+            ))}
+          </div>
+
+          {rigged ? (
+            <div className="specimen-viewer__chips" role="group" aria-label="Rig mode">
+              <button
+                type="button"
+                className={`specimen-viewer__channel${!poseMode ? " is-active" : ""}`}
+                onClick={() => setPoseMode(false)}
+                aria-pressed={!poseMode}
+              >
+                <span>Animate</span>
+              </button>
+              <button
+                type="button"
+                className={`specimen-viewer__channel${poseMode ? " is-active" : ""}`}
+                onClick={() => setPoseMode(true)}
+                aria-pressed={poseMode}
+              >
+                <span>Pose</span>
+              </button>
+            </div>
+          ) : null}
+
+          {rigged && !poseMode && clipLabels.length > 1 ? (
+            <div className="specimen-viewer__chips" role="group" aria-label="Animation clip">
+              {clipLabels.map((c) => (
+                <button
+                  key={c.idx}
+                  type="button"
+                  className={`specimen-viewer__channel${clipIndex === c.idx ? " is-active" : ""}`}
+                  onClick={() => setClipIndex(c.idx)}
+                  aria-pressed={clipIndex === c.idx}
+                >
+                  <span>{c.label}</span>
+                </button>
+              ))}
+            </div>
+          ) : null}
         </div>
       ) : null}
     </div>

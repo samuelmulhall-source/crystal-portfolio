@@ -9,11 +9,12 @@
  * mode or during SSR.
  */
 
-import { Suspense, useEffect, useMemo, useState } from "react";
-import { Canvas, useLoader } from "@react-three/fiber";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Canvas, useFrame, useLoader, useThree } from "@react-three/fiber";
 import { Environment, Lightformer, OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader.js";
+import { clone as skeletonClone } from "three/examples/jsm/utils/SkeletonUtils.js";
 import type { Specimen } from "../../lib/content";
 
 type TexKey = "map" | "normalMap" | "roughnessMap" | "metalnessMap" | "transmissionMap";
@@ -37,16 +38,33 @@ function enc(p: string) {
   return p.split("/").map(encodeURIComponent).join("/");
 }
 
+/** 1px transparent PNG — placeholder so useLoader never gets an empty array
+ *  (it suspends forever on []), e.g. for texture-less rigged characters. */
+const TRANSPARENT_PX =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+
 function SpecimenModel({
   specimen,
   channel = "material",
+  clipIndex = 0,
+  poseMode = false,
   onReady,
   onStats,
+  onClips,
+  setDragLock,
 }: {
   specimen: Specimen;
   channel?: SpecimenChannel;
+  /** Which embedded animation clip to play (rigged characters). */
+  clipIndex?: number;
+  /** Pose mode: pause animation and enable drag-to-pose IK handles. */
+  poseMode?: boolean;
   onReady?: () => void;
   onStats?: (stats: SpecimenStats) => void;
+  /** Report the rig's clip names so the viewer can build a selector. */
+  onClips?: (names: string[]) => void;
+  /** Freeze OrbitControls while a pose handle is dragged. */
+  setDragLock?: (v: boolean) => void;
 }) {
   // Stable path array → no conditional hooks. useLoader with an array returns
   // results in order; primary is always [0], optional extra is [1].
@@ -56,6 +74,7 @@ function SpecimenModel({
     return list;
   }, [specimen.modelPath, specimen.extraModelPath]);
   const loaded = useLoader(FBXLoader, paths) as THREE.Group[];
+  const isRigged = !!specimen.rigged;
 
   // Load PBR maps via Suspense (useLoader) so textures are ready BEFORE
   // materials are built — avoids any async-apply desync. useLoader with a
@@ -71,8 +90,13 @@ function SpecimenModel({
     return e;
   }, [t.map, t.normalMap, t.roughnessMap, t.metalnessMap, t.transmissionMap]);
   // Stable URL array reference — a fresh array each render makes useLoader
-  // re-suspend forever.
-  const texUrls = useMemo(() => texEntries.map((e) => e[1]), [texEntries]);
+  // re-suspend forever. NEVER pass an empty array: useLoader suspends forever on
+  // [] (this is why texture-less rigged characters hung) — fall back to a 1px
+  // transparent so it always resolves; the placeholder is ignored below.
+  const texUrls = useMemo(
+    () => (texEntries.length ? texEntries.map((e) => e[1]) : [TRANSPARENT_PX]),
+    [texEntries],
+  );
   const texList = useLoader(THREE.TextureLoader, texUrls);
   const tex = useMemo(() => {
     const out = {} as Record<TexKey, THREE.Texture | undefined>;
@@ -136,8 +160,16 @@ function SpecimenModel({
     }
     const channelMat = buildMaterial();
 
-    const group = new THREE.Group();
-    loaded.forEach((g) => group.add(g.clone()));
+    // Rigged characters: skeleton-safe clone (a naive .clone() breaks skinning)
+    // and keep the model's own materials. Props: merge + replace materials.
+    let group: THREE.Object3D;
+    if (isRigged) {
+      group = skeletonClone(loaded[0]);
+    } else {
+      const g = new THREE.Group();
+      loaded.forEach((m) => g.add(m.clone()));
+      group = g;
+    }
 
     const labelLike = /(normal\s*map|tangent|tris|polygon|vertex|uv\s*map|debug|label)/i;
 
@@ -158,14 +190,22 @@ function SpecimenModel({
         triangles += Math.round(
           (geo.index ? geo.index.count : geo.attributes.position?.count ?? 0) / 3,
         );
-        const prev = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-        prev.forEach((m) => (m as THREE.Material)?.dispose());
-        // One shared material across meshes — same treatment, cheaper.
-        mesh.material = channelMat;
+        if (channel === "wireframe") {
+          // Wireframe applies to every model, rigged or not (skinning is
+          // auto-handled by three for SkinnedMesh).
+          mesh.material = channelMat;
+        } else if (isRigged) {
+          // Keep the character's authored materials for the shaded view.
+        } else {
+          const prev = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+          prev.forEach((m) => (m as THREE.Material)?.dispose());
+          mesh.material = channelMat;
+        }
       }
     });
 
-    const maxTextureSize = texList.reduce((max, texture) => {
+    const realTex = texList.slice(0, texEntries.length);
+    const maxTextureSize = realTex.reduce((max, texture) => {
       const img = texture.image as { width?: number; height?: number } | undefined;
       return Math.max(max, img?.width ?? 0, img?.height ?? 0);
     }, 0);
@@ -187,11 +227,38 @@ function SpecimenModel({
         triangles,
         vertices,
         meshes,
-        maps: texList.length,
+        maps: texEntries.length,
         maxTextureSize,
       } satisfies SpecimenStats,
     };
-  }, [loaded, tex, texList, specimen.yOffset, channel]);
+  }, [loaded, tex, texList, texEntries, specimen.yOffset, channel, isRigged]);
+
+  // Report the rig's animation clips once so the viewer can build a selector.
+  const anims = useMemo(
+    () => (isRigged ? ((loaded[0] as THREE.Group).animations ?? []) : []),
+    [isRigged, loaded],
+  );
+  useEffect(() => {
+    if (anims.length) onClips?.(anims.map((a) => a.name));
+  }, [anims, onClips]);
+
+  // Play the selected clip so the rig reads as alive. Paused in pose mode so the
+  // IK solver (below) can drive the bones without the mixer fighting it. Mixer
+  // resolves clip tracks by bone name within the cloned object.
+  const mixerRef = useRef<THREE.AnimationMixer | null>(null);
+  useEffect(() => {
+    if (!isRigged || !anims.length || poseMode) return;
+    const mixer = new THREE.AnimationMixer(object);
+    const clip = anims[Math.min(clipIndex, anims.length - 1)] ?? anims[0];
+    mixer.clipAction(clip).reset().play();
+    mixerRef.current = mixer;
+    return () => {
+      mixer.stopAllAction();
+      mixer.uncacheRoot(object as THREE.Object3D);
+      mixerRef.current = null;
+    };
+  }, [object, isRigged, anims, clipIndex, poseMode]);
+  useFrame((_, dt) => mixerRef.current?.update(dt));
 
   // Signal readiness once the model is mounted (assets resolved via Suspense).
   useEffect(() => {
@@ -201,10 +268,157 @@ function SpecimenModel({
   }, [onReady, onStats, stats]);
 
   return (
-    <group position={[centreOffset.x, centreOffset.y, centreOffset.z]}>
-      <group scale={normScale}>
-        <primitive object={object} />
+    <>
+      <group position={[centreOffset.x, centreOffset.y, centreOffset.z]}>
+        <group scale={normScale}>
+          <primitive object={object} />
+        </group>
       </group>
+      {isRigged && poseMode ? <RigPoser root={object} setDragLock={setDragLock} /> : null}
+    </>
+  );
+}
+
+// ─── Drag-to-pose IK ────────────────────────────────────────────────────────
+// A hand-rolled CCD (cyclic coordinate descent) over each limb chain: rotate the
+// chain bones so the effector reaches the dragged handle. Operates purely on
+// bone quaternions + world matrices — no skeleton mutation, works on any rig.
+const CORRECTIVE = /twist|share|roll|helper|\bik\b|_end$|end$/i;
+const EFFECTOR = /(hand|foot)/i;
+const NON_EFFECTOR = /toe|finger|thumb|index|middle|ring|pinky|ball|twist|share|roll|end/i;
+
+type Chain = { effector: THREE.Bone; bones: THREE.Bone[]; name: string };
+
+function buildChains(root: THREE.Object3D): { primary: THREE.SkinnedMesh; chains: Chain[] } | null {
+  let primary: THREE.SkinnedMesh | null = null;
+  root.traverse((o) => {
+    const sm = o as THREE.SkinnedMesh;
+    if (sm.isSkinnedMesh && (!primary || sm.skeleton.bones.length > primary.skeleton.bones.length)) {
+      primary = sm;
+    }
+  });
+  if (!primary) return null;
+  const bones = (primary as THREE.SkinnedMesh).skeleton.bones;
+  const seen = new Set<string>();
+  const chains: Chain[] = [];
+  for (const eff of bones) {
+    if (!EFFECTOR.test(eff.name) || NON_EFFECTOR.test(eff.name)) continue;
+    if (seen.has(eff.name)) continue;
+    seen.add(eff.name);
+    const chain: THREE.Bone[] = [eff];
+    let cur = eff.parent as THREE.Bone | null;
+    let real = 0;
+    while (cur && (cur as THREE.Bone).isBone && real < 2) {
+      if (!CORRECTIVE.test(cur.name)) {
+        chain.unshift(cur);
+        real += 1;
+      }
+      cur = cur.parent as THREE.Bone | null;
+    }
+    if (chain.length >= 2) chains.push({ effector: eff, bones: chain, name: eff.name });
+  }
+  return { primary, chains };
+}
+
+const _effPos = new THREE.Vector3();
+const _bonePos = new THREE.Vector3();
+const _toEff = new THREE.Vector3();
+const _toTarget = new THREE.Vector3();
+const _axis = new THREE.Vector3();
+const _q = new THREE.Quaternion();
+
+/** One CCD pass: rotate chain bones (root→effector) toward a world-space target. */
+function solveCCD(chain: THREE.Bone[], target: THREE.Vector3, iterations = 6) {
+  const effector = chain[chain.length - 1];
+  for (let it = 0; it < iterations; it++) {
+    for (let i = chain.length - 2; i >= 0; i--) {
+      const bone = chain[i];
+      _effPos.setFromMatrixPosition(effector.matrixWorld);
+      _bonePos.setFromMatrixPosition(bone.matrixWorld);
+      _toEff.subVectors(_effPos, _bonePos);
+      _toTarget.subVectors(target, _bonePos);
+      if (_toEff.lengthSq() < 1e-8 || _toTarget.lengthSq() < 1e-8) continue;
+      _toEff.normalize();
+      _toTarget.normalize();
+      let angle = Math.acos(Math.min(1, Math.max(-1, _toEff.dot(_toTarget))));
+      if (angle < 1e-4) continue;
+      angle = Math.min(angle, 0.25); // clamp per-step to keep it stable/smooth
+      _axis.crossVectors(_toEff, _toTarget);
+      if (_axis.lengthSq() < 1e-8) continue;
+      _axis.normalize();
+      // world axis → bone-local
+      bone.getWorldQuaternion(_q).invert();
+      _axis.applyQuaternion(_q).normalize();
+      bone.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(_axis, angle));
+      bone.updateWorldMatrix(false, true); // refresh effector under this bone
+    }
+  }
+}
+
+function RigPoser({
+  root,
+  setDragLock,
+}: {
+  root: THREE.Object3D;
+  setDragLock?: (v: boolean) => void;
+}) {
+  const rig = useMemo(() => buildChains(root), [root]);
+  const dragRef = useRef<{ chain: THREE.Bone[]; plane: THREE.Plane } | null>(null);
+  const targetRef = useRef(new THREE.Vector3());
+  const handleRefs = useRef<Array<THREE.Mesh | null>>([]);
+  const { camera } = useThree();
+  const camDir = useMemo(() => new THREE.Vector3(), []);
+
+  // Keep handles parked on their effectors each frame; solve while dragging.
+  useFrame(() => {
+    if (!rig) return;
+    rig.chains.forEach((c, i) => {
+      const h = handleRefs.current[i];
+      if (h && dragRef.current?.chain !== c.bones) {
+        h.position.setFromMatrixPosition(c.effector.matrixWorld);
+      }
+    });
+    if (dragRef.current) solveCCD(dragRef.current.chain, targetRef.current);
+  });
+
+  if (!rig || rig.chains.length === 0) return null;
+
+  return (
+    <group>
+      {rig.chains.map((c, i) => (
+        <mesh
+          key={c.name}
+          ref={(el) => {
+            handleRefs.current[i] = el;
+          }}
+          onPointerDown={(e) => {
+            e.stopPropagation();
+            (e.target as Element).setPointerCapture?.(e.pointerId);
+            camera.getWorldDirection(camDir);
+            const origin = new THREE.Vector3().setFromMatrixPosition(c.effector.matrixWorld);
+            dragRef.current = {
+              chain: c.bones,
+              plane: new THREE.Plane().setFromNormalAndCoplanarPoint(camDir.clone().negate(), origin),
+            };
+            targetRef.current.copy(origin);
+            setDragLock?.(true);
+          }}
+          onPointerMove={(e) => {
+            const d = dragRef.current;
+            if (!d) return;
+            const hit = e.ray.intersectPlane(d.plane, new THREE.Vector3());
+            if (hit) targetRef.current.copy(hit);
+          }}
+          onPointerUp={(e) => {
+            (e.target as Element).releasePointerCapture?.(e.pointerId);
+            dragRef.current = null;
+            setDragLock?.(false);
+          }}
+        >
+          <sphereGeometry args={[0.07, 16, 16]} />
+          <meshBasicMaterial color="#9fe6ff" transparent opacity={0.85} depthTest={false} />
+        </mesh>
+      ))}
     </group>
   );
 }
@@ -238,19 +452,27 @@ function StudioLights() {
 export default function SpecimenScene({
   specimen,
   channel = "material",
+  clipIndex = 0,
+  poseMode = false,
   allowZoom = false,
   onReady,
   onStats,
+  onClips,
 }: {
   specimen: Specimen;
   channel?: SpecimenChannel;
+  clipIndex?: number;
+  poseMode?: boolean;
   /** Wheel-zoom hijacks page scroll — only enable in deliberate inspection
    *  contexts (detail pages), never mid-scroll surfaces like the showcase. */
   allowZoom?: boolean;
   onReady?: () => void;
   onStats?: (stats: SpecimenStats) => void;
+  onClips?: (names: string[]) => void;
 }) {
   const [interacting, setInteracting] = useState(false);
+  // When a pose handle is being dragged, freeze orbit so the camera doesn't spin.
+  const [dragLock, setDragLock] = useState(false);
 
   return (
     <Canvas
@@ -271,16 +493,21 @@ export default function SpecimenScene({
         <SpecimenModel
           specimen={specimen}
           channel={channel}
+          clipIndex={clipIndex}
+          poseMode={poseMode}
           onReady={onReady}
           onStats={onStats}
+          onClips={onClips}
+          setDragLock={setDragLock}
         />
       </Suspense>
       <OrbitControls
         enablePan={false}
         enableZoom={allowZoom}
+        enabled={!dragLock}
         minDistance={2.8}
         maxDistance={7}
-        autoRotate={!interacting}
+        autoRotate={!interacting && !poseMode}
         autoRotateSpeed={0.9}
         enableDamping
         dampingFactor={0.08}

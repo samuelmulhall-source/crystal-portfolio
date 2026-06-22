@@ -723,24 +723,52 @@ button, input, textarea { font: inherit; }
 }
 @keyframes loading-pulse { 50% { opacity: 0.45; } }
 
-/* Inspector wireframe toggle — small glass pill, top-right of the viewer. */
-/* Channel selector — glass segmented control of angled chips, top-right. */
-.specimen-viewer__channels {
+/* Inspector controls — a top-right column of glass chip racks (channel, and for
+   rigged characters: rig mode + animation clip). */
+.specimen-viewer__controls {
   position: absolute;
   top: 0.7rem;
   right: 0.7rem;
   z-index: 4;
   display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.4rem;
+  max-width: calc(100% - 1.4rem);
+}
+.specimen-viewer__chips {
+  display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 0.3rem;
-  max-width: calc(100% - 1.4rem);
   padding: 0.28rem 0.4rem;
   border-radius: 4px;
   background: rgba(8, 14, 26, 0.42);
   border: 1px solid rgba(205, 232, 255, 0.16);
   backdrop-filter: var(--glass-refract, ) blur(0.5px) saturate(1.7) brightness(1.05);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+.specimen-viewer__channel {
+  padding: 0.3rem 0.62rem;
+  border-radius: 2px;
+  transform: skewX(var(--chip-skew));
+  cursor: pointer;
+  font-family: var(--font-plex-mono), monospace;
+  font-size: 0.54rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(205, 232, 255, 0.66);
+  background: transparent;
+  border: 1px solid transparent;
+  transition: color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.specimen-viewer__channel > span { display: inline-block; transform: skewX(calc(-1 * var(--chip-skew))); }
+.specimen-viewer__channel:hover { color: var(--ice-bright); border-color: rgba(205, 232, 255, 0.18); }
+.specimen-viewer__channel.is-active {
+  color: #eaf7ff;
+  background: linear-gradient(135deg, rgba(190, 225, 255, 0.18), rgba(120, 170, 220, 0.06));
+  border-color: rgba(205, 232, 255, 0.3);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 0 16px -6px rgba(159, 220, 255, 0.5);
 }
 .specimen-viewer__channel {
   padding: 0.3rem 0.62rem;

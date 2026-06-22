@@ -32,6 +32,9 @@ const SpecimenSchema = z.object({
   extraModelPath: z.string().optional(),
   /** Vertical framing nudge applied after auto-centering (world units). */
   yOffset: z.number().optional(),
+  /** Rigged character: keep the model's own materials, clone skeleton-safe,
+   *  and play its first animation clip (props use the PBR-replace path). */
+  rigged: z.boolean().optional(),
   textures: z.object({
     map: z.string().optional(),
     normalMap: z.string().optional(),

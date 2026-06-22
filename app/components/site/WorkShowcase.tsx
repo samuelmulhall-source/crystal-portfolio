@@ -56,16 +56,16 @@ function slideTitle(slide: Slide): string {
 
 function Presentation({
   slide,
-  category,
   enabled,
 }: {
   slide: Slide;
-  category: WorkCategory;
   enabled: boolean;
 }) {
   const { entry } = slide;
   const specimen = slide.asset?.specimen ?? entry.specimen;
-  if (category === "models" && specimen) {
+  // Any slide with a specimen gets the interactive viewer — models AND rigged
+  // characters (both live in the WebGL inspector).
+  if (specimen) {
     // Until the showcase is scrolled into view, show the poster — defers the
     // WebGL context + FBX/texture load out of the initial page load.
     if (!enabled) {
@@ -313,7 +313,7 @@ export function WorkShowcase({ groups }: { groups: Record<WorkCategory, WorkEntr
                 className={`showcase__media${category === "video" ? " showcase__media--video" : ""}`}
                 key={active.entry.slug}
               >
-                <Presentation slide={active} category={category} enabled={inView} />
+                <Presentation slide={active} enabled={inView} />
                 {category !== "video" ? (
                   <div className="showcase__media-bar" aria-hidden="true">
                     <span className="showcase__media-name">{slideTitle(active)}</span>
