@@ -20,6 +20,7 @@ import Link from "next/link";
 import type { PackAsset, WorkCategory, WorkEntry } from "../../lib/content";
 import { SpecimenViewer } from "./SpecimenViewer";
 import { GlassVideo } from "./GlassVideo";
+import { WORK_FOCUS_EVENT } from "./HeroSpecimenCue";
 
 // Inlined (not imported from content.ts) so this client component never pulls
 // the node:fs-backed content loader into the browser bundle.
@@ -52,6 +53,14 @@ function slideThumb(slide: Slide): string {
 
 function slideTitle(slide: Slide): string {
   return slide.asset ? slide.asset.title : slide.entry.title;
+}
+
+/** Join phrases with a breakable " · " while keeping the words WITHIN each
+ *  phrase glued (non-breaking space) — so a narrow datasheet column (the
+ *  resizable divider goes down to 26%) wraps between items, never mid-phrase
+ *  (e.g. "Material lookdev" splitting into "Material" / "lookdev"). */
+function joinKeepingPhrasesWhole(items: string[]): string {
+  return items.map((s) => s.replace(/ /g, " ")).join(" · ");
 }
 
 function Presentation({
@@ -133,11 +142,33 @@ export function WorkShowcase({ groups }: { groups: Record<WorkCategory, WorkEntr
     return () => io.disconnect();
   }, [inView]);
 
+  // The hero lantern cue asks us to open a specific entry (by slug) in its own
+  // category, rather than the default Models tab. Resolve the slug to its
+  // category + slide index and select it; the cue's own #selected-work anchor
+  // handles the scroll.
+  useEffect(() => {
+    const onFocusEntry = (e: Event) => {
+      const slug = (e as CustomEvent<{ slug?: string }>).detail?.slug;
+      if (!slug) return;
+      for (const tab of TABS) {
+        const i = toSlides(groups[tab.id]).findIndex((s) => s.entry.slug === slug);
+        if (i >= 0) {
+          setCategory(tab.id);
+          setIndex(i);
+          setInView(true); // ensure the presentation mounts, not just the poster
+          return;
+        }
+      }
+    };
+    window.addEventListener(WORK_FOCUS_EVENT, onFocusEntry);
+    return () => window.removeEventListener(WORK_FOCUS_EVENT, onFocusEntry);
+  }, [groups]);
+
   // Resizable split — the info/viewer column ratio (info fraction). Default
   // matches the static 0.72fr/1.28fr layout; a draggable divider reapportions
   // it on desktop, and the rest of the section reflows around the viewer.
   const stageRef = useRef<HTMLDivElement>(null);
-  const [infoFr, setInfoFr] = useState(0.36);
+  const [infoFr, setInfoFr] = useState(0.34);
   const MIN_FR = 0.26;
   const MAX_FR = 0.6;
   const dragging = useRef(false);
@@ -169,7 +200,7 @@ export function WorkShowcase({ groups }: { groups: Record<WorkCategory, WorkEntr
   const onDividerKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === "ArrowLeft") { e.preventDefault(); setInfoFr((f) => Math.max(MIN_FR, f - 0.03)); }
     else if (e.key === "ArrowRight") { e.preventDefault(); setInfoFr((f) => Math.min(MAX_FR, f + 0.03)); }
-    else if (e.key === "Home") { e.preventDefault(); setInfoFr(0.36); }
+    else if (e.key === "Home") { e.preventDefault(); setInfoFr(0.34); }
   }, []);
 
   const slides = toSlides(groups[category]);
@@ -205,10 +236,10 @@ export function WorkShowcase({ groups }: { groups: Record<WorkCategory, WorkEntr
 
   const specs: Array<[string, string]> = active
     ? ([
-        ["Format", `${active.entry.format} · ${active.entry.year}`],
+        ["Format", joinKeepingPhrasesWhole([active.entry.format, active.entry.year])],
         ["Discipline", active.entry.discipline],
-        active.entry.role.length ? ["Role", active.entry.role.join(" · ")] : null,
-        active.entry.tools.length ? ["Tools", active.entry.tools.join(" · ")] : null,
+        active.entry.role.length ? ["Role", joinKeepingPhrasesWhole(active.entry.role)] : null,
+        active.entry.tools.length ? ["Tools", joinKeepingPhrasesWhole(active.entry.tools)] : null,
       ].filter(Boolean) as Array<[string, string]>)
     : [];
 
@@ -317,7 +348,6 @@ export function WorkShowcase({ groups }: { groups: Record<WorkCategory, WorkEntr
                 {category !== "video" ? (
                   <div className="showcase__media-bar" aria-hidden="true">
                     <span className="showcase__media-name">{slideTitle(active)}</span>
-                    <span className="showcase__media-index">{pad(idx + 1)} / {pad(count)}</span>
                   </div>
                 ) : null}
               </div>
@@ -352,6 +382,7 @@ export function WorkShowcase({ groups }: { groups: Record<WorkCategory, WorkEntr
                         aria-label={`${slideTitle(slide)} (${i + 1} of ${count})`}
                         aria-current={i === idx ? "true" : undefined}
                       >
+                        <span className="showcase__rail-index" aria-hidden="true">{pad(i + 1)}</span>
                         <Image
                           src={slideThumb(slide)}
                           alt=""

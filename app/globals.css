@@ -17,6 +17,17 @@
   --shell:          min(1320px, calc(100% - 3rem));
   /* Skew angle for the angled "chip" selects (tabs, channel + pack pills). */
   --chip-skew:      -11deg;
+  /* Motion — one designed easing/timing system so interactions never fall back
+     to browser defaults (premium-UI craft per Linear/Vercel/Stripe). The decel
+     curve was already used ad-hoc across the file; this just names it. */
+  --ease-out:       cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out:    cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-1:          140ms;  /* hovers, taps */
+  --dur-2:          240ms;  /* state changes */
+  --dur-3:          420ms;  /* entrances */
+  /* One designed keyboard-focus ring — high-contrast on any background, with a
+     void gap so it reads as a deliberate halo rather than a default outline. */
+  --focus-ring:     0 0 0 2px rgba(0, 2, 8, 0.9), 0 0 0 4px rgba(159, 220, 255, 0.7);
 }
 
 @theme inline {
@@ -36,6 +47,14 @@
    z-index 9997: cursor canvas / 9998 holo-ring / 9999 cursor SVG
  ─────────────────────────────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; }
+
+/* Designed keyboard-focus affordance everywhere — only on keyboard (:focus-visible),
+   never swallowed silently. Components may opt out + show their own (e.g. the
+   resize divider lights its grip instead). */
+:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
 
 html {
   scroll-behavior: auto;
@@ -513,7 +532,9 @@ button, input, textarea { font: inherit; }
   left: 50%;
   bottom: clamp(1.4rem, 4vh, 2.6rem);
   transform: translateX(-50%);
-  z-index: 3;
+  /* Above the focus scrim (z 4) — it's the descent's destination, so it stays
+     lit (not dimmed) while the lantern doorway is engaged. */
+  z-index: 5;
   display: inline-flex;
   align-items: center;
   gap: 0.6rem;
@@ -538,6 +559,10 @@ button, input, textarea { font: inherit; }
 
 /* Parallax layers + magnetic targets */
 .hero-viewport-wrap {
+  position: relative;
+  /* Above the focus scrim (z 4) so the lantern + its descent trail stay lit
+     while the rest of the hero recedes on hover. */
+  z-index: 6;
   display: flex;
   justify-content: center;
   width: 100%;
@@ -556,9 +581,9 @@ button, input, textarea { font: inherit; }
   display: flex;
   align-items: baseline;
   gap: clamp(0.9rem, 2vw, 1.6rem);
-  padding-bottom: 1.4rem;
+  /* border-economy: the generous margin-bottom separates the head; no hairline. */
+  padding-bottom: 0.4rem;
   margin-bottom: clamp(2rem, 4vw, 3.25rem);
-  border-bottom: 1px solid rgba(184, 240, 255, 0.09);
 }
 
 .section-head__title {
@@ -568,7 +593,8 @@ button, input, textarea { font: inherit; }
   letter-spacing: -0.03em;
   line-height: 1;
   font-size: clamp(1.7rem, 3.6vw, 2.9rem);
-  background: linear-gradient(170deg, #fff 12%, var(--text-primary) 60%, var(--ice) 100%);
+  /* off-white start (not pure #fff) to curb halation over the void */
+  background: linear-gradient(170deg, #eef5ff 12%, var(--text-primary) 60%, var(--ice) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -579,7 +605,7 @@ button, input, textarea { font: inherit; }
   font-size: 0.64rem;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: rgba(184, 240, 255, 0.55);
+  color: rgba(196, 238, 255, 0.66);
   text-decoration: none;
   transition: color 200ms ease;
 }
@@ -627,6 +653,189 @@ button, input, textarea { font: inherit; }
      does the integration. */
 }
 
+/* ─── Hero specimen doorway — hover/focus focuses the object & flows you down ──
+   `.hero-specimen` shrink-wraps the lantern (exactly as `.hero-viewport` did as
+   a direct flex child), so the overlay link's `inset: 0` matches the lantern
+   box precisely — no drift from the wrap's right padding. The link sits OUTSIDE
+   the masked `.hero-viewport`, so nothing here is subject to the oval dissolve
+   mask. Pointer-events are auto only because the target is an <a>
+   (`.hero-intro a`), so no larger container becomes click-catching; it also
+   rides the dive transform off-screen with the lantern, so it never overlays
+   the work section rising behind the pin.
+
+   Reveal is state-driven (`.is-focusing`, set by HeroSpecimenCue on hover/focus)
+   so the caption, the line-art descent current, and the hero-level receding
+   scrim (`.hero-focus-scrim`, in HeroFocusProvider) all animate in lockstep. */
+.hero-specimen {
+  position: relative;
+}
+.hero-specimen__link {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: clamp(0.6rem, 5vh, 2.2rem);
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+/* Desktop-hover affordance only: on touch there is no hover to reveal it, and a
+   full-lantern tap target would surprise, so it's disabled there (the scroll
+   cue + header link still carry the path). */
+@media (hover: none) {
+  .hero-specimen__link { display: none; }
+}
+.hero-specimen__cue {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.42rem 0.72rem;
+  border-radius: 7px;
+  /* Small chrome: a plain dark scrim + hairline (no backdrop-filter — it sits
+     over a moving video, and the lantern base behind it is already dim from the
+     dissolve mask, so a scrim reads crisp and cheap-perf). */
+  background: rgba(6, 12, 22, 0.64);
+  border: 1px solid rgba(184, 240, 255, 0.2);
+  box-shadow: 0 8px 22px -14px rgba(0, 0, 0, 0.85);
+  font-family: var(--font-plex-mono), monospace;
+  font-size: 0.58rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(220, 242, 255, 0.94);
+  white-space: nowrap;
+  /* Quiet reveal — fades and lifts in. */
+  opacity: 0;
+  transform: translateY(9px);
+  transition:
+    opacity var(--dur-2) var(--ease-out),
+    transform var(--dur-2) var(--ease-out),
+    box-shadow var(--dur-2) var(--ease-out);
+}
+/* Line-art tick — a small rotated square that ties the caption to the ◊ HUD
+   mark used elsewhere; brightens the label as a "selected" marker. */
+.hero-specimen__cue-tick {
+  width: 5px;
+  height: 5px;
+  flex: none;
+  transform: rotate(45deg);
+  border: 1px solid var(--ice-bright, #c8faff);
+  background: rgba(200, 250, 255, 0.14);
+}
+.hero-specimen.is-focusing .hero-specimen__cue {
+  opacity: 1;
+  transform: translateY(0);
+}
+/* Route the keyboard focus ring to the caption, not the big invisible hit box. */
+.hero-specimen__link:focus-visible {
+  outline: none;
+}
+.hero-specimen__link:focus-visible .hero-specimen__cue {
+  box-shadow: var(--focus-ring), 0 8px 22px -14px rgba(0, 0, 0, 0.85);
+}
+
+/* Descent current — a thin guide dropping from the object's base with geometric
+   marks flowing downward, so the gesture "select this → travel down to it"
+   reads before the click. Anchored to the lantern, above the scrim. */
+.hero-specimen__descent {
+  --flow: min(13rem, 22vh);
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 16px;
+  height: calc(var(--flow) + 1.2rem);
+  z-index: 3;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--dur-3) var(--ease-out);
+}
+.hero-specimen.is-focusing .hero-specimen__descent {
+  opacity: 1;
+}
+.hero-specimen__descent-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  background: linear-gradient(
+    to bottom,
+    rgba(200, 240, 255, 0.55) 0%,
+    rgba(200, 240, 255, 0.14) 55%,
+    rgba(200, 240, 255, 0) 100%
+  );
+  transform: translateX(-50%) scaleY(0.2);
+  transform-origin: top center;
+  transition: transform var(--dur-3) var(--ease-out);
+}
+.hero-specimen.is-focusing .hero-specimen__descent-line {
+  transform: translateX(-50%) scaleY(1);
+}
+/* Geometric marks — line-art chevrons (border corner rotated 45°) that fall
+   along the guide on a staggered loop while focusing. */
+.hero-specimen__descent-mark {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 7px;
+  height: 7px;
+  border-right: 1px solid rgba(210, 244, 255, 0.9);
+  border-bottom: 1px solid rgba(210, 244, 255, 0.9);
+  opacity: 0;
+}
+.hero-specimen.is-focusing .hero-specimen__descent-mark {
+  animation: hero-descent-flow 2.4s var(--ease-in-out) infinite;
+}
+.hero-specimen__descent-mark:nth-child(3) { animation-delay: 0.8s; }
+.hero-specimen__descent-mark:nth-child(4) { animation-delay: 1.6s; }
+@keyframes hero-descent-flow {
+  0%   { opacity: 0; transform: translate(-50%, 0) rotate(45deg); }
+  12%  { opacity: 0.95; }
+  80%  { opacity: 0.95; }
+  100% { opacity: 0; transform: translate(-50%, var(--flow)) rotate(45deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-specimen__cue { transition: opacity var(--dur-2) var(--ease-out); transform: none; }
+  .hero-specimen.is-focusing .hero-specimen__cue { transform: none; }
+  .hero-specimen__descent-line,
+  .hero-specimen.is-focusing .hero-specimen__descent-line { transition: none; transform: translateX(-50%) scaleY(1); }
+  /* No flowing marks under reduced motion — show a single static chevron near
+     the top of the guide instead. */
+  .hero-specimen.is-focusing .hero-specimen__descent-mark { animation: none; }
+  .hero-specimen.is-focusing .hero-specimen__descent-mark:first-of-type {
+    opacity: 0.8;
+    transform: translate(-50%, 0.6rem) rotate(45deg);
+  }
+}
+
+/* Hero-level receding scrim — dims the wordmark + starfield to pull focus to the
+   lantern while its doorway is engaged. Layers above the wordmark (z 2) but
+   below the lantern wrap (z 6) and scroll cue (z 5). Over-sized + clipped by the
+   stage's overflow so it reaches the hero edges; radial-cleared over the lantern
+   so the falloff feels lit, not like a flat panel. Decorative, click-through. */
+.hero-focus-scrim {
+  position: absolute;
+  inset: -30vh -14vw;
+  z-index: 4;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--dur-3) var(--ease-out);
+  background: radial-gradient(
+    ellipse 48% 54% at 76% 46%,
+    rgba(0, 2, 8, 0) 0%,
+    rgba(0, 2, 8, 0) 26%,
+    rgba(0, 2, 8, 0.5) 72%,
+    rgba(0, 2, 8, 0.66) 100%
+  );
+}
+.hero-focus-scrim.is-on {
+  opacity: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-focus-scrim { transition: opacity var(--dur-2) var(--ease-out); }
+}
+
 /* ─── Specimen viewer — interactive 3D asset display ────────────────────── */
 .specimen-viewer {
   position: relative;
@@ -634,9 +843,13 @@ button, input, textarea { font: inherit; }
   aspect-ratio: 4 / 3;
   border-radius: 4px;
   overflow: hidden;
+  /* Same minimal studio-wall treatment as .showcase__media, so the detail-page
+     viewer and the showcase card read as the same studio (see the note there). */
   background:
-    radial-gradient(circle at 50% 42%, rgba(20, 32, 52, 0.55), rgba(3, 6, 13, 0.9) 72%),
-    #02040a;
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.045 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+    radial-gradient(ellipse 70% 60% at 47% 40%, rgba(176, 206, 232, 0.08), rgba(176, 206, 232, 0) 66%),
+    radial-gradient(ellipse 128% 120% at 50% 40%, rgba(5, 9, 16, 0) 36%, rgba(2, 4, 9, 0.98) 100%),
+    #04060c;
   border: 1px solid rgba(184, 240, 255, 0.08);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 28px 90px rgba(0, 0, 0, 0.5);
 }
@@ -661,42 +874,44 @@ button, input, textarea { font: inherit; }
 .specimen-viewer__stage.is-ready { opacity: 1; }
 .specimen-viewer__stage:active { cursor: grabbing; }
 
-.specimen-viewer__hint {
-  position: absolute;
-  left: 50%;
-  bottom: 0.85rem;
-  transform: translateX(-50%);
-  font-family: var(--font-plex-mono), monospace;
-  font-size: 0.56rem;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: rgba(190, 232, 255, 0.6);
-  pointer-events: none;
-  opacity: 0;
-  animation: hint-fade-in 600ms ease 900ms forwards;
-}
+/* ═══ Viewer chrome — rebuilt from real reference material, not iterated on
+   the previous "targeting reticle" concept (see docs/ui-polish-2026-06.md
+   Pass 5 for the full research + rationale). Two structural decisions:
+   (1) the stats readout is BARE TEXT, no panel at all — Blender's viewport
+       overlay convention (docs.blender.org/manual, .../display/overlays.html):
+       vertex/tri counts sit as plain top-left text with no box/border/bg.
+   (2) controls live in a flat, OPAQUE bottom toolbar, split from the stats
+       readout at top — Sketchfab's actual layout (info top, controls bottom;
+       sketchfab.com/blogs/community/discover-new-viewer also documents chrome
+       receding once the user starts interacting, which the hint's dismiss-on-
+       drag behavior already does). Elevation on the toolbar comes from a
+       lighter flat background step, not a shadow or glowing border — dark-UI
+       elevation guidance from Refactoring UI (medium.com/refactoring-ui/
+       7-practical-tips-for-cheating-at-design): shadows/borders barely read on
+       dark backgrounds; a lighter flat shade does the job instead. The
+       segmented control drops the site's decorative chip-skew for this one
+       component — Apple's actual segmented controls (developer.apple.com/
+       design/human-interface-guidelines/segmented-controls) are always
+       plain rectangular/capsule shapes with equal visual weight, never
+       slanted, and no cited reference here uses a skewed control. ═══ */
 
-@keyframes hint-fade-in { to { opacity: 1; } }
-
-.specimen-viewer__badge {
+.specimen-viewer__stats {
   position: absolute;
-  top: 0.7rem;
-  left: 0.7rem;
+  top: 1rem;
+  left: 1.05rem;
   z-index: 3;
-  padding: 0.26rem 0.5rem;
-  border-radius: 5px;
   font-family: var(--font-plex-mono), monospace;
-  font-size: 0.56rem;
-  letter-spacing: 0.18em;
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: rgba(220, 240, 255, 0.86);
+  color: rgba(224, 242, 255, 0.88);
   pointer-events: none;
   font-variant-numeric: tabular-nums;
-  /* Local scrim so the readout stays legible over a bright/white model. */
-  background: rgba(2, 6, 14, 0.5);
-  backdrop-filter: blur(2px);
-  border: 1px solid rgba(205, 232, 255, 0.1);
+  /* Functional legibility scrim only (survives a bright render) — there is no
+     panel/border/background here at all, per the Blender reference above. */
+  text-shadow: 0 1px 3px rgba(0, 4, 10, 0.85), 0 0 10px rgba(0, 4, 10, 0.45);
 }
+.specimen-viewer__stats-glyph { color: var(--ice-bright); }
 
 /* Inspector loading state — pulses over the poster while geometry streams. */
 .specimen-viewer__loading {
@@ -723,74 +938,98 @@ button, input, textarea { font: inherit; }
 }
 @keyframes loading-pulse { 50% { opacity: 0.45; } }
 
-/* Inspector controls — a top-right column of glass chip racks (channel, and for
-   rigged characters: rig mode + animation clip). */
-.specimen-viewer__controls {
+/* Control toolbar — docked to the bottom edge. */
+.specimen-viewer__toolbar {
   position: absolute;
-  top: 0.7rem;
-  right: 0.7rem;
+  left: 50%;
+  bottom: 1rem;
+  transform: translateX(-50%);
   z-index: 4;
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
-  gap: 0.4rem;
-  max-width: calc(100% - 1.4rem);
+  align-items: center;
+  gap: 0.55rem;
+  max-width: calc(100% - 2rem);
 }
-.specimen-viewer__chips {
+.specimen-viewer__toolbar-hint {
+  font-family: var(--font-plex-mono), monospace;
+  font-size: 0.58rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(210, 236, 255, 0.7);
+  text-shadow: 0 1px 3px rgba(0, 4, 10, 0.8);
+  pointer-events: none;
+  opacity: 0;
+  animation: hint-fade-in 600ms ease 900ms forwards;
+}
+/* Chrome recedes once the user actually drags — it's done its job. */
+.specimen-viewer__toolbar-hint.is-dismissed {
+  animation: none;
+  opacity: 0;
+  transition: opacity var(--dur-2) var(--ease-out);
+}
+@keyframes hint-fade-in { to { opacity: 1; } }
+
+.specimen-viewer__toolbar-racks {
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 0.3rem;
-  padding: 0.28rem 0.4rem;
+  justify-content: center;
+  gap: 0.4rem;
+}
+.specimen-viewer__chips {
+  position: relative;
+  display: flex;
+  gap: 0.15rem;
+  padding: 0.25rem;
+  border-radius: 8px;
+  /* Flat, OPAQUE fill — not glass. Dark-mode elevation reads through a
+     lighter flat background step, not translucency/blur or a glowing edge. */
+  background: rgba(15, 19, 28, 0.94);
+}
+/* Sliding selection mark — physically travels between segments on switch
+   instead of just toggling per-segment (Apple's segmented-control pattern: one
+   moving selection, not N independent "lit" states). A flat, solid,
+   high-contrast fill carries the "selected" weight; the segment's own
+   .is-active text color is the fallback before the first measurement. */
+.specimen-viewer__chip-indicator {
+  position: absolute;
+  top: 0.25rem;
+  bottom: 0.25rem;
+  /* "Concentric" radius — the rack's own 8px radius minus its 4px padding —
+     so the indicator nests inside the rack the way Apple's HIG describes for
+     capsule/rounded shapes (developer.apple.com/design/human-interface-
+     guidelines/segmented-controls). */
   border-radius: 4px;
-  background: rgba(8, 14, 26, 0.42);
-  border: 1px solid rgba(205, 232, 255, 0.16);
-  backdrop-filter: var(--glass-refract, ) blur(0.5px) saturate(1.7) brightness(1.05);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  background: rgba(230, 244, 255, 0.96);
+  transition: left var(--dur-2) var(--ease-out), width var(--dur-2) var(--ease-out);
+  pointer-events: none;
+  z-index: 0;
 }
 .specimen-viewer__channel {
-  padding: 0.3rem 0.62rem;
-  border-radius: 2px;
-  transform: skewX(var(--chip-skew));
+  position: relative;
+  z-index: 1;
+  padding: 0.34rem 0.72rem;
+  border-radius: 4px;
   cursor: pointer;
   font-family: var(--font-plex-mono), monospace;
-  font-size: 0.54rem;
-  letter-spacing: 0.12em;
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: rgba(205, 232, 255, 0.66);
+  color: rgba(205, 232, 255, 0.6);
   background: transparent;
-  border: 1px solid transparent;
-  transition: color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  /* No per-segment border — Refactoring UI's guidance is to resist reaching
+     for borders and use background-color contrast + spacing instead; segments
+     are distinguished by the shared rack fill + hover background, not edges. */
+  transition: color var(--dur-1) var(--ease-out), background var(--dur-1) var(--ease-out),
+    transform var(--dur-1) var(--ease-out);
 }
-.specimen-viewer__channel > span { display: inline-block; transform: skewX(calc(-1 * var(--chip-skew))); }
-.specimen-viewer__channel:hover { color: var(--ice-bright); border-color: rgba(205, 232, 255, 0.18); }
+.specimen-viewer__channel:hover { color: rgba(226, 243, 255, 0.92); background: rgba(255, 255, 255, 0.055); }
+.specimen-viewer__channel:active { transform: scale(0.96); }
 .specimen-viewer__channel.is-active {
-  color: #eaf7ff;
-  background: linear-gradient(135deg, rgba(190, 225, 255, 0.18), rgba(120, 170, 220, 0.06));
-  border-color: rgba(205, 232, 255, 0.3);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 0 16px -6px rgba(159, 220, 255, 0.5);
-}
-.specimen-viewer__channel {
-  padding: 0.3rem 0.62rem;
-  border-radius: 2px;
-  transform: skewX(var(--chip-skew));
-  cursor: pointer;
-  font-family: var(--font-plex-mono), monospace;
-  font-size: 0.54rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: rgba(205, 232, 255, 0.66);
-  background: transparent;
-  border: 1px solid transparent;
-  transition: color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
-}
-.specimen-viewer__channel > span { display: inline-block; transform: skewX(calc(-1 * var(--chip-skew))); }
-.specimen-viewer__channel:hover { color: var(--ice-bright); border-color: rgba(205, 232, 255, 0.18); }
-.specimen-viewer__channel.is-active {
-  color: #eaf7ff;
-  background: linear-gradient(135deg, rgba(190, 225, 255, 0.18), rgba(120, 170, 220, 0.06));
-  border-color: rgba(205, 232, 255, 0.3);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 0 16px -6px rgba(159, 220, 255, 0.5);
+  /* Dark text on the solid, near-white sliding indicator — maximum, flat
+     contrast (the selected-state read comes from contrast, not glow). */
+  color: var(--void);
+  font-weight: 600;
 }
 
 /* Pack viewer — asset selector pills above the inspector on detail pages. */
@@ -832,26 +1071,6 @@ button, input, textarea { font: inherit; }
   color: var(--text-muted);
 }
 
-.specimen-viewer__frame {
-  position: absolute;
-  inset: 0;
-  z-index: 4;
-  pointer-events: none;
-}
-
-.specimen-viewer__corner {
-  position: absolute;
-  width: 22px;
-  height: 22px;
-  border-style: solid;
-  border-color: rgba(184, 240, 255, 0.22);
-}
-
-.specimen-viewer__corner--tl { top: 0.7rem; left: 0.7rem; border-width: 1px 0 0 1px; }
-.specimen-viewer__corner--tr { top: 0.7rem; right: 0.7rem; border-width: 1px 1px 0 0; }
-.specimen-viewer__corner--bl { bottom: 0.7rem; left: 0.7rem; border-width: 0 0 1px 1px; }
-.specimen-viewer__corner--br { bottom: 0.7rem; right: 0.7rem; border-width: 0 1px 1px 0; }
-
 .hud-readout--tl {
   top: 5.5rem;
   left: clamp(1rem, 3vw, 2.5rem);
@@ -888,10 +1107,10 @@ button, input, textarea { font: inherit; }
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 2.9rem;
-  padding: 0.82rem 1.5rem;
+  min-height: 3.3rem;
+  padding: 0.95rem 1.9rem;
   border-radius: 2px;
-  border: 1px solid rgba(184, 240, 255, 0.18);
+  border: 1px solid rgba(184, 240, 255, 0.24);
   background: linear-gradient(180deg, rgba(184, 240, 255, 0.09), rgba(100, 170, 220, 0.05)), rgba(8, 13, 24, 0.45);
   text-decoration: none;
   color: var(--ice-bright);
@@ -899,15 +1118,17 @@ button, input, textarea { font: inherit; }
   font-size: 0.68rem;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  transition: transform 200ms ease, border-color 200ms ease, box-shadow 200ms ease, background 200ms ease;
+  transition: transform var(--dur-2) var(--ease-out), border-color var(--dur-2) var(--ease-out),
+    box-shadow var(--dur-2) var(--ease-out), background var(--dur-2) var(--ease-out);
 }
 
 .button-link:hover {
   transform: translateY(-1px);
-  border-color: rgba(184, 240, 255, 0.4);
+  border-color: rgba(184, 240, 255, 0.45);
   box-shadow: 0 0 20px rgba(184, 240, 255, 0.10), 0 12px 28px rgba(0, 0, 0, 0.25);
   background: linear-gradient(180deg, rgba(184, 240, 255, 0.14), rgba(100, 170, 220, 0.09)), rgba(10, 16, 28, 0.55);
 }
+.button-link:active { transform: translateY(0) scale(0.985); }
 
 .button-link--ghost {
   background: linear-gradient(180deg, rgba(10, 16, 28, 0.65), rgba(7, 12, 20, 0.85));
@@ -1142,7 +1363,7 @@ button, input, textarea { font: inherit; }
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(180deg, rgba(0, 0, 5, 0.04), rgba(0, 0, 5, 0.52)),
+    linear-gradient(180deg, rgba(0, 0, 5, 0.06), rgba(0, 0, 5, 0.6)),
     radial-gradient(circle at 22% 40%, rgba(184, 240, 255, 0.08), transparent 48%),
     radial-gradient(circle at 80% 60%, rgba(184, 240, 255, 0.08), transparent 46%);
   pointer-events: none;
@@ -1162,8 +1383,8 @@ button, input, textarea { font: inherit; }
 
 /* ─── Footer ──────────────────────────────────────────────────────────────── */
 .site-footer {
-  border-top: 1px solid rgba(184, 240, 255, 0.06);
-  padding: 2rem 0 3rem;
+  /* no top hairline — the padding + the page ending quietly is enough. */
+  padding: 2.5rem 0 3rem;
 }
 
 .site-footer__inner {
@@ -1178,10 +1399,11 @@ button, input, textarea { font: inherit; }
 .site-footer__mark {
   margin: 0;
   font-family: var(--font-plex-mono), monospace;
-  font-size: 0.72rem;
-  letter-spacing: 0.22em;
+  font-size: 0.68rem;
+  letter-spacing: 0.26em;
   text-transform: uppercase;
-  color: var(--ice-bright);
+  /* recede slightly so it reads as a quiet end-mark, not another bright link */
+  color: var(--ice);
 }
 
 .site-footer__links { display: flex; gap: 1rem; flex-wrap: wrap; }
@@ -1217,12 +1439,13 @@ button, input, textarea { font: inherit; }
   .site-nav { gap: 1.5rem; }
   .spotlight, .contact-section__inner, .case-study__hero, .detail-grid { grid-template-columns: 1fr; }
   .feature-grid, .archive-preview-grid, .archive__grid, .gallery-grid, .capability-grid { grid-template-columns: 1fr; }
-  /* Collapse the showcase to one column here too (was 900) so the 901–960 band
-     doesn't keep a starved two-column datasheet. The resize divider is a
-     desktop-only affordance — hide it when stacked. */
-  .showcase__stage { grid-template-columns: 1fr; }
+  /* The showcase single-column collapse (grid-template-columns / divider
+     display) is NOT set here — this block sits BEFORE the unconditional
+     .showcase__stage/.showcase__divider rules later in the file, so an
+     equal-specificity override placed here would silently lose the cascade
+     (source order decides ties). It lives in the later 960px block instead,
+     which comes after those base rules. See the note there. */
   .showcase__present { order: -1; }
-  .showcase__divider { display: none; }
 }
 
 @media (max-width: 720px) {
@@ -1361,7 +1584,9 @@ button, input, textarea { font: inherit; }
   height: 100%;
   pointer-events: none;
 }
-.hero-intro__smoke--back { z-index: 0; }
+/* Back cloud layer dropped ~15% so it pools a little lower in the frame (clipped
+   at the stage's bottom; the top clears to the void). */
+.hero-intro__smoke--back { z-index: 0; transform: translateY(15%); }
 .hero-intro__smoke--front { z-index: 3; }
 
 /* Dive-in motion targets — scale from a sensible anchor, GPU-hinted. */
@@ -1451,10 +1676,9 @@ button, input, textarea { font: inherit; }
   letter-spacing: -0.03em;
   line-height: 1;
   font-size: clamp(1.7rem, 3.4vw, 2.7rem);
-  background: linear-gradient(170deg, #fff 12%, var(--text-primary) 60%, var(--ice) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  /* Page-level label: solid so the gradient stays reserved for the one content
+     focal point (the entry title) — one "special" treatment per view. */
+  color: var(--text-primary);
 }
 .showcase__tabs {
   display: flex;
@@ -1479,15 +1703,24 @@ button, input, textarea { font: inherit; }
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: rgba(206, 224, 245, 0.62);
-  transition: color 220ms ease, background 260ms ease, border-color 260ms ease, box-shadow 260ms ease;
+  transition: color var(--dur-2) var(--ease-out), background var(--dur-2) var(--ease-out),
+    border-color var(--dur-2) var(--ease-out), box-shadow var(--dur-2) var(--ease-out),
+    transform var(--dur-1) var(--ease-out);
 }
 .showcase__tab > span { display: inline-block; transform: skewX(calc(-1 * var(--chip-skew))); }
-.showcase__tab:hover { color: rgba(225, 240, 255, 0.92); }
+.showcase__tab:hover {
+  color: rgba(225, 240, 255, 0.92);
+  background: linear-gradient(135deg, rgba(190, 225, 255, 0.06), rgba(120, 170, 220, 0.01));
+}
+/* Tactile press feedback (the "active" microstate every premium control has). */
+.showcase__tab:active { transform: skewX(var(--chip-skew)) scale(0.97); }
 /* Active category = liquid-glass parallelogram. Low blur (clear glass) + high
    saturation/brightness so the backdrop refracts through vividly, with a bright
    specular rim for the IOR read. */
 .showcase__tab.is-active {
   color: #eaf7ff;
+  /* selected chip sits a touch proud of the rest */
+  transform: skewX(var(--chip-skew)) scale(1.03);
   background: linear-gradient(135deg, rgba(190, 225, 255, 0.12), rgba(120, 170, 220, 0.02));
   backdrop-filter: var(--glass-refract, ) blur(0.5px) saturate(1.7) brightness(1.08);
   border-color: rgba(210, 236, 255, 0.34);
@@ -1507,7 +1740,7 @@ button, input, textarea { font: inherit; }
      reproduce the original 0.72/1.28 split. */
   grid-template-columns: var(--col-info, 0.72fr) clamp(2rem, 5vw, 4.5rem) var(--col-present, 1.28fr);
   align-items: center;
-  min-height: clamp(25rem, 56vh, 40rem);
+  min-height: clamp(27rem, 60vh, 44rem);
 }
 
 /* Resize divider — a thin grabbable track between the datasheet and the viewer. */
@@ -1532,72 +1765,92 @@ button, input, textarea { font: inherit; }
   height: clamp(56px, 11vh, 96px);
   box-shadow: 0 0 14px rgba(159, 220, 255, 0.4);
 }
-.showcase__divider:focus-visible { outline: none; }
+.showcase__divider:focus-visible { outline: none; box-shadow: none; }
 
 /* Left — borderless typographic datasheet */
-.showcase__info { display: flex; flex-direction: column; }
+/* min-width: 0 overrides the grid item's default min-width:auto (min-content) —
+   without it, a wide descendant (the horizontally-scrollable thumbnail rail in
+   .showcase__present) forces the shared single-column mobile grid track wider
+   than the viewport, causing page-wide horizontal overflow. See .showcase__rail. */
+.showcase__info { display: flex; flex-direction: column; min-width: 0; }
 .showcase__eyebrow {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 1rem;
-  margin: 0 0 1.1rem;
+  margin: 0 0 1.35rem;
   font-family: var(--font-plex-mono), monospace;
   font-size: 0.62rem;
   letter-spacing: 0.24em;
   text-transform: uppercase;
-  color: rgba(184, 240, 255, 0.5);
+  color: rgba(190, 235, 255, 0.62);
 }
-.showcase__eyebrow-idx { color: rgba(184, 240, 255, 0.55); }
+.showcase__eyebrow-idx { color: rgba(190, 235, 255, 0.66); }
 .showcase__title {
-  margin: 0 0 1.4rem;
+  margin: 0 0 1.15rem;
   font-size: clamp(1.7rem, 3vw, 2.5rem);
   font-weight: 500;
   letter-spacing: -0.025em;
   line-height: 1.02;
-  background: linear-gradient(172deg, #ffffff 6%, #e3f6ff 44%, var(--ice) 92%);
+  text-wrap: balance;
+  /* off-white start (not pure #fff) to curb halation/glow over the near-black void */
+  background: linear-gradient(172deg, #eef5ff 6%, #dcf1ff 44%, var(--ice) 92%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
-.showcase__specs { margin: 0; display: flex; flex-direction: column; }
+/* Borderless datasheet — rows read on spacing alone (the five repeated hairlines
+   went heavy and the eye stopped seeing them). */
+.showcase__specs { margin: 0.3rem 0 0; display: flex; flex-direction: column; gap: 0.12rem; }
 .showcase__spec {
   display: grid;
-  grid-template-columns: 5.5rem 1fr;
+  grid-template-columns: 6rem 1fr;
   gap: 1.1rem;
   align-items: baseline;
-  padding: 0.8rem 0;
-  border-top: 1px solid rgba(184, 240, 255, 0.08);
+  padding: 0.4rem 0;
 }
-.showcase__spec:last-child { border-bottom: 1px solid rgba(184, 240, 255, 0.08); }
 .showcase__spec dt {
-  font-family: var(--font-plex-mono), monospace;
-  font-size: 0.6rem;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: rgba(184, 240, 255, 0.55);
+  /* Editorial Archivo Title-case label — a calm counter-voice to the mono HUD
+     readouts (badge/eyebrow/chips), breaking the all-caps monotony. */
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 0.76rem;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-muted);
 }
-.showcase__spec dd { margin: 0; font-size: 0.9rem; line-height: 1.5; color: rgba(232, 242, 255, 0.94); }
+.showcase__spec dd { margin: 0; font-size: 0.92rem; line-height: 1.5; color: rgba(232, 242, 255, 0.94); }
 .showcase__summary {
   margin: 1.4rem 0 0;
   font-size: 0.96rem;
   line-height: 1.68;
   color: rgba(216, 230, 248, 0.82);
-  max-width: 42ch;
+  max-width: 46ch;
+  text-wrap: pretty;
 }
 /* Right — seamless atmospheric presentation */
-.showcase__present { position: relative; }
+.showcase__present { position: relative; min-width: 0; }
 .showcase__media {
   position: relative;
   aspect-ratio: 4 / 3;
   border-radius: 10px;
   overflow: hidden;
-  /* Seamless atmospheric backing — a soft cool core glow that falls off into a
-     vignette, so the asset floats in atmosphere with no hard frame. */
+  /* Less-is-more studio wall (owner: "less is more"). A real product/studio
+     backdrop is ONE smooth graduated sweep — brightest behind the subject,
+     falling to dark at the edges, near-neutral so the lit object owns all the
+     colour. So: no ring graticule (a dated turntable gimmick), no separate
+     linear darken (folded into a slightly-high vignette so the floor falls off
+     on its own), and the old blue glow is now a faint, large, near-neutral
+     pool with no discernible edge. The lifted base makes the rounded panel
+     read as a surface, not a hole in the void. Grain stays only to kill the
+     banding a dark gradient shows — subtraction, not decoration. */
   background:
-    radial-gradient(ellipse 56% 52% at 50% 44%, rgba(48, 82, 126, 0.34), rgba(48, 82, 126, 0) 72%),
-    radial-gradient(ellipse 130% 112% at 50% 50%, rgba(8, 16, 28, 0) 50%, rgba(1, 3, 9, 0.92) 100%),
-    linear-gradient(180deg, rgba(11, 19, 32, 0.45), rgba(3, 7, 14, 0.6));
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.045 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+    radial-gradient(ellipse 70% 60% at 47% 40%, rgba(176, 206, 232, 0.085), rgba(176, 206, 232, 0) 66%),
+    radial-gradient(ellipse 128% 120% at 50% 40%, rgba(5, 9, 16, 0) 36%, rgba(1, 3, 9, 0.98) 100%),
+    #05070e;
+  /* lift the viewer off the page as the obvious focal — soft outer shadow, no
+     hard frame (the seamless backing read is preserved). */
+  box-shadow: 0 32px 64px -34px rgba(0, 0, 0, 0.66);
 }
 /* Video slides size to the player's own (per-video) ratio — no forced 4/3 box,
    no atmospheric backing (the glass player carries its own frame). */
@@ -1613,7 +1866,7 @@ button, input, textarea { font: inherit; }
   inset: 0;
   z-index: 1;
   pointer-events: none;
-  background: radial-gradient(ellipse 120% 78% at 50% -12%, rgba(184, 240, 255, 0.06), transparent 60%);
+  background: radial-gradient(ellipse 120% 76% at 50% -14%, rgba(184, 240, 255, 0.08), transparent 58%);
 }
 .showcase__image, .showcase__video {
   position: relative;
@@ -1626,10 +1879,9 @@ button, input, textarea { font: inherit; }
 /* In the showcase, drop SpecimenViewer's own frame/badge/hint/background so the
    asset reads on the seamless atmospheric backing instead of a boxed viewport. */
 .specimen-viewer.showcase-viewer { background: transparent; border-radius: 0; }
-.specimen-viewer.showcase-viewer .specimen-viewer__frame,
 /* In the showcase the media-bar owns the bottom edge — lift the viewer's own
-   bottom chrome above it so the readout, hint, and loading state stay legible. */
-.specimen-viewer.showcase-viewer .specimen-viewer__hint,
+   bottom chrome above it so the toolbar and loading state stay legible. */
+.specimen-viewer.showcase-viewer .specimen-viewer__toolbar,
 .specimen-viewer.showcase-viewer .specimen-viewer__loading { bottom: 3rem; }
 .specimen-viewer.showcase-viewer .specimen-viewer__poster { object-fit: contain; }
 
@@ -1655,35 +1907,85 @@ button, input, textarea { font: inherit; }
   top: 50%;
   transform: translateY(-50%);
   z-index: 3;
-  width: 2.4rem; height: 3.6rem;
+  width: 2.8rem; height: 4.6rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   background: none;
   border: none;
   cursor: pointer;
-  color: rgba(214, 232, 252, 0.55);
-  font-size: 2rem;
+  color: rgba(220, 236, 252, 0.62);
+  font-size: 2.1rem;
   line-height: 1;
   text-shadow: 0 1px 8px rgba(0, 0, 0, 0.7);
-  transition: color 200ms ease, transform 200ms ease;
+  transition: color var(--dur-2) var(--ease-out), transform var(--dur-2) var(--ease-out);
 }
-.showcase__nav--prev { left: 0.4rem; }
-.showcase__nav--next { right: 0.4rem; }
+/* An angular skewed glass tab behind the glyph, matching the chip-rack family
+   (same --chip-skew) instead of a plain circle — a text-shadow-only chevron is
+   the first thing to wash out over a bright model. Quiet at rest, lights up on
+   hover/focus like the rest of this HUD system. */
+.showcase__nav::before {
+  content: "";
+  position: absolute;
+  inset: 0.35rem;
+  transform: skewX(var(--chip-skew));
+  border-radius: 3px;
+  background: rgba(14, 20, 34, 0.46);
+  border: 1px solid rgba(205, 232, 255, 0.14);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  opacity: 0.45;
+  z-index: -1;
+  transition: opacity var(--dur-2) var(--ease-out), border-color var(--dur-2) var(--ease-out),
+    background var(--dur-2) var(--ease-out);
+}
+.showcase__nav--prev { left: 0.5rem; }
+.showcase__nav--next { right: 0.5rem; }
 .showcase__nav:hover { color: var(--ice-bright, #c5f8ff); }
+.showcase__nav:hover::before,
+.showcase__nav:focus-visible::before {
+  opacity: 1;
+  border-color: var(--ice-bright, #c5f8ff);
+  background: rgba(20, 30, 48, 0.6);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
 .showcase__nav--prev:hover { transform: translateY(-50%) translateX(-3px); }
 .showcase__nav--next:hover { transform: translateY(-50%) translateX(3px); }
+.showcase__nav:active { transform: translateY(-50%) scale(0.9); }
 
 /* Index rail — every slide in the category, scannable and one click away. */
 .showcase__rail {
+  position: relative;
   display: flex;
   gap: 0.55rem;
-  margin-top: 0.85rem;
+  margin-top: 0.55rem;
   overflow-x: auto;
-  padding-bottom: 0.25rem;
+  /* Let the row shrink below its thumbnails' natural total width instead of
+     forcing every ancestor (up to the mobile single-column grid track) wider —
+     overflow-x:auto alone does NOT stop that blowout without min-width:0. */
+  min-width: 0;
+  /* top room so the lifted/scaled active thumb isn't clipped */
+  padding: 6px 2px 0.3rem;
   scrollbar-width: thin;
   scrollbar-color: rgba(184, 240, 255, 0.18) transparent;
 }
+/* A faint baseline track — the strip reads as one filmstrip rail, not loose
+   floating tiles. */
+.showcase__rail::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 2px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(184, 240, 255, 0.14) 12%, rgba(184, 240, 255, 0.14) 88%, transparent);
+  pointer-events: none;
+  z-index: -1;
+}
+/* No border anywhere in the rail — per the same dark-UI research as the
+   toolbar above (Refactoring UI: prefer contrast + spacing over borders), the
+   resting/selected states are carried purely by opacity and scale, the way
+   Apple TV's carousel focus state works (dim + small at rest, full-opacity +
+   larger when selected, no ring/outline at all). */
 .showcase__rail-thumb {
   flex: none;
   position: relative;
@@ -1693,10 +1995,24 @@ button, input, textarea { font: inherit; }
   padding: 0;
   cursor: pointer;
   background: rgba(8, 14, 26, 0.6);
-  border: 1px solid rgba(184, 240, 255, 0.08);
-  opacity: 0.55;
-  transition: opacity 0.25s ease, border-color 0.25s ease, transform 0.25s ease;
+  opacity: 0.5;
+  transition: opacity var(--dur-2) var(--ease-out), transform var(--dur-2) var(--ease-out),
+    box-shadow var(--dur-2) var(--ease-out);
 }
+.showcase__rail-index {
+  position: absolute;
+  top: 0.3rem;
+  left: 0.4rem;
+  z-index: 2;
+  font-family: var(--font-plex-mono), monospace;
+  font-size: 0.5rem;
+  letter-spacing: 0.06em;
+  color: rgba(214, 236, 255, 0.6);
+  text-shadow: 0 1px 3px rgba(0, 4, 10, 0.85);
+  pointer-events: none;
+  transition: color var(--dur-2) var(--ease-out);
+}
+.showcase__rail-thumb.is-active .showcase__rail-index { color: var(--ice-bright); }
 .showcase__rail-thumb img {
   display: block;
   width: 100%;
@@ -1715,13 +2031,21 @@ button, input, textarea { font: inherit; }
   overflow: hidden;
   text-overflow: ellipsis;
   text-align: left;
+  /* Quiet by default; the name fades in on hover/selection so the resting strip
+     is just imagery (less mono-label noise). */
+  opacity: 0;
+  transition: opacity var(--dur-2) var(--ease-out);
 }
-.showcase__rail-thumb:hover { opacity: 0.85; }
+.showcase__rail-thumb:hover { opacity: 0.85; transform: translateY(-3px); }
+.showcase__rail-thumb:active { transform: translateY(-1px) scale(0.98); }
 .showcase__rail-thumb.is-active {
+  /* Full opacity + a real size increase IS the selected state — no ring. */
   opacity: 1;
-  border-color: rgba(205, 232, 255, 0.32);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 0 16px -6px rgba(159, 220, 255, 0.35);
+  transform: scale(1.12);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45);
 }
+.showcase__rail-thumb:hover .showcase__rail-label,
+.showcase__rail-thumb.is-active .showcase__rail-label { opacity: 1; }
 
 /* Gentle entry settle for the datasheet when stepping slides. */
 @media (prefers-reduced-motion: no-preference) {
@@ -1784,10 +2108,28 @@ button, input, textarea { font: inherit; }
 }
 
 @media (max-width: 960px) {
-  /* Single-column collapse lives in the 960 block above; here just tighten the
-     stacked gap and align the head. */
   .showcase__head { align-items: flex-start; }
-  .showcase__stage { gap: 1.75rem; }
+  /* Collapse the showcase to one column (was 900, widened so the 901–960 band
+     doesn't keep a starved two-column datasheet). This block runs AFTER the
+     unconditional .showcase__stage/.showcase__divider rules earlier in the
+     file, so — unlike the same override placed in the earlier 960px block —
+     it actually wins the cascade. The resize divider is a desktop-only
+     affordance; hide it when stacked. */
+  .showcase__stage {
+    /* minmax(0, 1fr), not bare 1fr — a bare 1fr track's default min-width:auto
+       lets a wide descendant (the thumbnail rail) blow the track past the
+       viewport; minmax(0, ...) caps the track's minimum at 0 so overflow-x:auto
+       on the rail actually takes effect instead of forcing horizontal scroll on
+       the whole page. */
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.75rem;
+    /* Stacked single-column rows default to align-content:stretch, which lets
+       the desktop min-height (sized for a two-column hero viewer) inflate the
+       FIRST row instead of just growing the container — a large blank gap
+       appeared above the viewer. Pack rows to their natural content height. */
+    align-content: start;
+  }
+  .showcase__divider { display: none; }
 }
 @media (max-width: 400px) {
   /* Small phones — keep the four tabs on one tidy row. */
@@ -1805,27 +2147,27 @@ button, input, textarea { font: inherit; }
   font-size: 0.6rem;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: rgba(184, 240, 255, 0.55);
+  color: rgba(196, 238, 255, 0.66);
 }
 /* Identity readout — who/where, in the mono meta voice. */
 .contact-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.6rem 2.6rem;
+  gap: 0.9rem 2.6rem;
   margin: clamp(1.4rem, 3vh, 2rem) 0 0;
 }
-.contact-meta div { display: grid; gap: 0.3rem; }
+.contact-meta div { display: grid; gap: 0.35rem; }
 .contact-meta dt {
   font-family: var(--font-plex-mono), monospace;
   font-size: 0.6rem;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: rgba(184, 240, 255, 0.58);
+  color: rgba(196, 238, 255, 0.64);
 }
 .contact-meta dd {
   margin: 0;
   font-size: 0.95rem;
-  color: rgba(214, 230, 250, 0.82);
+  color: rgba(220, 234, 252, 0.88);
 }
 
 /* ═══ Liquid glass — frosted backdrop + specular edge ════════════════════════

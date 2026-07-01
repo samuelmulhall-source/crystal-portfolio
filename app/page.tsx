@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { Footer } from "./components/site/Footer";
 import { Header } from "./components/site/Header";
+import { HeroFocusProvider } from "./components/site/HeroFocus";
 import { HeroIntro } from "./components/site/HeroIntro";
+import { HeroSpecimenCue } from "./components/site/HeroSpecimenCue";
 import { SpecimenPreview } from "./components/site/SpecimenPreview";
 import { WorkShowcase } from "./components/site/WorkShowcase";
 import {
@@ -27,6 +29,7 @@ export default function HomePage() {
 
       {/* ═══ HERO — pinned fly-into-smoke intro, asymmetric split ═══ */}
       <HeroIntro>
+        <HeroFocusProvider>
         <div className="hero-grid">
           <div className="hero-core hero-core--left" data-parallax="0.16" data-hero-fade="text">
             {home.hero.capabilities?.length ? (
@@ -40,23 +43,26 @@ export default function HomePage() {
           </div>
 
           <div className="hero-viewport-wrap" data-parallax="0.06" data-hero-fade="asset">
-            <div className="hero-viewport" data-hero-entrance="viewport">
-              <SpecimenPreview
-                posterAsset={
-                  home.hero.video
-                    ? {
-                        kind: "image",
-                        src: home.hero.video.poster ?? home.hero.video.src,
-                        alt: home.hero.video.alt,
-                        width: 800,
-                        height: 780,
-                      }
-                    : heroEntry.thumbnail
-                }
-                motionAsset={home.hero.video ?? heroEntry.heroMedia}
-                priority
-              />
-            </div>
+            {/* The lantern is a hover/focus doorway into its own showcase entry. */}
+            <HeroSpecimenCue slug={heroEntry.slug} title={heroEntry.title}>
+              <div className="hero-viewport" data-hero-entrance="viewport">
+                <SpecimenPreview
+                  posterAsset={
+                    home.hero.video
+                      ? {
+                          kind: "image",
+                          src: home.hero.video.poster ?? home.hero.video.src,
+                          alt: home.hero.video.alt,
+                          width: 800,
+                          height: 780,
+                        }
+                      : heroEntry.thumbnail
+                  }
+                  motionAsset={home.hero.video ?? heroEntry.heroMedia}
+                  priority
+                />
+              </div>
+            </HeroSpecimenCue>
           </div>
         </div>
 
@@ -66,6 +72,7 @@ export default function HomePage() {
             <span className="hero-scroll-cue__arrow" aria-hidden="true">↓</span>
           </a>
         ) : null}
+        </HeroFocusProvider>
       </HeroIntro>
 
       {/* ═══ WORK — category-tabbed asset browser ═══ */}

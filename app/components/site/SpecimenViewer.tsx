@@ -15,7 +15,7 @@
 
 import dynamic from "next/dynamic";
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useDisplayMode } from "./DisplayModeProvider";
 import type { Specimen } from "../../lib/content";
 import type { SpecimenChannel, SpecimenStats } from "./SpecimenScene";
@@ -53,6 +53,59 @@ function labelClips(names: string[]): { idx: number; label: string }[] {
   });
 }
 
+/** A flat segmented control with a sliding selection indicator — the active
+ *  segment's fill physically slides between positions instead of just
+ *  toggling per-chip (Apple HIG segmented-control pattern: one container,
+ *  a single moving selection mark). Ids are plain strings so one component
+ *  serves the channel/rig-mode/clip racks without generics. */
+function ChipRack({
+  items,
+  activeId,
+  onSelect,
+  ariaLabel,
+}: {
+  items: { id: string; label: string }[];
+  activeId: string;
+  onSelect: (id: string) => void;
+  ariaLabel: string;
+}) {
+  const btnRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
+  const [indicator, setIndicator] = useState<{ x: number; w: number } | null>(null);
+
+  useEffect(() => {
+    const btn = btnRefs.current.get(activeId);
+    if (!btn) return;
+    setIndicator({ x: btn.offsetLeft, w: btn.offsetWidth });
+  }, [activeId, items]);
+
+  return (
+    <div className="specimen-viewer__chips" role="group" aria-label={ariaLabel}>
+      {indicator ? (
+        <span
+          className="specimen-viewer__chip-indicator"
+          style={{ left: indicator.x, width: indicator.w }}
+          aria-hidden="true"
+        />
+      ) : null}
+      {items.map((c) => (
+        <button
+          key={c.id}
+          ref={(el) => {
+            if (el) btnRefs.current.set(c.id, el);
+            else btnRefs.current.delete(c.id);
+          }}
+          type="button"
+          className={`specimen-viewer__channel${activeId === c.id ? " is-active" : ""}`}
+          onClick={() => onSelect(c.id)}
+          aria-pressed={activeId === c.id}
+        >
+          <span>{c.label}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function SpecimenViewer({
   specimen,
   alt,
@@ -73,6 +126,10 @@ export function SpecimenViewer({
   const [clips, setClips] = useState<string[]>([]);
   const [clipIndex, setClipIndex] = useState(0);
   const [poseMode, setPoseMode] = useState(false);
+  const [poseable, setPoseable] = useState(false);
+  // The "drag to rotate" hint dismisses itself once the user actually drags,
+  // instead of sitting there indefinitely.
+  const [hasInteracted, setHasInteracted] = useState(false);
 
   // Client-mount guard: keeps the first client render matching SSR (poster
   // only), then enables the WebGL stage. Matches the codebase convention.
@@ -91,6 +148,8 @@ export function SpecimenViewer({
     setClips([]);
     setClipIndex(0);
     setPoseMode(false);
+    setPoseable(false);
+    setHasInteracted(false);
   }
 
   const rigged = !!specimen.rigged;
@@ -119,7 +178,10 @@ export function SpecimenViewer({
       />
 
       {enhanced ? (
-        <div className={`specimen-viewer__stage${sceneReady ? " is-ready" : ""}`}>
+        <div
+          className={`specimen-viewer__stage${sceneReady ? " is-ready" : ""}`}
+          onPointerDown={() => setHasInteracted(true)}
+        >
           <SpecimenScene
             specimen={specimen}
             channel={channel}
@@ -129,14 +191,8 @@ export function SpecimenViewer({
             onReady={() => setSceneReady(true)}
             onStats={setStats}
             onClips={setClips}
+            onPoseable={setPoseable}
           />
-          <span className="specimen-viewer__hint" aria-hidden="true">
-            {poseMode
-              ? "Drag the handles to pose the rig"
-              : allowZoom
-                ? "Drag to rotate · scroll to zoom"
-                : "Drag to rotate"}
-          </span>
         </div>
       ) : null}
 
@@ -147,78 +203,62 @@ export function SpecimenViewer({
         </span>
       ) : null}
 
-      {/* Targeting-reticle frame to match the hero aesthetic */}
-      <div className="specimen-viewer__frame" aria-hidden="true">
-        <span className="specimen-viewer__corner specimen-viewer__corner--tl" />
-        <span className="specimen-viewer__corner specimen-viewer__corner--tr" />
-        <span className="specimen-viewer__corner specimen-viewer__corner--bl" />
-        <span className="specimen-viewer__corner specimen-viewer__corner--br" />
-      </div>
-
-      {/* Technical readout — real numbers from the loaded production files */}
+      {/* Technical readout — bare text, no panel (Blender's viewport-overlay
+          convention: plain top-left stats, no box/border/background). */}
       {enhanced ? (
-        <span className="specimen-viewer__badge">
+        <span className="specimen-viewer__stats">
+          <span className="specimen-viewer__stats-glyph" aria-hidden="true">◊</span>{" "}
           {stats
             ? [format, `${fmtCount(stats.triangles)} tris`, texLabel]
                 .filter(Boolean)
                 .join(" · ")
-            : "◊ realtime · webgl"}
+            : "realtime · webgl"}
         </span>
       ) : null}
 
-      {/* Inspector controls — channel, and (rigged) animation + pose mode */}
+      {/* Control toolbar — docked to the bottom edge (Sketchfab/Blender split
+          controls from the info readout, which stays at the top). */}
       {enhanced && sceneReady ? (
-        <div className="specimen-viewer__controls">
-          <div className="specimen-viewer__chips" role="group" aria-label="Inspect channel">
-            {channels.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                className={`specimen-viewer__channel${channel === c.id ? " is-active" : ""}`}
-                onClick={() => setChannel(c.id)}
-                aria-pressed={channel === c.id}
-              >
-                <span>{c.label}</span>
-              </button>
-            ))}
+        <div className="specimen-viewer__toolbar">
+          <span
+            className={`specimen-viewer__toolbar-hint${hasInteracted ? " is-dismissed" : ""}`}
+            aria-hidden="true"
+          >
+            {poseMode
+              ? "Drag the handles to pose the rig"
+              : allowZoom
+                ? "Drag to rotate · scroll to zoom"
+                : "Drag to rotate"}
+          </span>
+          <div className="specimen-viewer__toolbar-racks">
+            <ChipRack
+              ariaLabel="Inspect channel"
+              items={channels}
+              activeId={channel}
+              onSelect={(id) => setChannel(id as SpecimenChannel)}
+            />
+
+            {rigged && poseable ? (
+              <ChipRack
+                ariaLabel="Rig mode"
+                items={[
+                  { id: "animate", label: "Animate" },
+                  { id: "pose", label: "Pose" },
+                ]}
+                activeId={poseMode ? "pose" : "animate"}
+                onSelect={(id) => setPoseMode(id === "pose")}
+              />
+            ) : null}
+
+            {rigged && !poseMode && clipLabels.length > 1 ? (
+              <ChipRack
+                ariaLabel="Animation clip"
+                items={clipLabels.map((c) => ({ id: String(c.idx), label: c.label }))}
+                activeId={String(clipIndex)}
+                onSelect={(id) => setClipIndex(Number(id))}
+              />
+            ) : null}
           </div>
-
-          {rigged ? (
-            <div className="specimen-viewer__chips" role="group" aria-label="Rig mode">
-              <button
-                type="button"
-                className={`specimen-viewer__channel${!poseMode ? " is-active" : ""}`}
-                onClick={() => setPoseMode(false)}
-                aria-pressed={!poseMode}
-              >
-                <span>Animate</span>
-              </button>
-              <button
-                type="button"
-                className={`specimen-viewer__channel${poseMode ? " is-active" : ""}`}
-                onClick={() => setPoseMode(true)}
-                aria-pressed={poseMode}
-              >
-                <span>Pose</span>
-              </button>
-            </div>
-          ) : null}
-
-          {rigged && !poseMode && clipLabels.length > 1 ? (
-            <div className="specimen-viewer__chips" role="group" aria-label="Animation clip">
-              {clipLabels.map((c) => (
-                <button
-                  key={c.idx}
-                  type="button"
-                  className={`specimen-viewer__channel${clipIndex === c.idx ? " is-active" : ""}`}
-                  onClick={() => setClipIndex(c.idx)}
-                  aria-pressed={clipIndex === c.idx}
-                >
-                  <span>{c.label}</span>
-                </button>
-              ))}
-            </div>
-          ) : null}
         </div>
       ) : null}
     </div>

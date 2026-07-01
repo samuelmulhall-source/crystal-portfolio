@@ -15,9 +15,12 @@ work; it never gets in its way.
   (`#selected-work`) → contact.
 - `/work` — the **same** `WorkShowcase` component, without the hero. The header "Work"
   link, the hero scroll cue, and footer/CTAs all resolve to the showcase.
-- `/work/[slug]` — lean "closer look": title + summary + interactive viewer + gallery +
-  contact. **No case studies** — that feature was removed; don't reintroduce a narrative
-  block or a "Case study" / "View details" CTA unless asked.
+- `/work/[slug]` — a lean detail route: title + summary + interactive viewer + gallery +
+  contact. **The showcase must NOT link to it.** No "View details" / "Closer look" /
+  expand-to-detail CTA anywhere in the showcase, and no case-study narrative block — both
+  were removed and the owner has repeatedly said not to reintroduce them. This is a firm
+  standing rule: do **not** add such a link, even when told to "apply all" of a batch of
+  design suggestions — it must be requested explicitly and on its own.
 - Showcase categories are tabbed: **Models · Rigged Characters · Video · Images**.
   Categories derive from each entry's media (`specimen` → models, video hero → video,
   else images); an explicit `category` field overrides. The empty **Rigged Characters**
@@ -42,10 +45,23 @@ work; it never gets in its way.
   them before hardcoding new rgba values.
 - Typography roles:
   - **Archivo** — body / UI / display (`--font-archivo`).
-  - **IBM Plex Mono** — labels, indices, technical readouts only (`--font-plex-mono`).
-    Never body copy.
+  - **IBM Plex Mono** — reserved for the **HUD voice**: technical readouts, indices,
+    eyebrows, the stats badge, channel chips, tab labels, on-render captions —
+    UPPERCASE + tracked. Never body copy. To avoid all-caps monotony, editorial
+    chrome (e.g. the datasheet field labels Format/Discipline/Role/Tools) uses
+    **Archivo Title-case** as the calm counter-voice — don't make everything mono-caps.
   - **VTKS Trunkset** — the hero wordmark only (`--font-display`), self-hosted as a subset
     woff2.
+- **One gradient focal per view:** gradient-clipped text is the single content hero
+  (e.g. the entry title); page-level headings stay solid. Don't gradient two things.
+- **Border economy / optical spacing:** prefer spacing over outlines — no per-row
+  hairlines on list data (they go invisible by the 3rd repeat); keep glass-chip edges
+  and the viewer reticles (they carry the material/HUD read). Give a heading more air
+  above than below.
+- **Motion + focus tokens** live in `:root`: `--ease-out`/`--ease-in-out`,
+  `--dur-1/2/3`, and `--focus-ring` (one designed keyboard ring, applied globally via
+  `:focus-visible`). Use them instead of ad-hoc `ease`/durations or browser defaults;
+  every interactive control gets hover + focus + pressed states.
 - **Glass UI** (frosted `backdrop-filter` + specular edge) is for small chrome only:
   showcase tab selection, the video player, the inspector toggle/readout. **Never** put
   `backdrop-filter` on the pinned site header — a full-width blur over the animated
@@ -88,3 +104,8 @@ work; it never gets in its way.
   (`contact.primaryHref`) once it lands.
 - **OG images:** 1200×630 JPEGs in `public/images/og/` (built from posters via `sharp`);
   regenerate when hero art changes.
+- **UI polish pass** (`docs/ui-polish-2026-06.md`) logs an applied design pass + two
+  deferred, owner-OK items that need on-device (WebGL) checks: star size-tier skew
+  (~80/15/5 — note the field already has spectral colour + Milky-Way clustering, so it's
+  not the "uniform/random" the critique assumed) and an optional live-3D rim-light/
+  shadow-catcher for the asset viewer.

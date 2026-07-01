@@ -14,7 +14,8 @@ import { Canvas, useFrame, useLoader, useThree } from "@react-three/fiber";
 import { Environment, Lightformer, OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader.js";
-import { clone as skeletonClone } from "three/examples/jsm/utils/SkeletonUtils.js";
+import { GLTFLoader, type GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 import type { Specimen } from "../../lib/content";
 
 type TexKey = "map" | "normalMap" | "roughnessMap" | "metalnessMap" | "transmissionMap";
@@ -38,6 +39,17 @@ function enc(p: string) {
   return p.split("/").map(encodeURIComponent).join("/");
 }
 
+/** Shared Draco decoder (self-hosted in /public/draco) — one instance avoids
+ *  spawning duplicate decoder workers across loads. */
+let _draco: DRACOLoader | null = null;
+function getDracoLoader() {
+  if (!_draco) {
+    _draco = new DRACOLoader();
+    _draco.setDecoderPath("/draco/");
+  }
+  return _draco;
+}
+
 /** 1px transparent PNG — placeholder so useLoader never gets an empty array
  *  (it suspends forever on []), e.g. for texture-less rigged characters. */
 const TRANSPARENT_PX =
@@ -51,6 +63,7 @@ function SpecimenModel({
   onReady,
   onStats,
   onClips,
+  onPoseable,
   setDragLock,
 }: {
   specimen: Specimen;
@@ -61,8 +74,10 @@ function SpecimenModel({
   poseMode?: boolean;
   onReady?: () => void;
   onStats?: (stats: SpecimenStats) => void;
-  /** Report the rig's clip names so the viewer can build a selector. */
+  /** Report the rig's playable (real-motion) clip names for the selector. */
   onClips?: (names: string[]) => void;
+  /** Report whether drag-to-pose is viable on this rig. */
+  onPoseable?: (v: boolean) => void;
   /** Freeze OrbitControls while a pose handle is dragged. */
   setDragLock?: (v: boolean) => void;
 }) {
@@ -73,7 +88,19 @@ function SpecimenModel({
     if (specimen.extraModelPath) list.push(enc(specimen.extraModelPath));
     return list;
   }, [specimen.modelPath, specimen.extraModelPath]);
-  const loaded = useLoader(FBXLoader, paths) as THREE.Group[];
+  // glb/gltf (rigged characters: a clean Blender re-export) load through
+  // GLTFLoader + a self-hosted Draco decoder; everything else through FBXLoader.
+  // Same useLoader call, just a different loader class + a one-time extension.
+  const isGLB = /\.(glb|gltf)$/i.test(specimen.modelPath);
+  const loadedRaw = useLoader(isGLB ? GLTFLoader : FBXLoader, paths, (loader) => {
+    if (loader instanceof GLTFLoader) loader.setDRACOLoader(getDracoLoader());
+  });
+  // Normalize to a list of scene roots regardless of loader (GLTF wraps its
+  // graph in `.scene`; FBX returns the group directly).
+  const loaded = useMemo(
+    () => (isGLB ? (loadedRaw as GLTF[]).map((g) => g.scene) : (loadedRaw as THREE.Group[])),
+    [isGLB, loadedRaw],
+  );
   const isRigged = !!specimen.rigged;
 
   // Load PBR maps via Suspense (useLoader) so textures are ready BEFORE
@@ -106,7 +133,7 @@ function SpecimenModel({
 
   // Build a merged group, replace materials (with maps already loaded),
   // auto-center + normalize scale — all in one synchronous pass.
-  const { object, normScale, centreOffset, stats } = useMemo(() => {
+  const { object, normScale, centreOffset, groundY, stats } = useMemo(() => {
     // Clone the colour map so its colour space can be set without mutating the
     // shared loader-cached texture (other maps default to NoColorSpace, which
     // is already correct for normal/roughness/metalness/transmission).
@@ -160,11 +187,12 @@ function SpecimenModel({
     }
     const channelMat = buildMaterial();
 
-    // Rigged characters: skeleton-safe clone (a naive .clone() breaks skinning)
-    // and keep the model's own materials. Props: merge + replace materials.
+    // Rigged characters: drive the ORIGINAL loaded object (not a clone) so the
+    // embedded animation clips bind correctly and the IK acts on the real
+    // skinned bones. Props: merge clones + replace materials.
     let group: THREE.Object3D;
     if (isRigged) {
-      group = skeletonClone(loaded[0]);
+      group = loaded[0];
     } else {
       const g = new THREE.Group();
       loaded.forEach((m) => g.add(m.clone()));
@@ -186,16 +214,23 @@ function SpecimenModel({
         const mesh = o as THREE.Mesh;
         const geo = mesh.geometry as THREE.BufferGeometry;
         meshes += 1;
+        // Cast onto the ground plane below and receive shadows from other
+        // parts of the same asset (e.g. a character's arm shadowing its body).
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
         vertices += geo.attributes.position?.count ?? 0;
         triangles += Math.round(
           (geo.index ? geo.index.count : geo.attributes.position?.count ?? 0) / 3,
         );
-        if (channel === "wireframe") {
-          // Wireframe applies to every model, rigged or not (skinning is
-          // auto-handled by three for SkinnedMesh).
+        if (isRigged) {
+          // Keep the character's authored materials; toggle wireframe on them
+          // non-destructively (no swap → nothing to restore, skinning intact).
+          const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+          mats.forEach((m) => {
+            if (m) (m as THREE.MeshStandardMaterial).wireframe = channel === "wireframe";
+          });
+        } else if (channel === "wireframe") {
           mesh.material = channelMat;
-        } else if (isRigged) {
-          // Keep the character's authored materials for the shaded view.
         } else {
           const prev = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
           prev.forEach((m) => (m as THREE.Material)?.dispose());
@@ -216,13 +251,22 @@ function SpecimenModel({
     box.getSize(size);
     box.getCenter(center);
     const maxDim = Math.max(size.x, size.y, size.z);
-    const ns = maxDim > 0 ? 2.4 / maxDim : 1;
+    // Target ~2.0 units (of the ~2.8-unit visible frame height) so the asset
+    // floats with gallery-style margin and tall props (sword/bow/torch) never
+    // crowd the edges or bleed into the bottom caption/hint.
+    const ns = maxDim > 0 ? 2.0 / maxDim : 1;
     const off = center.clone().negate().multiplyScalar(ns);
     off.y += specimen.yOffset ?? 0;
+    // The asset's true base in WORLD space (for the shadow-catcher plane) —
+    // derived from the real bounding box, not guessed. The object is centered
+    // at world Y = yOffset (see the centreOffset math above), so its lowest
+    // point sits half its scaled height below that.
+    const groundY = (specimen.yOffset ?? 0) - (ns * size.y) / 2;
     return {
       object: group,
       normScale: ns,
       centreOffset: off,
+      groundY,
       stats: {
         triangles,
         vertices,
@@ -233,38 +277,87 @@ function SpecimenModel({
     };
   }, [loaded, tex, texList, texEntries, specimen.yOffset, channel, isRigged]);
 
-  // Report the rig's animation clips once so the viewer can build a selector.
-  const anims = useMemo(
-    () => (isRigged ? ((loaded[0] as THREE.Group).animations ?? []) : []),
-    [isRigged, loaded],
+  // This rig (a Reallusion/CC export) arrives as ~14 separate skinned meshes,
+  // EACH with its own full clone of the skeleton (identical bone names). A single
+  // mixer/IK solver can only drive one skeleton's bones — so the canonical
+  // (densest) skeleton is the lead, and every frame its local bone transforms are
+  // mirrored onto the same-named bones of the other skeletons so the whole
+  // character moves as one. `groups` is empty for a normal single-skeleton rig.
+  const rigSync = useMemo(() => buildRigSync(isRigged ? object : null), [object, isRigged]);
+
+  const anims = useMemo(() => {
+    if (!isRigged) return [];
+    if (isGLB) return (loadedRaw as GLTF[])[0]?.animations ?? [];
+    return (loaded[0] as THREE.Group).animations ?? [];
+  }, [isRigged, isGLB, loadedRaw, loaded]);
+  // Only the clips that carry REAL motion are playable. Many DCC exports ship
+  // "animations" that are a single static pose duplicated across keyframes (this
+  // character is one such — every embedded clip is the same frozen pose). Those
+  // are filtered out so the viewer doesn't offer a meaningless clip selector and
+  // instead falls back to the procedural idle below.
+  const playable = useMemo(
+    () => (isRigged ? anims.filter(clipHasMotion) : []),
+    [isRigged, anims],
   );
   useEffect(() => {
-    if (anims.length) onClips?.(anims.map((a) => a.name));
-  }, [anims, onClips]);
+    onClips?.(playable.map((a) => a.name));
+  }, [playable, onClips]);
 
-  // Play the selected clip so the rig reads as alive. Paused in pose mode so the
-  // IK solver (below) can drive the bones without the mixer fighting it. Mixer
-  // resolves clip tracks by bone name within the cloned object.
+  // A procedural breathing/sway/look idle — used when the rig has no real motion
+  // clips, so a rig with no authored animation still reads as alive. Captures each
+  // driver bone's base pose once, then layers small sine offsets on top.
+  const idle = useMemo(() => (rigSync ? buildIdle(rigSync.primary) : null), [rigSync]);
+
+  // Play the selected clip so the rig reads as alive. Rooted at the lead skinned
+  // mesh so PropertyBinding resolves tracks via skeleton.getBoneByName (binds to
+  // the real deform bones). Skipped when there are no real clips (idle takes over)
+  // and in pose mode (the IK solver drives the bones instead).
   const mixerRef = useRef<THREE.AnimationMixer | null>(null);
   useEffect(() => {
-    if (!isRigged || !anims.length || poseMode) return;
-    const mixer = new THREE.AnimationMixer(object);
-    const clip = anims[Math.min(clipIndex, anims.length - 1)] ?? anims[0];
+    if (!rigSync || !playable.length || poseMode) return;
+    const root = rigSync.primary;
+    const mixer = new THREE.AnimationMixer(root);
+    const clip = playable[Math.min(clipIndex, playable.length - 1)] ?? playable[0];
     mixer.clipAction(clip).reset().play();
     mixerRef.current = mixer;
     return () => {
       mixer.stopAllAction();
-      mixer.uncacheRoot(object as THREE.Object3D);
+      mixer.uncacheRoot(root);
       mixerRef.current = null;
     };
-  }, [object, isRigged, anims, clipIndex, poseMode]);
-  useFrame((_, dt) => mixerRef.current?.update(dt));
+  }, [rigSync, playable, clipIndex, poseMode]);
+
+  // Drive the rig (real clip OR procedural idle), then propagate the lead pose to
+  // the duplicate skeletons. Pose mode is handled separately by RigPoser.
+  useFrame((state, dt) => {
+    if (!rigSync || poseMode) return;
+    const m = mixerRef.current;
+    if (m) m.update(dt);
+    else if (idle) applyIdle(idle, state.clock.elapsedTime);
+    mirrorRig(rigSync);
+  });
+
+  useEffect(() => {
+    onPoseable?.(rigSync?.poseable ?? false);
+  }, [rigSync, onPoseable]);
 
   // Signal readiness once the model is mounted (assets resolved via Suspense).
+  // Defer one frame so the canvas paints before the poster fades, but fall back
+  // to a timer so readiness still fires if rAF is throttled (backgrounded tab).
   useEffect(() => {
     onStats?.(stats);
-    const id = requestAnimationFrame(() => onReady?.());
-    return () => cancelAnimationFrame(id);
+    let done = false;
+    const fire = () => {
+      if (done) return;
+      done = true;
+      onReady?.();
+    };
+    const raf = requestAnimationFrame(fire);
+    const timer = setTimeout(fire, 120);
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(timer);
+    };
   }, [onReady, onStats, stats]);
 
   return (
@@ -274,9 +367,188 @@ function SpecimenModel({
           <primitive object={object} />
         </group>
       </group>
-      {isRigged && poseMode ? <RigPoser root={object} setDragLock={setDragLock} /> : null}
+      <ShadowCatcher y={groundY} />
+      {rigSync && rigSync.poseable && poseMode ? (
+        <RigPoser rig={rigSync} setDragLock={setDragLock} />
+      ) : null}
     </>
   );
+}
+
+/** An invisible ground plane that shows ONLY the real-time shadow cast by the
+ *  key light — THREE.ShadowMaterial renders nothing else, so it blends
+ *  seamlessly with the transparent canvas and the CSS atmospheric backing
+ *  behind it. Grounds the asset in real lit space instead of a painted
+ *  backdrop (a flat gradient behind an already-lit object always looks a
+ *  little disconnected, since the "light" in the backdrop has nothing to do
+ *  with the light actually hitting the model). */
+function ShadowCatcher({ y }: { y: number }) {
+  return (
+    <mesh position={[0, y, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+      <planeGeometry args={[14, 14]} />
+      <shadowMaterial transparent opacity={0.4} color="#000814" />
+    </mesh>
+  );
+}
+
+// ─── Multi-skeleton sync ─────────────────────────────────────────────────────
+// CC/Reallusion FBX exports can arrive as many skinned meshes, each with its own
+// full clone of the skeleton (identical bone names). One mixer/IK solver only
+// drives one skeleton, so a RigSync designates the densest skeleton as the lead
+// and mirrors its local bone pose onto the same-named bones of every other
+// skeleton each frame. For a normal single-skeleton rig, `groups` is empty.
+export type RigSync = {
+  primary: THREE.SkinnedMesh;
+  groups: Array<{ src: THREE.Bone; copies: THREE.Bone[] }>;
+  /** Whether world-space drag-to-pose IK is viable. False for "segment scale
+   *  compensate" exports whose bones carry large compounding scale — there,
+   *  bone world positions explode and handles/IK can't be placed reliably. */
+  poseable: boolean;
+};
+
+function buildRigSync(root: THREE.Object3D | null): RigSync | null {
+  if (!root) return null;
+  const meshes: THREE.SkinnedMesh[] = [];
+  root.traverse((o) => {
+    const sm = o as THREE.SkinnedMesh;
+    if (sm.isSkinnedMesh) meshes.push(sm);
+  });
+  if (!meshes.length) return null;
+  let primary = meshes[0];
+  for (const m of meshes) {
+    if (m.skeleton.bones.length > primary.skeleton.bones.length) primary = m;
+  }
+  // The lead bone for each name = the primary skeleton's bone.
+  const leadByName = new Map<string, THREE.Bone>();
+  for (const b of primary.skeleton.bones) if (!leadByName.has(b.name)) leadByName.set(b.name, b);
+  // Collect every other skeleton's same-named bones as copy targets.
+  const copies = new Map<string, THREE.Bone[]>();
+  for (const m of meshes) {
+    if (m === primary) continue;
+    for (const b of m.skeleton.bones) {
+      const lead = leadByName.get(b.name);
+      if (!lead || lead === b) continue;
+      let arr = copies.get(b.name);
+      if (!arr) copies.set(b.name, (arr = []));
+      arr.push(b);
+    }
+  }
+  const groups: RigSync["groups"] = [];
+  leadByName.forEach((src, name) => {
+    const c = copies.get(name);
+    if (c && c.length) groups.push({ src, copies: c });
+  });
+
+  // Drag-to-pose needs well-conditioned, single-skeleton bone transforms. Rigs
+  // that arrive as many duplicate skeletons (groups present) and/or carry
+  // far-from-unit "segment scale compensate" bone scale produce exploding bone
+  // world positions — handles and IK can't be placed reliably there, so pose
+  // mode is suppressed. A clean single-skeleton export re-enables it.
+  const unitScale = primary.skeleton.bones.every((b) => {
+    const s = b.scale;
+    return Math.abs(s.x - 1) < 0.5 && Math.abs(s.y - 1) < 0.5 && Math.abs(s.z - 1) < 0.5;
+  });
+  const poseable = groups.length === 0 && unitScale;
+
+  return { primary, groups, poseable };
+}
+
+/** Copy the lead skeleton's local bone transforms onto the duplicate skeletons. */
+function mirrorRig(rig: RigSync) {
+  for (const { src, copies } of rig.groups) {
+    for (const c of copies) {
+      c.quaternion.copy(src.quaternion);
+      c.position.copy(src.position);
+      c.scale.copy(src.scale);
+    }
+  }
+}
+
+/** True if any track in the clip actually changes value across its keyframes.
+ *  Filters out "poses" exported as clips (identical keyframes → no motion). */
+function clipHasMotion(clip: THREE.AnimationClip): boolean {
+  for (const t of clip.tracks) {
+    const n = t.times.length;
+    if (n < 2) continue;
+    const stride = t.values.length / n;
+    for (let k = 1; k < n; k++) {
+      for (let s = 0; s < stride; s++) {
+        if (Math.abs(t.values[k * stride + s] - t.values[s]) > 1e-4) return true;
+      }
+    }
+  }
+  return false;
+}
+
+// ─── Procedural idle ─────────────────────────────────────────────────────────
+// A layered-sine breathing / weight-shift / look-around idle, applied as small
+// local-rotation offsets on top of each bone's authored base pose. Gives a rig
+// with no authored motion a calm, alive presence for the showcase. Axis: 0=x
+// (nod/breathe), 1=y (turn), 2=z (sway/tilt). Amplitudes in radians.
+type IdleComp = { axis: 0 | 1 | 2; amp: number; speed: number; phase: number };
+const IDLE_SPECS: Array<{ name: string; comps: IdleComp[] }> = [
+  // Breathing — chest/upper spine ease back as the ribcage lifts.
+  { name: "CC_Base_Spine02", comps: [{ axis: 0, amp: 0.03, speed: 1.5, phase: 0 }] },
+  { name: "CC_Base_Spine01", comps: [{ axis: 0, amp: 0.018, speed: 1.5, phase: 0 }] },
+  // Weight shift — torso sways gently, hips counter it.
+  { name: "CC_Base_Waist", comps: [{ axis: 2, amp: 0.035, speed: 0.5, phase: 0 }] },
+  { name: "CC_Base_Hip", comps: [{ axis: 2, amp: -0.022, speed: 0.5, phase: 0 }] },
+  // Head — slow look-around with a slight nod, plus neck follow-through.
+  {
+    name: "CC_Base_Head",
+    comps: [
+      { axis: 1, amp: 0.09, speed: 0.33, phase: 1.0 },
+      { axis: 0, amp: 0.045, speed: 0.5, phase: 0.5 },
+    ],
+  },
+  { name: "CC_Base_NeckTwist02", comps: [{ axis: 1, amp: 0.04, speed: 0.33, phase: 1.0 }] },
+  // Arms — shoulders drift, forearms ease, offset L/R so it isn't symmetrical.
+  {
+    name: "CC_Base_L_Upperarm",
+    comps: [
+      { axis: 2, amp: 0.055, speed: 0.5, phase: 0 },
+      { axis: 0, amp: 0.03, speed: 0.42, phase: 0.7 },
+    ],
+  },
+  {
+    name: "CC_Base_R_Upperarm",
+    comps: [
+      { axis: 2, amp: -0.055, speed: 0.5, phase: 0.4 },
+      { axis: 0, amp: 0.03, speed: 0.42, phase: 1.1 },
+    ],
+  },
+  { name: "CC_Base_L_Forearm", comps: [{ axis: 0, amp: 0.05, speed: 0.55, phase: 0.2 }] },
+  { name: "CC_Base_R_Forearm", comps: [{ axis: 0, amp: 0.05, speed: 0.55, phase: 0.95 }] },
+];
+
+type IdleRig = { drivers: Array<{ bone: THREE.Bone; base: THREE.Quaternion; comps: IdleComp[] }> };
+
+function buildIdle(primary: THREE.SkinnedMesh): IdleRig | null {
+  const drivers: IdleRig["drivers"] = [];
+  for (const spec of IDLE_SPECS) {
+    const bone = primary.skeleton.getBoneByName(spec.name);
+    if (bone) drivers.push({ bone, base: bone.quaternion.clone(), comps: spec.comps });
+  }
+  return drivers.length ? { drivers } : null;
+}
+
+const _idleEuler = new THREE.Euler();
+const _idleQ = new THREE.Quaternion();
+
+/** Pose the idle's driver bones from their base pose + summed sine offsets. */
+function applyIdle(idle: IdleRig, t: number) {
+  for (const d of idle.drivers) {
+    let rx = 0, ry = 0, rz = 0;
+    for (const c of d.comps) {
+      const v = Math.sin(t * c.speed + c.phase) * c.amp;
+      if (c.axis === 0) rx += v;
+      else if (c.axis === 1) ry += v;
+      else rz += v;
+    }
+    _idleEuler.set(rx, ry, rz);
+    _idleQ.setFromEuler(_idleEuler);
+    d.bone.quaternion.copy(d.base).multiply(_idleQ);
+  }
 }
 
 // ─── Drag-to-pose IK ────────────────────────────────────────────────────────
@@ -289,16 +561,10 @@ const NON_EFFECTOR = /toe|finger|thumb|index|middle|ring|pinky|ball|twist|share|
 
 type Chain = { effector: THREE.Bone; bones: THREE.Bone[]; name: string };
 
-function buildChains(root: THREE.Object3D): { primary: THREE.SkinnedMesh; chains: Chain[] } | null {
-  let primary: THREE.SkinnedMesh | null = null;
-  root.traverse((o) => {
-    const sm = o as THREE.SkinnedMesh;
-    if (sm.isSkinnedMesh && (!primary || sm.skeleton.bones.length > primary.skeleton.bones.length)) {
-      primary = sm;
-    }
-  });
-  if (!primary) return null;
-  const bones = (primary as THREE.SkinnedMesh).skeleton.bones;
+/** Effector chains (hand/foot + 2 real parents, correctives skipped) from the
+ *  lead skeleton's bones. */
+function buildChains(primary: THREE.SkinnedMesh): Chain[] {
+  const bones = primary.skeleton.bones;
   const seen = new Set<string>();
   const chains: Chain[] = [];
   for (const eff of bones) {
@@ -317,7 +583,7 @@ function buildChains(root: THREE.Object3D): { primary: THREE.SkinnedMesh; chains
     }
     if (chain.length >= 2) chains.push({ effector: eff, bones: chain, name: eff.name });
   }
-  return { primary, chains };
+  return chains;
 }
 
 const _effPos = new THREE.Vector3();
@@ -326,6 +592,7 @@ const _toEff = new THREE.Vector3();
 const _toTarget = new THREE.Vector3();
 const _axis = new THREE.Vector3();
 const _q = new THREE.Quaternion();
+const _hit = new THREE.Vector3();
 
 /** One CCD pass: rotate chain bones (root→effector) toward a world-space target. */
 function solveCCD(chain: THREE.Bone[], target: THREE.Vector3, iterations = 6) {
@@ -356,36 +623,73 @@ function solveCCD(chain: THREE.Bone[], target: THREE.Vector3, iterations = 6) {
 }
 
 function RigPoser({
-  root,
+  rig,
   setDragLock,
 }: {
-  root: THREE.Object3D;
+  rig: RigSync;
   setDragLock?: (v: boolean) => void;
 }) {
-  const rig = useMemo(() => buildChains(root), [root]);
+  const chains = useMemo(() => buildChains(rig.primary), [rig]);
   const dragRef = useRef<{ chain: THREE.Bone[]; plane: THREE.Plane } | null>(null);
   const targetRef = useRef(new THREE.Vector3());
   const handleRefs = useRef<Array<THREE.Mesh | null>>([]);
-  const { camera } = useThree();
+  const { camera, gl } = useThree();
   const camDir = useMemo(() => new THREE.Vector3(), []);
+  const raycaster = useMemo(() => new THREE.Raycaster(), []);
+  const ndc = useMemo(() => new THREE.Vector2(), []);
 
-  // Keep handles parked on their effectors each frame; solve while dragging.
+  // Start posing from a clean bind pose (and sync the duplicate skeletons to it)
+  // so the rig doesn't freeze mid-animation.
+  useEffect(() => {
+    rig.primary.skeleton.pose();
+    mirrorRig(rig);
+  }, [rig]);
+
+  // Drag is driven from window-level listeners (NOT the handle mesh) so motion is
+  // tracked once the cursor leaves the small handle — manual raycast of the
+  // pointer onto the camera-facing drag plane gives the IK target each move.
+  useEffect(() => {
+    const dom = gl.domElement;
+    const onMove = (ev: PointerEvent) => {
+      const d = dragRef.current;
+      if (!d) return;
+      const rect = dom.getBoundingClientRect();
+      ndc.x = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
+      ndc.y = -((ev.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(ndc, camera);
+      if (raycaster.ray.intersectPlane(d.plane, _hit)) targetRef.current.copy(_hit);
+    };
+    const onUp = () => {
+      if (!dragRef.current) return;
+      dragRef.current = null;
+      setDragLock?.(false);
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+  }, [gl, camera, raycaster, ndc, setDragLock]);
+
+  // Park handles on their effectors, solve while dragging, then propagate the
+  // lead pose onto the duplicate skeletons so the whole character poses as one.
   useFrame(() => {
-    if (!rig) return;
-    rig.chains.forEach((c, i) => {
+    chains.forEach((c, i) => {
       const h = handleRefs.current[i];
       if (h && dragRef.current?.chain !== c.bones) {
         h.position.setFromMatrixPosition(c.effector.matrixWorld);
       }
     });
     if (dragRef.current) solveCCD(dragRef.current.chain, targetRef.current);
+    mirrorRig(rig);
   });
 
-  if (!rig || rig.chains.length === 0) return null;
+  if (chains.length === 0) return null;
 
   return (
     <group>
-      {rig.chains.map((c, i) => (
+      {chains.map((c, i) => (
         <mesh
           key={c.name}
           ref={(el) => {
@@ -393,7 +697,6 @@ function RigPoser({
           }}
           onPointerDown={(e) => {
             e.stopPropagation();
-            (e.target as Element).setPointerCapture?.(e.pointerId);
             camera.getWorldDirection(camDir);
             const origin = new THREE.Vector3().setFromMatrixPosition(c.effector.matrixWorld);
             dragRef.current = {
@@ -403,20 +706,9 @@ function RigPoser({
             targetRef.current.copy(origin);
             setDragLock?.(true);
           }}
-          onPointerMove={(e) => {
-            const d = dragRef.current;
-            if (!d) return;
-            const hit = e.ray.intersectPlane(d.plane, new THREE.Vector3());
-            if (hit) targetRef.current.copy(hit);
-          }}
-          onPointerUp={(e) => {
-            (e.target as Element).releasePointerCapture?.(e.pointerId);
-            dragRef.current = null;
-            setDragLock?.(false);
-          }}
         >
-          <sphereGeometry args={[0.07, 16, 16]} />
-          <meshBasicMaterial color="#9fe6ff" transparent opacity={0.85} depthTest={false} />
+          <sphereGeometry args={[0.08, 16, 16]} />
+          <meshBasicMaterial color="#9fe6ff" transparent opacity={0.9} depthTest={false} />
         </mesh>
       ))}
     </group>
@@ -430,7 +722,25 @@ function StudioLights() {
     <>
       <ambientLight intensity={0.32} color="#e0e0e0" />
       <hemisphereLight args={["#b8d0ff", "#141a2c", 0.4]} />
-      <directionalLight position={[-4, 8, 6]} intensity={1.3} color="#ffffff" />
+      {/* The key light casts the one real shadow onto the ShadowCatcher plane
+          below — every other light here stays shadow-less fill, the way a
+          real product-photography setup uses one defining shadow, not an
+          overlapping mess from six directions. Frustum is sized tight to the
+          ~2-unit-normalized asset (see SpecimenModel's ns/groundY math). */}
+      <directionalLight
+        position={[-4, 8, 6]}
+        intensity={1.3}
+        color="#ffffff"
+        castShadow
+        shadow-mapSize={[1024, 1024]}
+        shadow-camera-left={-3}
+        shadow-camera-right={3}
+        shadow-camera-top={3}
+        shadow-camera-bottom={-3}
+        shadow-camera-near={0.5}
+        shadow-camera-far={20}
+        shadow-bias={-0.0004}
+      />
       <directionalLight position={[5, 3, 5]} intensity={0.7} color="#f8f8f8" />
       <directionalLight position={[0, 2, 9]} intensity={0.8} color="#f4f4f4" />
       <directionalLight position={[0, -3, -8]} intensity={0.8} color="#a9c8ee" />
@@ -458,6 +768,7 @@ export default function SpecimenScene({
   onReady,
   onStats,
   onClips,
+  onPoseable,
 }: {
   specimen: Specimen;
   channel?: SpecimenChannel;
@@ -469,6 +780,7 @@ export default function SpecimenScene({
   onReady?: () => void;
   onStats?: (stats: SpecimenStats) => void;
   onClips?: (names: string[]) => void;
+  onPoseable?: (v: boolean) => void;
 }) {
   const [interacting, setInteracting] = useState(false);
   // When a pose handle is being dragged, freeze orbit so the camera doesn't spin.
@@ -479,6 +791,7 @@ export default function SpecimenScene({
       camera={{ position: [0, 0, 4.6], fov: 34 }}
       dpr={[1, 1.75]}
       gl={{ antialias: true, alpha: true, preserveDrawingBuffer: true }}
+      shadows="soft"
       style={{ width: "100%", height: "100%" }}
       onPointerDown={() => setInteracting(true)}
       onPointerUp={() => setInteracting(false)}
@@ -498,6 +811,7 @@ export default function SpecimenScene({
           onReady={onReady}
           onStats={onStats}
           onClips={onClips}
+          onPoseable={onPoseable}
           setDragLock={setDragLock}
         />
       </Suspense>

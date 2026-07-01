@@ -4,8 +4,9 @@
     {
       "name": "dev",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["node_modules/next/dist/bin/next", "dev", "-p", "3099"],
-      "port": 3099
+      "runtimeArgs": ["node_modules/next/dist/bin/next", "dev"],
+      "port": 3099,
+      "autoPort": true
     },
     {
       "name": "prod",

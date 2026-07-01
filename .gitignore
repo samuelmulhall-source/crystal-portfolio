@@ -40,3 +40,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 .preview/
+
+# source art (heavy DCC files — converted to GLB in public/; never deploy these)
+/art-source/

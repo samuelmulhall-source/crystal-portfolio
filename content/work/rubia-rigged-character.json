@@ -9,7 +9,7 @@
   "category": "rigged",
   "client": "Self initiated",
   "engagement": "Rigging & realtime presentation",
-  "summary": "A rigged character with full skeleton and skinning, shown live in the realtime viewer with an idle animation. Drag to orbit; toggle wireframe and read the mesh stats.",
+  "summary": "A rigged character with full skeleton and skinning, shown live in the realtime viewer with an idle animation. Drag to orbit, switch to Pose to drag the hands and feet with IK, and toggle wireframe or read the mesh stats.",
   "tags": [
     "Rigged character",
     "Skinning",
@@ -39,11 +39,11 @@
   },
   "interactive": {
     "available": true,
-    "sourcePath": "/Rigged Characters/Rigged_Rubia_char_with_eyes_2.fbx",
-    "note": "Live WebGL viewer — drag to orbit. The character renders in real time from the rigged FBX with its idle animation; the inspector exposes wireframe and mesh stats."
+    "sourcePath": "/Rigged Characters/rubia.glb",
+    "note": "Live WebGL viewer — drag to orbit. The rigged character renders in real time with an idle animation; switch to Pose for drag-to-pose IK on the hands and feet, and the inspector exposes wireframe and mesh stats."
   },
   "specimen": {
-    "modelPath": "/Rigged Characters/Rigged_Rubia_char_with_eyes_2.fbx",
+    "modelPath": "/Rigged Characters/rubia.glb",
     "poster": "/images/posters/rubia.webp",
     "rigged": true,
     "textures": {}
