@@ -45,13 +45,6 @@
       "src": "/Video renders/soulbound-lantern.mp4",
       "poster": "/images/posters/soulbound-lantern.webp",
       "alt": "Soulbound Lantern animated showcase"
-    },
-    {
-      "kind": "image",
-      "src": "/Image renders/holography_scaled.webp",
-      "alt": "Iridescent material study used as a supporting palette reference",
-      "width": 2048,
-      "height": 1152
     }
   ],
   "seo": {

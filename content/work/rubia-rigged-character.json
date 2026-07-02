@@ -1,7 +1,7 @@
 {
   "slug": "rubia-rigged-character",
   "title": "Rubia",
-  "sortOrder": 4,
+  "sortOrder": 7,
   "year": "2026",
   "featured": false,
   "format": "Rigged Character",
@@ -9,7 +9,7 @@
   "category": "rigged",
   "client": "Self initiated",
   "engagement": "Rigging & realtime presentation",
-  "summary": "A rigged character with full skeleton and skinning, shown live in the realtime viewer with an idle animation. Drag to orbit, switch to Pose to drag the hands and feet with IK, and toggle wireframe or read the mesh stats.",
+  "summary": "A rigged character study — full skeleton and skinned mesh running live in the realtime viewer, with a procedural idle and interactive IK posing on the hands and feet.",
   "tags": [
     "Rigged character",
     "Skinning",
@@ -35,7 +35,7 @@
   "seo": {
     "title": "Rubia — rigged character",
     "description": "A rigged character shown live in a realtime WebGL viewer with skeleton, skinning, an idle animation, wireframe, and mesh stats.",
-    "ogImage": "/images/og/rigged-rubia.jpg"
+    "ogImage": "/images/og/rubia-rigged-character.jpg"
   },
   "interactive": {
     "available": true,

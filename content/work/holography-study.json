@@ -45,13 +45,6 @@
       "alt": "Primary holography material frame",
       "width": 2048,
       "height": 1152
-    },
-    {
-      "kind": "image",
-      "src": "/Image renders/cam_icon_fullscale_medium-dark-lightrim.webp",
-      "alt": "Supporting icon render showing controlled rim-light treatment",
-      "width": 2048,
-      "height": 1152
     }
   ],
   "seo": {

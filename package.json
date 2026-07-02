@@ -10,8 +10,7 @@
   ],
   "scripts": {
     "dev": "next dev",
-    "generate-data": "node scripts/generate-static-data.mjs",
-    "build": "next build",
+    "build": "node scripts/check-asset-sizes.mjs && next build",
     "start": "next start",
     "lint": "eslint"
   },

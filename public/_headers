@@ -10,9 +10,29 @@
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
 
-# Models and textures are content-addressed (filename tied to content) — cache forever.
+# Models/textures keep their filenames when re-exported (NOT content-addressed),
+# so never mark them immutable — a re-export must be able to reach returning
+# visitors. Cache for an hour, serve stale while revalidating in the background.
+# (Path rules for the spaced directories — "Video renders", "Rigged Characters" —
+# would need percent-encoded literals like /Video%20renders/*; they ride the
+# Cloudflare defaults instead.)
 /models/*
-  Cache-Control: public, max-age=31536000, immutable
+  Cache-Control: public, max-age=3600, stale-while-revalidate=86400
+
+# The Draco decoder changes only with a three.js upgrade — cache for 30 days,
+# not immutable (same filenames across versions).
+/draco/*
+  Cache-Control: public, max-age=2592000
+
+# Hero smoke frame sequences are effectively static art — 30 days.
+/hero/smoke_back/*
+  Cache-Control: public, max-age=2592000
+/hero/smoke_back_m/*
+  Cache-Control: public, max-age=2592000
+/hero/smoke_front/*
+  Cache-Control: public, max-age=2592000
+/hero/smoke_front_m/*
+  Cache-Control: public, max-age=2592000
 
 # JS/CSS chunks from Next.js are content-hashed — safe to cache forever.
 /_next/static/*

@@ -45,13 +45,6 @@
       "src": "/Video renders/Evening Fishing.mp4",
       "poster": "/images/posters/evening-fishing.webp",
       "alt": "Evening Fishing environment loop"
-    },
-    {
-      "kind": "image",
-      "src": "/Image renders/fourteenth_image.webp",
-      "alt": "Supporting still study with similar restrained lighting",
-      "width": 2048,
-      "height": 1152
     }
   ],
   "seo": {

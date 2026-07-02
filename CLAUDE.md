@@ -23,8 +23,9 @@ work; it never gets in its way.
   design suggestions — it must be requested explicitly and on its own.
 - Showcase categories are tabbed: **Models · Rigged Characters · Video · Images**.
   Categories derive from each entry's media (`specimen` → models, video hero → video,
-  else images); an explicit `category` field overrides. The empty **Rigged Characters**
-  tab is intentional — a placeholder for incoming work; keep it.
+  else images); an explicit `category` field overrides. **Rigged Characters** hosts
+  Rubia (`rubia-rigged-character.json` — live GLB viewer, idle clip + drag-to-pose IK);
+  more rigged entries are expected to land there.
 - Collection entries (asset packs) set `assets[]` and become one steppable slide per
   asset in the showcase, with a pill switcher on the detail page (see
   `medieval-asset-pack.json`).
@@ -104,8 +105,11 @@ work; it never gets in its way.
   (`contact.primaryHref`) once it lands.
 - **OG images:** 1200×630 JPEGs in `public/images/og/` (built from posters via `sharp`);
   regenerate when hero art changes.
-- **UI polish pass** (`docs/ui-polish-2026-06.md`) logs an applied design pass + two
-  deferred, owner-OK items that need on-device (WebGL) checks: star size-tier skew
-  (~80/15/5 — note the field already has spectral colour + Milky-Way clustering, so it's
-  not the "uniform/random" the critique assumed) and an optional live-3D rim-light/
-  shadow-catcher for the asset viewer.
+- **UI polish log** (`docs/ui-polish-2026-06.md`) records the multi-pass design history,
+  including two owner-rejected directions (don't re-propose those). Still deferred and
+  owner-OK, needing on-device WebGL checks: star size-tier skew (~80/15/5 — note the
+  field already has spectral colour + Milky-Way clustering, so it's not the
+  "uniform/random" the critique assumed; the layer config is `LAYERS_DESKTOP`, defined in
+  both `app/components/VoidBackground.tsx` and `app/scene/VoidContext.ts`) and an
+  optional rim-light bump for the asset viewer. The shadow-catcher itself SHIPPED
+  (Pass 6, `SpecimenScene.tsx`) but still wants an on-device eyeball check.

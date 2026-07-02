@@ -24,8 +24,11 @@ export default function HomePage() {
   }
 
   return (
-    <main className="page-root">
+    <>
+      {/* Outside <main> so <header>/<footer> keep their banner/contentinfo
+          landmark roles (suppressed when nested inside a main landmark). */}
       <Header brandName={site.brand.name} />
+      <main className="page-root">
 
       {/* ═══ HERO — pinned fly-into-smoke intro, asymmetric split ═══ */}
       <HeroIntro>
@@ -111,11 +114,12 @@ export default function HomePage() {
         </div>
       </section>
 
+      </main>
       <Footer
         brandName={site.brand.name}
         xHandle={site.social.xHandle}
         xUrl={site.social.xUrl}
       />
-    </main>
+    </>
   );
 }

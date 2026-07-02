@@ -33,8 +33,11 @@ export function SpecimenPreview({
   // Keep the looping clip alive. Browsers pause muted-autoplay video once it
   // scrolls out of view — and the pinned hero transforms the asset off-screen
   // during the dive — then don't reliably resume, which left the lantern frozen
-  // mid-animation (it "cut off" early vs the source). Re-play whenever it is
-  // visible (and on a pause that happens while it is still on screen).
+  // mid-animation (it "cut off" early vs the source). Resume when the clip
+  // COMES BACK on screen or the tab is re-shown — but never fight a pause that
+  // lands while the clip is visible: that one is deliberate (browser
+  // power-saving UI, a media-control extension, OS media keys) and auto-
+  // replaying it makes the motion un-stoppable (WCAG 2.2.2).
   const videoRef = useRef<HTMLVideoElement>(null);
   useEffect(() => {
     const v = videoRef.current;
@@ -46,23 +49,20 @@ export function SpecimenPreview({
     play();
     const io = new IntersectionObserver(
       (entries) => {
-        visible = entries.some((e) => e.isIntersecting);
-        if (visible) play();
+        const nowVisible = entries.some((e) => e.isIntersecting);
+        const cameBack = nowVisible && !visible;
+        visible = nowVisible;
+        if (cameBack && v.paused) play();
       },
       { threshold: 0.05 },
     );
     io.observe(v);
-    const onPause = () => {
-      if (visible && !document.hidden) play();
-    };
     const onVisibility = () => {
-      if (!document.hidden && visible) play();
+      if (!document.hidden && visible && v.paused) play();
     };
-    v.addEventListener("pause", onPause);
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
       io.disconnect();
-      v.removeEventListener("pause", onPause);
       document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [shouldAnimate]);
@@ -79,6 +79,9 @@ export function SpecimenPreview({
           playsInline
           preload="auto"
           poster={motionAsset.poster ?? posterAsset.src}
+          // Decorative loop: no accessible name of its own — the poster's alt
+          // (reduced tiers) and the HeroSpecimenCue link name the object.
+          aria-hidden="true"
         >
           {alphaSrc ? <source src={alphaSrc} type="video/webm" /> : null}
           <source src={motionAsset.src} type="video/mp4" />

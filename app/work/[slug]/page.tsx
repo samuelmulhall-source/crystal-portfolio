@@ -63,8 +63,11 @@ export default async function WorkDetailPage({ params }: WorkPageProps) {
   const gallery = entry.gallery.filter((asset) => asset.src !== entry.heroMedia.src);
 
   return (
-    <main className="page-root">
+    <>
+      {/* Outside <main> so <header>/<footer> keep their banner/contentinfo
+          landmark roles (suppressed when nested inside a main landmark). */}
       <Header brandName={site.brand.name} />
+      <main className="page-root">
 
       <article className="case-study">
         <PageEntrance>
@@ -75,7 +78,7 @@ export default async function WorkDetailPage({ params }: WorkPageProps) {
             </Link>
             <p className="eyebrow" data-entrance="eyebrow">{entry.discipline}</p>
             <h1 className="page-title" data-entrance="title">{entry.title}</h1>
-            <p className="lede" data-entrance="body">{entry.summary}</p>
+            <p className="lede" data-entrance="body">{entry.description ?? entry.summary}</p>
             <div className="case-study__meta" data-entrance="content">
               <div>
                 <span>Format</span>
@@ -92,11 +95,13 @@ export default async function WorkDetailPage({ params }: WorkPageProps) {
                 </div>
               ) : null}
             </div>
-            <ul className="tool-list">
-              {entry.tools.map((tool) => (
-                <li key={tool}>{tool}</li>
-              ))}
-            </ul>
+            {entry.tools.length > 0 ? (
+              <ul className="tool-list">
+                {entry.tools.map((tool) => (
+                  <li key={tool}>{tool}</li>
+                ))}
+              </ul>
+            ) : null}
           </div>
 
           {entry.assets?.length ? (
@@ -149,11 +154,12 @@ export default async function WorkDetailPage({ params }: WorkPageProps) {
         </section>
       </article>
 
+      </main>
       <Footer
         brandName={site.brand.name}
         xHandle={site.social.xHandle}
         xUrl={site.social.xUrl}
       />
-    </main>
+    </>
   );
 }

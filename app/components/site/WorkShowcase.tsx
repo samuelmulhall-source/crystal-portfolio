@@ -300,6 +300,12 @@ export function WorkShowcase({ groups }: { groups: Record<WorkCategory, WorkEntr
             : undefined
         }
       >
+        {/* Persistent (never-remounted) status line so screen readers hear
+            which slide is now shown after Next/Prev/rail/tab changes — the
+            visible panel remounts per entry, which live regions miss. */}
+        <span className="sr-only" role="status">
+          {active ? `${slideTitle(active)}, ${idx + 1} of ${count}` : ""}
+        </span>
         {active ? (
           <>
             {/* ── Left: typographic datasheet ── */}
@@ -325,6 +331,7 @@ export function WorkShowcase({ groups }: { groups: Record<WorkCategory, WorkEntr
               className="showcase__divider"
               role="separator"
               aria-orientation="vertical"
+              aria-controls="showcase-panel"
               aria-label="Resize the model viewer"
               aria-valuenow={Math.round(infoFr * 100)}
               aria-valuemin={Math.round(MIN_FR * 100)}

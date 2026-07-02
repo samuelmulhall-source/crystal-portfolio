@@ -63,10 +63,13 @@ const WorkEntrySchema = z.object({
   discipline: z.string(),
   /** Explicit showcase category. Falls back to derivation (see getWorkCategory). */
   category: z.enum(["models", "rigged", "video", "images"]).optional(),
-  client: z.string(),
-  engagement: z.string(),
+  /** Optional context labels — no UI renders these today; kept optional so
+   *  entries never have to invent a client to satisfy the schema. */
+  client: z.string().optional(),
+  engagement: z.string().optional(),
   summary: z.string(),
-  /** Editorial long-form, filled in by hand later. Falls back to summary. */
+  /** Editorial long-form for the detail lede — renders in place of summary
+   *  when present (app/work/[slug], `description ?? summary`). */
   description: z.string().optional(),
   /** When the piece was made, e.g. "Mar 2026". Falls back to year. */
   created: z.string().optional(),
@@ -81,13 +84,17 @@ const WorkEntrySchema = z.object({
     description: z.string(),
     ogImage: z.string(),
   }),
-  interactive: z.object({
-    available: z.boolean(),
-    href: z.string().optional(),
-    label: z.string().optional(),
-    sourcePath: z.string().optional(),
-    note: z.string().optional(),
-  }),
+  /** Legacy per-entry viewer notes — no UI renders this; optional so new
+   *  entries can omit it. */
+  interactive: z
+    .object({
+      available: z.boolean(),
+      href: z.string().optional(),
+      label: z.string().optional(),
+      sourcePath: z.string().optional(),
+      note: z.string().optional(),
+    })
+    .optional(),
   specimen: SpecimenSchema.optional(),
   /** Collection entries (asset packs): the named assets users step through.
    *  When present, viewers offer per-asset navigation; `specimen` then acts
@@ -187,10 +194,6 @@ export const getWorkEntries = cache(() => {
     .sort((a, b) => a.sortOrder - b.sortOrder);
 });
 
-export const getFeaturedEntries = cache(() =>
-  getWorkEntries().filter((entry) => entry.featured),
-);
-
 export function getWorkEntryBySlug(slug: string) {
   return getWorkEntries().find((entry) => entry.slug === slug);
 }
@@ -245,20 +248,4 @@ export function getSpecimenMaps(specimen: Specimen): string[] {
 export function getModelFormat(modelPath: string): string {
   const ext = modelPath.split(".").pop() ?? "";
   return ext.toUpperCase();
-}
-
-export function getRelatedEntries(slug: string, limit = 3) {
-  const entries = getWorkEntries();
-  const current = entries.find((entry) => entry.slug === slug);
-  if (!current) return [];
-
-  return entries
-    .filter((entry) => entry.slug !== slug)
-    .sort((left, right) => {
-      const leftScore = left.tags.filter((tag) => current.tags.includes(tag)).length;
-      const rightScore = right.tags.filter((tag) => current.tags.includes(tag)).length;
-      if (leftScore !== rightScore) return rightScore - leftScore;
-      return left.sortOrder - right.sortOrder;
-    })
-    .slice(0, limit);
 }

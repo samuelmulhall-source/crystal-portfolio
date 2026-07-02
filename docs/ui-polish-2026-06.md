@@ -45,10 +45,13 @@ marked **Apply**, **Adapt**, or **Defer** with rationale + status.
 - **Star size distribution (80/15/5).** The field already has spectral color, per-star
   brightness, twinkle, and Milky-Way clustering — it is *not* uniform/random. The only
   gap is a size skew toward many tiny + few bright. Proposed: rebalance layer counts
-  (`VoidBackground.tsx` STAR_LAYERS) toward ~80/15/5 and/or add per-star size jitter in
-  `Starfield.tsx`. Held because it re-tunes a confirmed-good, hard-to-verify layer.
-- **Live-3D presentation drama.** Optional rim-light bump + shadow-catcher plane in
-  `SpecimenScene` StudioLights for a more "photographed" asset; verify on device.
+  (`LAYERS_DESKTOP` — defined in both `app/components/VoidBackground.tsx` and
+  `app/scene/VoidContext.ts`; there is no `STAR_LAYERS` constant) toward ~80/15/5 and/or
+  add per-star size jitter in `app/scene/Starfield.tsx`. Held because it re-tunes a
+  confirmed-good, hard-to-verify layer.
+- **Live-3D presentation drama.** ~~Optional rim-light bump + shadow-catcher plane in
+  `SpecimenScene` StudioLights~~ — **the shadow-catcher shipped in Pass 6** (see below);
+  only the optional rim-light bump remains open, verify on device.
 - **Hero front-smoke offset.** Only the back layer was dropped (15%); front untouched
   unless requested.
 
@@ -91,8 +94,9 @@ evaluated all 17 items against the live code. Consensus below.
 - **#4 / #8** channel chips are already a segmented control; drag-hint tweaks are 3D-only,
   unverifiable here, low value — left alone.
 
-**Still deferred (need on-device WebGL check):** live rim-light/shadow-catcher; star size-tier
-skew; any channel-chip / drag-hint micro-polish (renders only in the live WebGL stage).
+**Still deferred (need on-device WebGL check):** live rim-light (the shadow-catcher half
+shipped in Pass 6); star size-tier skew; any channel-chip / drag-hint micro-polish
+(renders only in the live WebGL stage).
 
 ---
 

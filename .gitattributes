@@ -1,0 +1,12 @@
+# Never let git touch line endings in binary media/model files.
+*.fbx -text
+*.glb -text
+*.gltf -text
+*.mp4 -text
+*.webm -text
+*.webp -text
+*.jpg -text
+*.jpeg -text
+*.png -text
+*.woff2 -text
+*.wasm -text
