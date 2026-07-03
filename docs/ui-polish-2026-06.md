@@ -361,3 +361,43 @@ in proportion.
 by shimming the link rect and dispatching synthetic pointermoves — curve matched design
 exactly; hover floor → 1.00 → release back to field value; keyboard `focusin` → 1.00 +
 chip class. tsc/eslint clean.
+
+---
+
+## Pass 11 — viewer capability pass (zoom · clips · joint limits · hand poses)
+
+Owner: "ensure everything in the model viewer is up to your quality standard" — zoom on all
+models, functioning animations, anatomical bone limits, hand open/close.
+
+- **Zoom everywhere, scroll-safe.** Detail pages keep always-on wheel zoom; the showcase
+  gets the Sketchfab engage pattern — grabbing the viewer (pointerdown) arms wheel zoom,
+  pointer-leave disarms, so scrolling past never gets hijacked. `minDistance` 2.8 → 1.4
+  for real close inspection. Double-click resets the camera. Two-stage hint: "Drag to
+  rotate" → (after first grab) "Scroll to zoom · double-click resets" → auto-dismiss.
+- **Keyboard operability** (closes the review's WCAG 2.1.1 finding): the canvas wrapper is
+  focusable (`role=application` + aria instructions, applied via a `KeyboardOrbit`
+  component inside the Canvas — R3F doesn't forward tabIndex/aria to its wrapper div);
+  arrows orbit, +/− zoom, 0 resets.
+- **Functioning animations.** The FBX ships zero real motion, so the procedural system
+  grew into a selectable clip set — **Idle / Wave / Look Around** — surfaced in the
+  existing clip rack (clean names pass through verbatim now). Clips cross-fade over 0.7s
+  through a shared union-of-bones driver rig whose base poses are captured once at load
+  (no pose contamination on switch). Wave axes were probed empirically (R shoulder raise
+  = local +x, elbow flexion = local +z) — arm raises to head height with a 4.2 rad/s
+  forearm oscillation.
+- **Bones only bend as they should.** The CCD solver now clamps every chain joint per
+  iteration, relative to the bind rest pose, via swing/twist decomposition: elbows and
+  knees are true hinges (axis probed per side: elbow local Z with L−/R+ flexion, knee
+  local X) with one-signed ranges, shoulders/hips are cone+twist ball joints. Verified by
+  driving 30 CCD iterations at a behind-the-back target: the elbow stopped at its −3.4°
+  floor with zero off-axis bend and the effector simply didn't reach.
+- **Hand controls.** In Pose mode a "Hand pose" rack (Open / Rest / Fist) eases all finger
+  chains (4-fingered rig: Thumb/Index/Mid/Pinky × 3 segments) toward preset curls —
+  fingers flex about local −X, thumbs about +Z (probed), critically-damped ease, both
+  hands together. Verified: fingertip→wrist distances shrink ~34% into a fist,
+  identical L/R.
+
+**Verification note:** rAF was fully stalled in the harness this session; discovered
+`window.__rb.advance(performance.now())` (R3F's manual frame pump, ms timestamps) runs
+useFrame without rAF — that's how the clips/curl/IK were exercised. tsc / eslint /
+build clean; console clean.

@@ -18,7 +18,7 @@ import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useDisplayMode } from "./DisplayModeProvider";
 import type { Specimen } from "../../lib/content";
-import type { SpecimenChannel, SpecimenStats } from "./SpecimenScene";
+import type { HandPose, SpecimenChannel, SpecimenStats } from "./SpecimenScene";
 
 const SpecimenScene = dynamic(() => import("./SpecimenScene"), { ssr: false });
 
@@ -43,11 +43,13 @@ const TEX_CHANNELS: { id: SpecimenChannel; label: string }[] = [
   { id: "transmissionMap", label: "Transmit" },
 ];
 
-/** Clip names from the FBX are noise ("...animation_1.004"); label them cleanly:
- *  a T-pose/bind clip becomes "Rest", the rest become sequential "Loop N". */
+/** Label clips for the selector. Clean names (the procedural set, or a tidy
+ *  DCC export) pass through verbatim; exporter noise ("...animation_1.004")
+ *  becomes sequential "Loop N"; a T-pose/bind clip becomes "Rest". */
 function labelClips(names: string[]): { idx: number; label: string }[] {
   let n = 0;
   return names.map((name, idx) => {
+    if (/^[A-Za-z][A-Za-z ]{1,13}$/.test(name)) return { idx, label: name };
     const rest = /t-?pose|rest|bind|a-?pose|(^|\|)0_/i.test(name);
     return { idx, label: rest ? "Rest" : `Loop ${++n}` };
   });
@@ -127,9 +129,15 @@ export function SpecimenViewer({
   const [clipIndex, setClipIndex] = useState(0);
   const [poseMode, setPoseMode] = useState(false);
   const [poseable, setPoseable] = useState(false);
-  // The "drag to rotate" hint dismisses itself once the user actually drags,
-  // instead of sitting there indefinitely.
-  const [hasInteracted, setHasInteracted] = useState(false);
+  const [handPose, setHandPose] = useState<HandPose>("rest");
+  // Two-stage hint: "drag to rotate" until the user grabs the viewer, then a
+  // brief "scroll to zoom" coach line, then gone.
+  const [hintStage, setHintStage] = useState<0 | 1 | 2>(0);
+  useEffect(() => {
+    if (hintStage !== 1) return;
+    const t = setTimeout(() => setHintStage(2), 4500);
+    return () => clearTimeout(t);
+  }, [hintStage]);
 
   // Client-mount guard: keeps the first client render matching SSR (poster
   // only), then enables the WebGL stage. Matches the codebase convention.
@@ -149,7 +157,8 @@ export function SpecimenViewer({
     setClipIndex(0);
     setPoseMode(false);
     setPoseable(false);
-    setHasInteracted(false);
+    setHandPose("rest");
+    setHintStage(0);
   }
 
   const rigged = !!specimen.rigged;
@@ -180,7 +189,8 @@ export function SpecimenViewer({
       {enhanced ? (
         <div
           className={`specimen-viewer__stage${sceneReady ? " is-ready" : ""}`}
-          onPointerDown={() => setHasInteracted(true)}
+          onPointerDown={() => setHintStage((s) => (s === 0 ? 1 : s))}
+          onKeyDown={() => setHintStage((s) => (s === 0 ? 1 : s))}
         >
           <SpecimenScene
             specimen={specimen}
@@ -188,6 +198,7 @@ export function SpecimenViewer({
             clipIndex={clipIndex}
             poseMode={poseMode}
             allowZoom={allowZoom}
+            handPose={handPose}
             onReady={() => setSceneReady(true)}
             onStats={setStats}
             onClips={setClips}
@@ -221,14 +232,16 @@ export function SpecimenViewer({
       {enhanced && sceneReady ? (
         <div className="specimen-viewer__toolbar">
           <span
-            className={`specimen-viewer__toolbar-hint${hasInteracted ? " is-dismissed" : ""}`}
+            className={`specimen-viewer__toolbar-hint${hintStage === 2 ? " is-dismissed" : ""}`}
             aria-hidden="true"
           >
             {poseMode
               ? "Drag the handles to pose the rig"
-              : allowZoom
-                ? "Drag to rotate · scroll to zoom"
-                : "Drag to rotate"}
+              : hintStage === 1
+                ? "Scroll to zoom · double-click resets"
+                : allowZoom
+                  ? "Drag to rotate · scroll to zoom"
+                  : "Drag to rotate"}
           </span>
           <div className="specimen-viewer__toolbar-racks">
             <ChipRack
@@ -247,6 +260,19 @@ export function SpecimenViewer({
                 ]}
                 activeId={poseMode ? "pose" : "animate"}
                 onSelect={(id) => setPoseMode(id === "pose")}
+              />
+            ) : null}
+
+            {rigged && poseable && poseMode ? (
+              <ChipRack
+                ariaLabel="Hand pose"
+                items={[
+                  { id: "open", label: "Open" },
+                  { id: "rest", label: "Rest" },
+                  { id: "fist", label: "Fist" },
+                ]}
+                activeId={handPose}
+                onSelect={(id) => setHandPose(id as HandPose)}
               />
             ) : null}
 

@@ -60,6 +60,7 @@ function SpecimenModel({
   channel = "material",
   clipIndex = 0,
   poseMode = false,
+  handPose = "rest",
   onReady,
   onStats,
   onClips,
@@ -68,13 +69,15 @@ function SpecimenModel({
 }: {
   specimen: Specimen;
   channel?: SpecimenChannel;
-  /** Which embedded animation clip to play (rigged characters). */
+  /** Which animation clip to play (rigged characters). */
   clipIndex?: number;
   /** Pose mode: pause animation and enable drag-to-pose IK handles. */
   poseMode?: boolean;
+  /** Hand preset while posing (open / rest / fist). */
+  handPose?: HandPose;
   onReady?: () => void;
   onStats?: (stats: SpecimenStats) => void;
-  /** Report the rig's playable (real-motion) clip names for the selector. */
+  /** Report the rig's playable clip names for the selector. */
   onClips?: (names: string[]) => void;
   /** Report whether drag-to-pose is viable on this rig. */
   onPoseable?: (v: boolean) => void;
@@ -299,14 +302,28 @@ function SpecimenModel({
     () => (isRigged ? anims.filter(clipHasMotion) : []),
     [isRigged, anims],
   );
+  // Report clips for the selector: real motion clips when they exist, else the
+  // procedural set (Idle / Wave / Look Around) so the rig still has functioning,
+  // selectable animation.
   useEffect(() => {
-    onClips?.(playable.map((a) => a.name));
-  }, [playable, onClips]);
+    if (!isRigged) return;
+    onClips?.(playable.length ? playable.map((a) => a.name) : PROC_CLIPS.map((c) => c.name));
+  }, [isRigged, playable, onClips]);
 
-  // A procedural breathing/sway/look idle — used when the rig has no real motion
-  // clips, so a rig with no authored animation still reads as alive. Captures each
-  // driver bone's base pose once, then layers small sine offsets on top.
+  // Procedural clips — used when the rig has no real motion clips. Captures each
+  // driver bone's base pose once (clean bind), then layers sine offsets on top.
   const idle = useMemo(() => (rigSync ? buildIdle(rigSync.primary) : null), [rigSync]);
+  // Clip-switch cross-blend: remember the previous clip and ramp to the new one.
+  const procSwitch = useRef({ from: 0, to: 0, start: -1 });
+  useEffect(() => {
+    if (playable.length) return; // real clips: the mixer handles switching
+    const s = procSwitch.current;
+    if (clipIndex !== s.to) {
+      s.from = s.to;
+      s.to = clipIndex;
+      s.start = -1; // stamped with clock time on the next frame
+    }
+  }, [clipIndex, playable.length]);
 
   // Play the selected clip so the rig reads as alive. Rooted at the lead skinned
   // mesh so PropertyBinding resolves tracks via skeleton.getBoneByName (binds to
@@ -327,13 +344,20 @@ function SpecimenModel({
     };
   }, [rigSync, playable, clipIndex, poseMode]);
 
-  // Drive the rig (real clip OR procedural idle), then propagate the lead pose to
+  // Drive the rig (real clip OR procedural clip), then propagate the lead pose to
   // the duplicate skeletons. Pose mode is handled separately by RigPoser.
   useFrame((state, dt) => {
     if (!rigSync || poseMode) return;
     const m = mixerRef.current;
     if (m) m.update(dt);
-    else if (idle) applyIdle(idle, state.clock.elapsedTime);
+    else if (idle) {
+      const s = procSwitch.current;
+      const t = state.clock.elapsedTime;
+      if (s.start < 0) s.start = t;
+      const raw = s.from === s.to ? 1 : Math.min(1, (t - s.start) / 0.7);
+      const blend = raw * raw * (3 - 2 * raw); // smoothstep the cross-fade
+      applyIdle(idle, t, s.from, s.to, blend);
+    }
     mirrorRig(rigSync);
   });
 
@@ -369,7 +393,7 @@ function SpecimenModel({
       </group>
       <ShadowCatcher y={groundY} />
       {rigSync && rigSync.poseable && poseMode ? (
-        <RigPoser rig={rigSync} setDragLock={setDragLock} />
+        <RigPoser rig={rigSync} handPose={handPose} setDragLock={setDragLock} />
       ) : null}
     </>
   );
@@ -480,12 +504,13 @@ function clipHasMotion(clip: THREE.AnimationClip): boolean {
   return false;
 }
 
-// ─── Procedural idle ─────────────────────────────────────────────────────────
-// A layered-sine breathing / weight-shift / look-around idle, applied as small
-// local-rotation offsets on top of each bone's authored base pose. Gives a rig
-// with no authored motion a calm, alive presence for the showcase. Axis: 0=x
-// (nod/breathe), 1=y (turn), 2=z (sway/tilt). Amplitudes in radians.
-type IdleComp = { axis: 0 | 1 | 2; amp: number; speed: number; phase: number };
+// ─── Procedural clips ────────────────────────────────────────────────────────
+// Layered-sine motion applied as local-rotation offsets on top of each bone's
+// authored base pose — a rig with no authored motion still gets a small set of
+// selectable, believable clips (Idle / Wave / Look Around). Axis: 0=x
+// (nod/breathe), 1=y (turn), 2=z (sway/tilt). Amplitudes in radians; `base` is
+// a constant offset (posed limbs, e.g. the raised wave arm) under the sine.
+type IdleComp = { axis: 0 | 1 | 2; amp: number; speed: number; phase: number; base?: number };
 const IDLE_SPECS: Array<{ name: string; comps: IdleComp[] }> = [
   // Breathing — chest/upper spine ease back as the ribcage lifts.
   { name: "CC_Base_Spine02", comps: [{ axis: 0, amp: 0.03, speed: 1.5, phase: 0 }] },
@@ -521,34 +546,128 @@ const IDLE_SPECS: Array<{ name: string; comps: IdleComp[] }> = [
   { name: "CC_Base_R_Forearm", comps: [{ axis: 0, amp: 0.05, speed: 0.55, phase: 0.95 }] },
 ];
 
-type IdleRig = { drivers: Array<{ bone: THREE.Bone; base: THREE.Quaternion; comps: IdleComp[] }> };
+// Wave — right arm raised (axes/signs empirically probed on this rig: shoulder
+// raise = local +x on the right side, elbow flexion = local +z on the right),
+// forearm + hand oscillate, head tips toward the wave. Breathing stays on.
+const WAVE_SPECS: Array<{ name: string; comps: IdleComp[] }> = [
+  { name: "CC_Base_Spine02", comps: [{ axis: 0, amp: 0.03, speed: 1.5, phase: 0 }] },
+  { name: "CC_Base_Spine01", comps: [{ axis: 0, amp: 0.018, speed: 1.5, phase: 0 }] },
+  { name: "CC_Base_Waist", comps: [{ axis: 2, amp: 0.02, speed: 0.5, phase: 0 }] },
+  { name: "CC_Base_R_Clavicle", comps: [{ axis: 0, amp: 0, speed: 1, phase: 0, base: 0.18 }] },
+  {
+    name: "CC_Base_R_Upperarm",
+    comps: [
+      { axis: 0, amp: 0.05, speed: 4.2, phase: 0, base: 1.15 },
+      { axis: 2, amp: 0, speed: 1, phase: 0, base: -0.25 },
+    ],
+  },
+  {
+    name: "CC_Base_R_Forearm",
+    comps: [{ axis: 2, amp: 0.38, speed: 4.2, phase: 0.6, base: 0.85 }],
+  },
+  { name: "CC_Base_R_Hand", comps: [{ axis: 2, amp: 0.22, speed: 4.2, phase: 1.1 }] },
+  {
+    name: "CC_Base_Head",
+    comps: [
+      { axis: 2, amp: 0.02, speed: 1.2, phase: 0, base: -0.07 },
+      { axis: 0, amp: 0.03, speed: 0.5, phase: 0.5 },
+    ],
+  },
+  // The idle arm keeps its gentle drift so the body doesn't freeze.
+  {
+    name: "CC_Base_L_Upperarm",
+    comps: [{ axis: 2, amp: 0.055, speed: 0.5, phase: 0 }],
+  },
+];
+
+// Look Around — slow, wide head sweeps with torso follow-through.
+const LOOK_SPECS: Array<{ name: string; comps: IdleComp[] }> = [
+  { name: "CC_Base_Spine02", comps: [{ axis: 0, amp: 0.03, speed: 1.5, phase: 0 }, { axis: 1, amp: 0.1, speed: 0.21, phase: 0.4 }] },
+  { name: "CC_Base_Spine01", comps: [{ axis: 0, amp: 0.018, speed: 1.5, phase: 0 }] },
+  { name: "CC_Base_Waist", comps: [{ axis: 1, amp: 0.06, speed: 0.21, phase: 0.2 }] },
+  {
+    name: "CC_Base_Head",
+    comps: [
+      { axis: 1, amp: 0.46, speed: 0.21, phase: 1.0 },
+      { axis: 0, amp: 0.07, speed: 0.34, phase: 0.5 },
+      { axis: 2, amp: 0.04, speed: 0.27, phase: 1.4 },
+    ],
+  },
+  { name: "CC_Base_NeckTwist02", comps: [{ axis: 1, amp: 0.2, speed: 0.21, phase: 1.0 }] },
+  { name: "CC_Base_L_Upperarm", comps: [{ axis: 2, amp: 0.04, speed: 0.5, phase: 0 }] },
+  { name: "CC_Base_R_Upperarm", comps: [{ axis: 2, amp: -0.04, speed: 0.5, phase: 0.4 }] },
+];
+
+/** Procedural clip registry — offered in the clip selector when the rig ships
+ *  no real motion clips. */
+const PROC_CLIPS: Array<{ name: string; specs: Array<{ name: string; comps: IdleComp[] }> }> = [
+  { name: "Idle", specs: IDLE_SPECS },
+  { name: "Wave", specs: WAVE_SPECS },
+  { name: "Look Around", specs: LOOK_SPECS },
+];
+
+type IdleRig = {
+  /** Union of every bone any clip drives, with its clean base pose captured at
+   *  load (before any procedural motion ran) — switching clips can then blend
+   *  through the base instead of compounding on a contaminated pose. */
+  drivers: Array<{ bone: THREE.Bone; base: THREE.Quaternion }>;
+  byName: Map<string, number>;
+};
 
 function buildIdle(primary: THREE.SkinnedMesh): IdleRig | null {
   const drivers: IdleRig["drivers"] = [];
-  for (const spec of IDLE_SPECS) {
-    const bone = primary.skeleton.getBoneByName(spec.name);
-    if (bone) drivers.push({ bone, base: bone.quaternion.clone(), comps: spec.comps });
+  const byName = new Map<string, number>();
+  const wanted = new Set<string>();
+  for (const clip of PROC_CLIPS) for (const s of clip.specs) wanted.add(s.name);
+  for (const name of wanted) {
+    const bone = primary.skeleton.getBoneByName(name);
+    if (!bone) continue;
+    byName.set(name, drivers.length);
+    drivers.push({ bone, base: bone.quaternion.clone() });
   }
-  return drivers.length ? { drivers } : null;
+  return drivers.length ? { drivers, byName } : null;
 }
 
 const _idleEuler = new THREE.Euler();
 const _idleQ = new THREE.Quaternion();
 
-/** Pose the idle's driver bones from their base pose + summed sine offsets. */
-function applyIdle(idle: IdleRig, t: number) {
-  for (const d of idle.drivers) {
-    let rx = 0, ry = 0, rz = 0;
-    for (const c of d.comps) {
-      const v = Math.sin(t * c.speed + c.phase) * c.amp;
-      if (c.axis === 0) rx += v;
-      else if (c.axis === 1) ry += v;
-      else rz += v;
-    }
+function evalSpecs(
+  specs: Array<{ name: string; comps: IdleComp[] }>,
+  name: string,
+  t: number,
+): [number, number, number] {
+  const spec = specs.find((s) => s.name === name);
+  const out: [number, number, number] = [0, 0, 0];
+  if (!spec) return out;
+  for (const c of spec.comps) {
+    out[c.axis] += (c.base ?? 0) + Math.sin(t * c.speed + c.phase) * c.amp;
+  }
+  return out;
+}
+
+/** Pose the driver bones from base pose + the active clip's offsets, blending
+ *  from the previous clip across a switch (per-axis lerp — offsets are small
+ *  or monotonic, so euler-space blending stays clean). */
+function applyIdle(
+  idle: IdleRig,
+  t: number,
+  from: number,
+  to: number,
+  blend: number,
+) {
+  const specsA = PROC_CLIPS[from]?.specs ?? PROC_CLIPS[0].specs;
+  const specsB = PROC_CLIPS[to]?.specs ?? PROC_CLIPS[0].specs;
+  idle.byName.forEach((idx, name) => {
+    const d = idle.drivers[idx];
+    const a = blend < 1 ? evalSpecs(specsA, name, t) : null;
+    const b = evalSpecs(specsB, name, t);
+    const rx = a ? a[0] + (b[0] - a[0]) * blend : b[0];
+    const ry = a ? a[1] + (b[1] - a[1]) * blend : b[1];
+    const rz = a ? a[2] + (b[2] - a[2]) * blend : b[2];
     _idleEuler.set(rx, ry, rz);
     _idleQ.setFromEuler(_idleEuler);
     d.bone.quaternion.copy(d.base).multiply(_idleQ);
-  }
+  });
 }
 
 // ─── Drag-to-pose IK ────────────────────────────────────────────────────────
@@ -586,6 +705,78 @@ function buildChains(primary: THREE.SkinnedMesh): Chain[] {
   return chains;
 }
 
+// ─── Anatomical joint limits ────────────────────────────────────────────────
+// Without limits, CCD happily bends elbows backwards and folds shoulders through
+// the torso. Each chain bone is clamped after every CCD step, relative to its
+// REST pose, via swing/twist decomposition (twist = rotation about the bone's
+// own +Y axis, which points along the bone in this Blender-exported rig).
+// Hinge joints keep ONLY rotation about their hinge axis, range-clamped; ball
+// joints get a swing cone + twist budget. Axes/signs were probed empirically on
+// the live rig (elbow = local Z, flexion L−/R+; knee = local X, flexion −).
+type JointLimit =
+  | { kind: "hinge"; axis: THREE.Vector3; min: number; max: number; twist: number }
+  | { kind: "ball"; swing: number; twist: number };
+
+const HINGE_Z = new THREE.Vector3(0, 0, 1);
+const HINGE_X = new THREE.Vector3(1, 0, 0);
+
+const JOINT_LIMITS: Array<{ match: RegExp; limit: JointLimit }> = [
+  { match: /L_Forearm$/, limit: { kind: "hinge", axis: HINGE_Z, min: -2.4, max: 0.06, twist: 0.35 } },
+  { match: /R_Forearm$/, limit: { kind: "hinge", axis: HINGE_Z, min: -0.06, max: 2.4, twist: 0.35 } },
+  { match: /Calf$/, limit: { kind: "hinge", axis: HINGE_X, min: -2.3, max: 0.06, twist: 0.2 } },
+  { match: /Upperarm$/, limit: { kind: "ball", swing: 1.7, twist: 0.6 } },
+  { match: /Thigh$/, limit: { kind: "ball", swing: 1.5, twist: 0.5 } },
+];
+
+function limitFor(name: string): JointLimit | null {
+  return JOINT_LIMITS.find((j) => j.match.test(name))?.limit ?? null;
+}
+
+type JointState = { rest: THREE.Quaternion; limit: JointLimit | null };
+type JointMap = Map<THREE.Bone, JointState>;
+
+const _delta = new THREE.Quaternion();
+const _twist = new THREE.Quaternion();
+const _swing = new THREE.Quaternion();
+const _restInv = new THREE.Quaternion();
+
+/** Clamp `bone.quaternion` to its joint limit, relative to the rest pose. */
+function clampJoint(bone: THREE.Bone, js: JointState) {
+  if (!js.limit) return;
+  _restInv.copy(js.rest).invert();
+  _delta.multiplyQuaternions(_restInv, bone.quaternion);
+  // twist about the bone's own +Y (delta = swing ⊗ twist)
+  const tw = Math.hypot(_delta.y, _delta.w);
+  if (tw < 1e-8) _twist.identity();
+  else _twist.set(0, _delta.y / tw, 0, _delta.w / tw);
+  _swing.copy(_twist).invert().premultiply(_delta); // swing = delta * twist⁻¹
+  // clamp twist
+  let twistAngle = 2 * Math.atan2(_twist.y, _twist.w);
+  if (twistAngle > Math.PI) twistAngle -= 2 * Math.PI;
+  const tmax = js.limit.twist;
+  twistAngle = Math.min(tmax, Math.max(-tmax, twistAngle));
+  _twist.set(0, Math.sin(twistAngle / 2), 0, Math.cos(twistAngle / 2));
+  if (js.limit.kind === "hinge") {
+    // Project swing onto the hinge axis (kills off-axis bend), clamp range.
+    const a = js.limit.axis;
+    const proj = _swing.x * a.x + _swing.y * a.y + _swing.z * a.z;
+    let hingeAngle = 2 * Math.atan2(proj, _swing.w);
+    if (hingeAngle > Math.PI) hingeAngle -= 2 * Math.PI;
+    if (hingeAngle < -Math.PI) hingeAngle += 2 * Math.PI;
+    hingeAngle = Math.min(js.limit.max, Math.max(js.limit.min, hingeAngle));
+    _swing.setFromAxisAngle(a, hingeAngle);
+  } else {
+    // Cone-clamp the swing magnitude.
+    let swingAngle = 2 * Math.acos(Math.min(1, Math.abs(_swing.w)));
+    if (swingAngle > js.limit.swing && swingAngle > 1e-6) {
+      _q.identity();
+      _swing.slerp(_q, 1 - js.limit.swing / swingAngle);
+      swingAngle = js.limit.swing;
+    }
+  }
+  bone.quaternion.copy(js.rest).multiply(_swing).multiply(_twist);
+}
+
 const _effPos = new THREE.Vector3();
 const _bonePos = new THREE.Vector3();
 const _toEff = new THREE.Vector3();
@@ -594,8 +785,14 @@ const _axis = new THREE.Vector3();
 const _q = new THREE.Quaternion();
 const _hit = new THREE.Vector3();
 
-/** One CCD pass: rotate chain bones (root→effector) toward a world-space target. */
-function solveCCD(chain: THREE.Bone[], target: THREE.Vector3, iterations = 6) {
+/** One CCD pass: rotate chain bones (root→effector) toward a world-space
+ *  target, keeping every joint inside its anatomical limit. */
+function solveCCD(
+  chain: THREE.Bone[],
+  target: THREE.Vector3,
+  joints?: JointMap,
+  iterations = 6,
+) {
   const effector = chain[chain.length - 1];
   for (let it = 0; it < iterations; it++) {
     for (let i = chain.length - 2; i >= 0; i--) {
@@ -617,16 +814,31 @@ function solveCCD(chain: THREE.Bone[], target: THREE.Vector3, iterations = 6) {
       bone.getWorldQuaternion(_q).invert();
       _axis.applyQuaternion(_q).normalize();
       bone.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(_axis, angle));
+      const js = joints?.get(bone);
+      if (js) clampJoint(bone, js);
       bone.updateWorldMatrix(false, true); // refresh effector under this bone
     }
   }
 }
 
+/** Hand pose presets — curl scalar applied across the finger segments. */
+export type HandPose = "open" | "rest" | "fist";
+const HAND_CURL: Record<HandPose, number> = { open: -0.22, rest: 0, fist: 1 };
+// Per-segment flex (radians at curl=1); axes probed on this rig: fingers curl
+// about local −X (both sides), thumbs about local +Z.
+const FINGER_SEG_FLEX = [0.85, 1.15, 0.9];
+const THUMB_SEG_FLEX = [0.3, 0.55, 0.45];
+const FINGER_RE = /_(Thumb|Index|Mid|Ring|Pinky)([123])$/;
+
+type FingerJoint = { bone: THREE.Bone; rest: THREE.Quaternion; flex: number; isThumb: boolean };
+
 function RigPoser({
   rig,
+  handPose = "rest",
   setDragLock,
 }: {
   rig: RigSync;
+  handPose?: HandPose;
   setDragLock?: (v: boolean) => void;
 }) {
   const chains = useMemo(() => buildChains(rig.primary), [rig]);
@@ -637,13 +849,41 @@ function RigPoser({
   const camDir = useMemo(() => new THREE.Vector3(), []);
   const raycaster = useMemo(() => new THREE.Raycaster(), []);
   const ndc = useMemo(() => new THREE.Vector2(), []);
+  const jointsRef = useRef<JointMap>(new Map());
+  const fingersRef = useRef<FingerJoint[]>([]);
+  const curlRef = useRef({ cur: 0 });
 
   // Start posing from a clean bind pose (and sync the duplicate skeletons to it)
-  // so the rig doesn't freeze mid-animation.
+  // so the rig doesn't freeze mid-animation. Capture every joint's REST pose
+  // from that clean bind — the anchor both the limits and the finger curls
+  // measure against.
   useEffect(() => {
     rig.primary.skeleton.pose();
     mirrorRig(rig);
-  }, [rig]);
+    const joints: JointMap = new Map();
+    for (const c of chains) {
+      for (const bone of c.bones) {
+        if (!joints.has(bone)) {
+          joints.set(bone, { rest: bone.quaternion.clone(), limit: limitFor(bone.name) });
+        }
+      }
+    }
+    jointsRef.current = joints;
+    const fingers: FingerJoint[] = [];
+    for (const bone of rig.primary.skeleton.bones) {
+      const m = FINGER_RE.exec(bone.name);
+      if (!m) continue;
+      const isThumb = m[1] === "Thumb";
+      const seg = Number(m[2]) - 1;
+      fingers.push({
+        bone,
+        rest: bone.quaternion.clone(),
+        flex: (isThumb ? THUMB_SEG_FLEX : FINGER_SEG_FLEX)[seg] ?? 0.8,
+        isThumb,
+      });
+    }
+    fingersRef.current = fingers;
+  }, [rig, chains]);
 
   // Drag is driven from window-level listeners (NOT the handle mesh) so motion is
   // tracked once the cursor leaves the small handle — manual raycast of the
@@ -672,16 +912,29 @@ function RigPoser({
     };
   }, [gl, camera, raycaster, ndc, setDragLock]);
 
-  // Park handles on their effectors, solve while dragging, then propagate the
-  // lead pose onto the duplicate skeletons so the whole character poses as one.
-  useFrame(() => {
+  // Park handles on their effectors, solve while dragging (joint-limited),
+  // ease the hands toward the selected pose, then propagate the lead pose onto
+  // the duplicate skeletons so the whole character poses as one.
+  const _fq = useMemo(() => new THREE.Quaternion(), []);
+  const _fx = useMemo(() => new THREE.Vector3(1, 0, 0), []);
+  const _fz = useMemo(() => new THREE.Vector3(0, 0, 1), []);
+  useFrame((_, dt) => {
     chains.forEach((c, i) => {
       const h = handleRefs.current[i];
       if (h && dragRef.current?.chain !== c.bones) {
         h.position.setFromMatrixPosition(c.effector.matrixWorld);
       }
     });
-    if (dragRef.current) solveCCD(dragRef.current.chain, targetRef.current);
+    if (dragRef.current) solveCCD(dragRef.current.chain, targetRef.current, jointsRef.current);
+    // Hand pose — critically-damped ease toward the preset curl.
+    const target = HAND_CURL[handPose];
+    const cs = curlRef.current;
+    cs.cur += (target - cs.cur) * Math.min(1, dt * 9);
+    for (const f of fingersRef.current) {
+      // fingers: local −X curl · thumbs: local +Z curl (probed on this rig)
+      _fq.setFromAxisAngle(f.isThumb ? _fz : _fx, (f.isThumb ? 1 : -1) * cs.cur * f.flex);
+      f.bone.quaternion.copy(f.rest).multiply(_fq);
+    }
     mirrorRig(rig);
   });
 
@@ -759,12 +1012,82 @@ function StudioLights() {
   );
 }
 
+/** The slice of OrbitControls the keyboard/reset helpers need. */
+type ControlsLike = {
+  object: THREE.Camera;
+  target: THREE.Vector3;
+  minDistance: number;
+  maxDistance: number;
+  minPolarAngle: number;
+  maxPolarAngle: number;
+  update: () => void;
+  reset: () => void;
+};
+
+/** Keyboard operability for the viewer — arrows orbit, +/- zoom, 0 resets.
+ *  R3F's Canvas doesn't forward tabIndex/role/aria to its wrapper div, so this
+ *  makes the wrapper focusable and listens natively (inside the Canvas tree,
+ *  cleaned up on unmount). The global :focus-visible ring covers focus style. */
+function KeyboardOrbit({ controls }: { controls: React.RefObject<ControlsLike | null> }) {
+  const gl = useThree((s) => s.gl);
+  useEffect(() => {
+    const wrap = gl.domElement.parentElement;
+    if (!wrap) return;
+    wrap.setAttribute("tabindex", "0");
+    wrap.setAttribute("role", "application");
+    wrap.setAttribute(
+      "aria-label",
+      "3D viewer — drag or arrow keys to rotate, plus and minus to zoom, 0 or double-click to reset",
+    );
+    const orbitBy = (dTheta: number, dPhi: number) => {
+      const c = controls.current;
+      if (!c) return;
+      const off = c.object.position.clone().sub(c.target);
+      const sph = new THREE.Spherical().setFromVector3(off);
+      sph.theta += dTheta;
+      sph.phi = Math.min(c.maxPolarAngle, Math.max(c.minPolarAngle, sph.phi + dPhi));
+      off.setFromSpherical(sph);
+      c.object.position.copy(c.target).add(off);
+      c.update();
+    };
+    const zoomBy = (factor: number) => {
+      const c = controls.current;
+      if (!c) return;
+      const off = c.object.position.clone().sub(c.target);
+      off.setLength(Math.min(c.maxDistance, Math.max(c.minDistance, off.length() * factor)));
+      c.object.position.copy(c.target).add(off);
+      c.update();
+    };
+    const step = 0.14;
+    const onKey = (e: KeyboardEvent) => {
+      switch (e.key) {
+        case "ArrowLeft": e.preventDefault(); orbitBy(step, 0); break;
+        case "ArrowRight": e.preventDefault(); orbitBy(-step, 0); break;
+        case "ArrowUp": e.preventDefault(); orbitBy(0, -step); break;
+        case "ArrowDown": e.preventDefault(); orbitBy(0, step); break;
+        case "+": case "=": e.preventDefault(); zoomBy(0.88); break;
+        case "-": case "_": e.preventDefault(); zoomBy(1.14); break;
+        case "0": e.preventDefault(); controls.current?.reset(); break;
+      }
+    };
+    wrap.addEventListener("keydown", onKey);
+    return () => {
+      wrap.removeEventListener("keydown", onKey);
+      wrap.removeAttribute("role");
+      wrap.removeAttribute("aria-label");
+      wrap.removeAttribute("tabindex");
+    };
+  }, [gl, controls]);
+  return null;
+}
+
 export default function SpecimenScene({
   specimen,
   channel = "material",
   clipIndex = 0,
   poseMode = false,
   allowZoom = false,
+  handPose = "rest",
   onReady,
   onStats,
   onClips,
@@ -774,9 +1097,12 @@ export default function SpecimenScene({
   channel?: SpecimenChannel;
   clipIndex?: number;
   poseMode?: boolean;
-  /** Wheel-zoom hijacks page scroll — only enable in deliberate inspection
-   *  contexts (detail pages), never mid-scroll surfaces like the showcase. */
+  /** Always-on wheel zoom — detail pages. On mid-scroll surfaces (showcase)
+   *  zoom instead engages after the user grabs the viewer (pointerdown) and
+   *  releases when the pointer leaves it, so it never ambushes page scroll. */
   allowZoom?: boolean;
+  /** Hand preset while posing (open / rest / fist). */
+  handPose?: HandPose;
   onReady?: () => void;
   onStats?: (stats: SpecimenStats) => void;
   onClips?: (names: string[]) => void;
@@ -785,6 +1111,10 @@ export default function SpecimenScene({
   const [interacting, setInteracting] = useState(false);
   // When a pose handle is being dragged, freeze orbit so the camera doesn't spin.
   const [dragLock, setDragLock] = useState(false);
+  // Engage-to-zoom (Sketchfab pattern): grabbing the viewer arms wheel zoom;
+  // moving the pointer off it disarms, so scrolling past never gets hijacked.
+  const [engaged, setEngaged] = useState(false);
+  const controlsRef = useRef<ControlsLike | null>(null);
 
   return (
     <Canvas
@@ -792,8 +1122,15 @@ export default function SpecimenScene({
       dpr={[1, 1.75]}
       gl={{ antialias: true, alpha: true, preserveDrawingBuffer: true }}
       shadows="soft"
+      onDoubleClick={() => {
+        if (!dragLock) controlsRef.current?.reset();
+      }}
+      onPointerLeave={() => setEngaged(false)}
       style={{ width: "100%", height: "100%" }}
-      onPointerDown={() => setInteracting(true)}
+      onPointerDown={() => {
+        setInteracting(true);
+        setEngaged(true); // grabbing the viewer arms wheel zoom
+      }}
       onPointerUp={() => setInteracting(false)}
       onCreated={() => {
         // R3F can measure the container before layout settles (canvas stuck at
@@ -812,14 +1149,17 @@ export default function SpecimenScene({
           onStats={onStats}
           onClips={onClips}
           onPoseable={onPoseable}
+          handPose={handPose}
           setDragLock={setDragLock}
         />
       </Suspense>
+      <KeyboardOrbit controls={controlsRef} />
       <OrbitControls
+        ref={controlsRef as never}
         enablePan={false}
-        enableZoom={allowZoom}
+        enableZoom={allowZoom || engaged}
         enabled={!dragLock}
-        minDistance={2.8}
+        minDistance={1.4}
         maxDistance={7}
         autoRotate={!interacting && !poseMode}
         autoRotateSpeed={0.9}
