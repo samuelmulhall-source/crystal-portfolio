@@ -824,17 +824,23 @@ button, input, textarea { font: inherit; }
 }
 
 /* Hero-level receding scrim — dims the wordmark + starfield to pull focus to the
-   lantern while its doorway is engaged. Layers above the wordmark (z 2) but
-   below the lantern wrap (z 6) and scroll cue (z 5). Over-sized + clipped by the
-   stage's overflow so it reaches the hero edges; radial-cleared over the lantern
-   so the falloff feels lit, not like a flat panel. Decorative, click-through. */
+   lantern. Layers above the wordmark (z 2) but below the lantern wrap (z 6) and
+   scroll cue (z 5). Over-sized + clipped by the stage's overflow so it reaches
+   the hero edges; radial-cleared over the lantern so the falloff feels lit, not
+   like a flat panel. Decorative, click-through.
+
+   Opacity is JS-owned (HeroFocus writes it per pointermove): a continuous
+   pointer-proximity field, not an on/off hover — the surroundings recede in
+   proportion as the cursor approaches the lantern, and hover/keyboard-focus
+   floor it at fully-on. The short linear transition only smooths the gaps
+   between pointer events; anything longer would lag the hand. */
 .hero-focus-scrim {
   position: absolute;
   inset: -30vh -14vw;
   z-index: 4;
   pointer-events: none;
   opacity: 0;
-  transition: opacity var(--dur-3) var(--ease-out);
+  transition: opacity var(--dur-1) linear;
   background: radial-gradient(
     ellipse 48% 54% at 76% 46%,
     rgba(0, 2, 8, 0) 0%,
@@ -842,12 +848,6 @@ button, input, textarea { font: inherit; }
     rgba(0, 2, 8, 0.5) 72%,
     rgba(0, 2, 8, 0.66) 100%
   );
-}
-.hero-focus-scrim.is-on {
-  opacity: 1;
-}
-@media (prefers-reduced-motion: reduce) {
-  .hero-focus-scrim { transition: opacity var(--dur-2) var(--ease-out); }
 }
 
 /* ─── Specimen viewer — interactive 3D asset display ────────────────────── */

@@ -1,18 +1,20 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { useHeroFocus } from "./HeroFocus";
 
 /**
  * HeroSpecimenCue — a considered "doorway" from the hero lantern into its own
  * entry in the work showcase.
  *
- * On hover/focus the surroundings recede (a hero-level scrim, owned by
- * HeroFocusProvider) and a line-art descent trail flows downward from the
- * object — signalling that selecting it takes you DOWN into the work. Clicking
- * smooth-scrolls to #selected-work (Lenis handles same-page anchors) AND asks
- * the showcase to open THIS specimen's own category/slide via a `work:focus`
- * event, so you land on the piece, not the default Models tab.
+ * As the pointer nears the lantern the surroundings recede in proportion — a
+ * continuous proximity field (nearest-edge distance to the lantern, eased),
+ * not an on/off hover. On actual hover/focus the name chip and a line-art
+ * descent trail commit fully — signalling that selecting the object takes you
+ * DOWN into the work. Clicking smooth-scrolls to #selected-work (Lenis handles
+ * same-page anchors) AND asks the showcase to open THIS specimen's own
+ * category/slide via a `work:focus` event, so you land on the piece, not the
+ * default Models tab.
  *
  * It renders as an <a>, inheriting `.hero-intro a { pointer-events: auto }`
  * without re-enabling pointer events on any larger container. Like the lantern
@@ -22,6 +24,9 @@ import { useHeroFocus } from "./HeroFocus";
  * the primary path; this is an additive affordance.
  */
 export const WORK_FOCUS_EVENT = "work:focus";
+
+/** Distance (px) from the lantern's edge at which the recede begins. */
+const PROXIMITY_RADIUS = 360;
 
 export function HeroSpecimenCue({
   slug,
@@ -34,13 +39,48 @@ export function HeroSpecimenCue({
    *  to the lantern exactly, while staying OUTSIDE the viewport's dissolve mask. */
   children: ReactNode;
 }) {
-  const { focusing, setFocusing } = useHeroFocus();
+  const { focusing, setFocusing, setProximity } = useHeroFocus();
+  const linkRef = useRef<HTMLAnchorElement>(null);
+
+  // Pointer-proximity field: 0 beyond PROXIMITY_RADIUS from the lantern's
+  // nearest edge, easing (smoothstep) to 1 at the edge. Fine pointers only —
+  // touch has no meaningful proximity (and the doorway itself is hidden
+  // there via CSS). Handler-direct style writes (via context) keep this off
+  // React's render path; one getBoundingClientRect per move on one element is
+  // the same class of work as the Magnetic hover effect.
+  useEffect(() => {
+    if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
+    const onMove = (e: PointerEvent) => {
+      const el = linkRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      // Off-screen (the intro dive translates the wrap away) → no field.
+      if (r.width === 0 || r.bottom < 0 || r.top > window.innerHeight) {
+        setProximity(0);
+        return;
+      }
+      const dx = e.clientX < r.left ? r.left - e.clientX : e.clientX > r.right ? e.clientX - r.right : 0;
+      const dy = e.clientY < r.top ? r.top - e.clientY : e.clientY > r.bottom ? e.clientY - r.bottom : 0;
+      const d = Math.hypot(dx, dy);
+      const p = 1 - Math.min(d / PROXIMITY_RADIUS, 1);
+      setProximity(p * p * (3 - 2 * p)); // smoothstep — gentle far, decisive near
+    };
+    const onLeave = () => setProximity(0);
+    window.addEventListener("pointermove", onMove, { passive: true });
+    document.documentElement.addEventListener("pointerleave", onLeave);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      document.documentElement.removeEventListener("pointerleave", onLeave);
+      setProximity(0);
+    };
+  }, [setProximity]);
 
   return (
     <div className={`hero-specimen${focusing ? " is-focusing" : ""}`}>
       {children}
 
       <a
+        ref={linkRef}
         className="hero-specimen__link"
         href="#selected-work"
         aria-label={`See ${title} in selected work`}
@@ -50,6 +90,7 @@ export function HeroSpecimenCue({
         onBlur={() => setFocusing(false)}
         onClick={() => {
           setFocusing(false);
+          setProximity(0);
           window.dispatchEvent(new CustomEvent(WORK_FOCUS_EVENT, { detail: { slug } }));
         }}
       >

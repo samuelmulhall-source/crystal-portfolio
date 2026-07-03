@@ -332,3 +332,32 @@ click lands on Video → Soulbound Lantern. `tsc`, `eslint app/`, and `next buil
 (Process note: hit the recurring stale-CSS trap hard — Next 16 dev is Turbopack, cache at
 `.next/dev/cache/turbopack`; clearing only `.next/cache` or restarting does nothing, must `rm -rf
 .next`. Logged in the `preview-harness-limits` memory.)
+
+---
+
+## Pass 10 — proximity-graded hero recede (owner: "make the dark fade gradual, based on mouse proximity")
+
+The Pass-9 scrim was binary — full recede on hover, nothing otherwise. Now it's a
+continuous field: as the pointer approaches the lantern, the wordmark + starfield recede
+in proportion.
+
+- **Field, not switch.** Proximity = smoothstep over the distance from the pointer to the
+  lantern's NEAREST EDGE (not its center — the whole silhouette is the attractor), ramping
+  from 0 at 360 px out to 1 at the edge. Smoothstep = gentle at the fringe, decisive close
+  in; measured curve: 0 px → 1.00, 90 → 0.84, 180 (half radius) → 0.50, 270 → 0.16,
+  ≥360 → 0.
+- **Commitment stays binary.** The name chip + descent trail still appear only on real
+  hover/focus (a half-faded label reads as indecision; a half-faded atmosphere reads as
+  approach). Hover and keyboard focus FLOOR the scrim at 1, so a11y never depends on
+  pointer geometry.
+- **Off React's render path.** `HeroFocus` writes the scrim node's `style.opacity`
+  directly per pointermove (plus a `data-focus` mirror for tooling); React state only for
+  the chip class. A short `--dur-1` linear transition smooths event gaps — anything longer
+  would lag the hand. One `getBoundingClientRect` per move on one element (same class of
+  work as the Magnetic hover). Fine-pointer only (`hover:hover and pointer:fine`); the
+  off-screen guard zeroes the field when the intro dive translates the lantern away.
+
+**Verification:** harness viewport was collapsed (innerWidth 0), so the field was verified
+by shimming the link rect and dispatching synthetic pointermoves — curve matched design
+exactly; hover floor → 1.00 → release back to field value; keyboard `focusin` → 1.00 +
+chip class. tsc/eslint clean.
