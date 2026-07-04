@@ -226,12 +226,19 @@ function SpecimenModel({
           (geo.index ? geo.index.count : geo.attributes.position?.count ?? 0) / 3,
         );
         if (isRigged) {
-          // Keep the character's authored materials; toggle wireframe on them
-          // non-destructively (no swap → nothing to restore, skinning intact).
-          const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-          mats.forEach((m) => {
-            if (m) (m as THREE.MeshStandardMaterial).wireframe = channel === "wireframe";
-          });
+          // The character's own materials are textured (and the visor is
+          // transmissive) — toggling their .wireframe gives near-invisible
+          // textured lines, not the site's ice line-art. Swap to the shared
+          // wireframe material instead and restore the originals on the way
+          // back (cached on the mesh; SkinnedMesh accepts any material and
+          // skinning is preserved).
+          const store = mesh.userData as { origMat?: THREE.Material | THREE.Material[] };
+          if (channel === "wireframe") {
+            store.origMat ??= mesh.material;
+            mesh.material = channelMat;
+          } else if (store.origMat) {
+            mesh.material = store.origMat;
+          }
         } else if (channel === "wireframe") {
           mesh.material = channelMat;
         } else {
@@ -546,37 +553,57 @@ const IDLE_SPECS: Array<{ name: string; comps: IdleComp[] }> = [
   { name: "CC_Base_R_Forearm", comps: [{ axis: 0, amp: 0.05, speed: 0.55, phase: 0.95 }] },
 ];
 
-// Wave — right arm raised (axes/signs empirically probed on this rig: shoulder
-// raise = local +x on the right side, elbow flexion = local +z on the right),
-// forearm + hand oscillate, head tips toward the wave. Breathing stays on.
+// Wave — right arm raised UP AND OUT to the side (probed on this rig: on the
+// right side, shoulder local +x lifts out/up/forward and local −z lifts
+// out/up/back — combining them cancels the fore/aft drift so the arm rises in
+// the character's frontal plane, a real greeting wave rather than a zombie
+// reach toward the camera). Layered secondary motion keeps it organic: the
+// forearm carries a two-frequency wave, the wrist follows through late, the
+// clavicle bounces with each swing, and the torso/head lean into the gesture.
 const WAVE_SPECS: Array<{ name: string; comps: IdleComp[] }> = [
-  { name: "CC_Base_Spine02", comps: [{ axis: 0, amp: 0.03, speed: 1.5, phase: 0 }] },
+  { name: "CC_Base_Spine02", comps: [
+    { axis: 0, amp: 0.03, speed: 1.5, phase: 0 },
+    { axis: 1, amp: 0, speed: 1, phase: 0, base: -0.05 },
+    { axis: 2, amp: 0, speed: 1, phase: 0, base: 0.04 },
+  ] },
   { name: "CC_Base_Spine01", comps: [{ axis: 0, amp: 0.018, speed: 1.5, phase: 0 }] },
-  { name: "CC_Base_Waist", comps: [{ axis: 2, amp: 0.02, speed: 0.5, phase: 0 }] },
-  { name: "CC_Base_R_Clavicle", comps: [{ axis: 0, amp: 0, speed: 1, phase: 0, base: 0.18 }] },
+  { name: "CC_Base_Waist", comps: [
+    { axis: 1, amp: 0, speed: 1, phase: 0, base: -0.06 },
+    { axis: 2, amp: 0.025, speed: 0.5, phase: 0 },
+  ] },
+  { name: "CC_Base_R_Clavicle", comps: [
+    { axis: 0, amp: 0.05, speed: 4.2, phase: 0.3, base: 0.22 },
+  ] },
   {
     name: "CC_Base_R_Upperarm",
     comps: [
-      { axis: 0, amp: 0.05, speed: 4.2, phase: 0, base: 1.15 },
-      { axis: 2, amp: 0, speed: 1, phase: 0, base: -0.25 },
+      { axis: 0, amp: 0.04, speed: 4.2, phase: 0, base: 0.95 },
+      { axis: 2, amp: 0.09, speed: 2.1, phase: 0, base: -0.85 },
     ],
   },
   {
     name: "CC_Base_R_Forearm",
-    comps: [{ axis: 2, amp: 0.38, speed: 4.2, phase: 0.6, base: 0.85 }],
+    comps: [
+      { axis: 2, amp: 0.42, speed: 4.2, phase: 0.6, base: 0.95 },
+      { axis: 2, amp: 0.1, speed: 2.1, phase: 1.3 },
+    ],
   },
-  { name: "CC_Base_R_Hand", comps: [{ axis: 2, amp: 0.22, speed: 4.2, phase: 1.1 }] },
+  { name: "CC_Base_R_Hand", comps: [
+    { axis: 2, amp: 0.26, speed: 4.2, phase: 1.0, base: 0.1 },
+    { axis: 0, amp: 0.06, speed: 2.1, phase: 0.4 },
+  ] },
   {
     name: "CC_Base_Head",
     comps: [
+      { axis: 1, amp: 0, speed: 1, phase: 0, base: -0.14 },
       { axis: 2, amp: 0.02, speed: 1.2, phase: 0, base: -0.07 },
-      { axis: 0, amp: 0.03, speed: 0.5, phase: 0.5 },
+      { axis: 0, amp: 0.035, speed: 0.5, phase: 0.5 },
     ],
   },
-  // The idle arm keeps its gentle drift so the body doesn't freeze.
+  // The idle arm keeps a gentle counter-sway so the body doesn't freeze.
   {
     name: "CC_Base_L_Upperarm",
-    comps: [{ axis: 2, amp: 0.055, speed: 0.5, phase: 0 }],
+    comps: [{ axis: 2, amp: 0.05, speed: 2.1, phase: 1.6 }],
   },
 ];
 
@@ -1097,9 +1124,10 @@ export default function SpecimenScene({
   channel?: SpecimenChannel;
   clipIndex?: number;
   poseMode?: boolean;
-  /** Always-on wheel zoom — detail pages. On mid-scroll surfaces (showcase)
-   *  zoom instead engages after the user grabs the viewer (pointerdown) and
-   *  releases when the pointer leaves it, so it never ambushes page scroll. */
+  /** Resolved wheel-zoom permission. Detail pages pass true; the showcase
+   *  passes its engage-to-zoom state (armed on grab, disarmed on pointer
+   *  leave — see SpecimenViewer, which also gates Lenis via
+   *  data-lenis-prevent so wheel zoom and page scroll never fight). */
   allowZoom?: boolean;
   /** Hand preset while posing (open / rest / fist). */
   handPose?: HandPose;
@@ -1111,9 +1139,9 @@ export default function SpecimenScene({
   const [interacting, setInteracting] = useState(false);
   // When a pose handle is being dragged, freeze orbit so the camera doesn't spin.
   const [dragLock, setDragLock] = useState(false);
-  // Engage-to-zoom (Sketchfab pattern): grabbing the viewer arms wheel zoom;
-  // moving the pointer off it disarms, so scrolling past never gets hijacked.
-  const [engaged, setEngaged] = useState(false);
+  // Pause the auto-rotate whenever the pointer is over the viewer — the model
+  // holds still the moment you move in to inspect it.
+  const [hovered, setHovered] = useState(false);
   const controlsRef = useRef<ControlsLike | null>(null);
 
   return (
@@ -1125,12 +1153,10 @@ export default function SpecimenScene({
       onDoubleClick={() => {
         if (!dragLock) controlsRef.current?.reset();
       }}
-      onPointerLeave={() => setEngaged(false)}
+      onPointerEnter={() => setHovered(true)}
+      onPointerLeave={() => setHovered(false)}
       style={{ width: "100%", height: "100%" }}
-      onPointerDown={() => {
-        setInteracting(true);
-        setEngaged(true); // grabbing the viewer arms wheel zoom
-      }}
+      onPointerDown={() => setInteracting(true)}
       onPointerUp={() => setInteracting(false)}
       onCreated={() => {
         // R3F can measure the container before layout settles (canvas stuck at
@@ -1157,11 +1183,11 @@ export default function SpecimenScene({
       <OrbitControls
         ref={controlsRef as never}
         enablePan={false}
-        enableZoom={allowZoom || engaged}
+        enableZoom={allowZoom}
         enabled={!dragLock}
         minDistance={1.4}
         maxDistance={7}
-        autoRotate={!interacting && !poseMode}
+        autoRotate={!hovered && !interacting && !poseMode}
         autoRotateSpeed={0.9}
         enableDamping
         dampingFactor={0.08}

@@ -130,6 +130,12 @@ export function SpecimenViewer({
   const [poseMode, setPoseMode] = useState(false);
   const [poseable, setPoseable] = useState(false);
   const [handPose, setHandPose] = useState<HandPose>("rest");
+  // Engage-to-zoom (Sketchfab pattern): grabbing the viewer arms wheel zoom,
+  // moving the pointer off it disarms — scrolling PAST the showcase never gets
+  // hijacked. While armed, `data-lenis-prevent` keeps the Lenis smooth-scroll
+  // from also consuming the wheel (it listens at the window level and ignores
+  // OrbitControls' preventDefault — the "zooms AND scrolls the page" bug).
+  const [zoomArmed, setZoomArmed] = useState(false);
   // Two-stage hint: "drag to rotate" until the user grabs the viewer, then a
   // brief "scroll to zoom" coach line, then gone.
   const [hintStage, setHintStage] = useState<0 | 1 | 2>(0);
@@ -189,7 +195,12 @@ export function SpecimenViewer({
       {enhanced ? (
         <div
           className={`specimen-viewer__stage${sceneReady ? " is-ready" : ""}`}
-          onPointerDown={() => setHintStage((s) => (s === 0 ? 1 : s))}
+          data-lenis-prevent={allowZoom || zoomArmed ? "" : undefined}
+          onPointerDown={() => {
+            setZoomArmed(true);
+            setHintStage((s) => (s === 0 ? 1 : s));
+          }}
+          onPointerLeave={() => setZoomArmed(false)}
           onKeyDown={() => setHintStage((s) => (s === 0 ? 1 : s))}
         >
           <SpecimenScene
@@ -197,7 +208,7 @@ export function SpecimenViewer({
             channel={channel}
             clipIndex={clipIndex}
             poseMode={poseMode}
-            allowZoom={allowZoom}
+            allowZoom={allowZoom || zoomArmed}
             handPose={handPose}
             onReady={() => setSceneReady(true)}
             onStats={setStats}
