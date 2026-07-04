@@ -1,77 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { useHeroFocus } from "./HeroFocus";
-
-const SCRAMBLE_GLYPHS = "ABCDEFGHIJKLMNPQRSTUVWXYZ0123456789#%*+<>/\\";
-
-/**
- * ScrambleText — a "decode" transition between two strings. While `active`, each
- * character position holds a run of random glyphs then resolves to the target,
- * staggered left-to-right, so the label appears to decrypt from one phrase into
- * another. Frame-count driven (≈0.6s), and it respects reduced motion by
- * snapping to the resolved text. Purely visual; the link carries a stable
- * aria-label, so assistive tech never sees the churn.
- */
-function ScrambleText({ from, to, active }: { from: string; to: string; active: boolean }) {
-  const [out, setOut] = useState(from);
-  const raf = useRef(0);
-
-  useEffect(() => {
-    cancelAnimationFrame(raf.current);
-    const target = active ? to : from;
-    if (
-      !active ||
-      (typeof window !== "undefined" &&
-        window.matchMedia("(prefers-reduced-motion: reduce)").matches)
-    ) {
-      // Snap to the resolved text (no animation) — matches the resting state, so
-      // on mount this is a no-op; on toggle it's a deliberate one-shot sync.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setOut(target);
-      return;
-    }
-    const src = active ? from : to;
-    const len = Math.max(src.length, to.length, from.length);
-    // Pad with NBSP (not plain space) so the mono chip keeps a constant width
-    // through the morph — trailing regular spaces collapse and reflow the chip.
-    const s = src.padEnd(len, " ");
-    const t = target.padEnd(len, " ");
-    const q = Array.from({ length: len }, (_, i) => ({
-      s: s[i],
-      t: t[i],
-      start: Math.floor(Math.random() * 12) + Math.floor((i / len) * 10),
-      end: 0,
-      char: "",
-    }));
-    q.forEach((c) => { c.end = c.start + 8 + Math.floor(Math.random() * 14); });
-
-    let frame = 0;
-    const tick = () => {
-      let done = 0;
-      let str = "";
-      for (const c of q) {
-        if (frame >= c.end) { done++; str += c.t; }
-        else if (frame >= c.start) {
-          if (!c.char || Math.random() < 0.3) {
-            c.char = SCRAMBLE_GLYPHS[Math.floor(Math.random() * SCRAMBLE_GLYPHS.length)];
-          }
-          str += c.char;
-        } else str += c.s;
-      }
-      setOut(str);
-      if (done === q.length) return;
-      frame += 1;
-      raf.current = requestAnimationFrame(tick);
-    };
-    tick();
-    return () => cancelAnimationFrame(raf.current);
-  }, [active, from, to]);
-
-  // Rendered as-is (NBSP-padded) so the mono chip holds a constant width across
-  // the morph; trimming would let the shorter "from" string reflow it.
-  return <>{out || " "}</>;
-}
 
 /**
  * HeroSpecimenCue — a considered "doorway" from the hero lantern into its own
@@ -166,9 +96,9 @@ export function HeroSpecimenCue({
       >
         <span className="hero-specimen__cue">
           <span className="hero-specimen__cue-tick" aria-hidden="true" />
-          <span className="hero-specimen__cue-label" aria-hidden="true">
-            <ScrambleText from="MULTISCATTER" to={title} active={focusing} />
-          </span>
+          {/* The wordmark clone (HeroFocus) flies in and cross-dissolves into
+              this label as it lands — see .hero-wordmark-ghost. */}
+          <span className="hero-specimen__cue-label">{title}</span>
         </span>
       </a>
 

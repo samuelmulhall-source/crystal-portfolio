@@ -446,3 +446,32 @@ the camera 1.75u in the screen plane (z unchanged = pan not rotation); Pose swap
 transmission, zero leftover occluders. Hero: resting label MULTISCATTER → hover resolves to
 "Soulbound Lantern", reduced-motion false (animated path). tsc / eslint / build clean; console
 clean.
+
+---
+
+## Pass 13 — hero wordmark "letter flight" (the wordmark reassembles as the label)
+
+Owner wanted the ACTUAL hero wordmark letters to move to the lantern and reassemble as its
+label — "retyping, dithering, mouse-based gravity as the letters fly over." (Two earlier
+attempts — an in-place text-scramble, then a single FLIP clone — were both wrong; replaced.)
+
+`HeroWordmarkFlight` — a 2D-canvas particle system, one glyph per target letter:
+- **Source/target from the real DOM**: per-character centres are measured with `Range`
+  `getBoundingClientRect` on the wordmark and the label text nodes, so the letters start
+  exactly where the wordmark glyphs are and land exactly on the label glyphs.
+- **Physics**: each letter springs to its slot (k/damping) with a **mouse-gravity** term —
+  pulled toward the cursor by G/d² (capped, eased off as it nears its slot) so the stream
+  swirls around the pointer as it passes.
+- **Retype**: launches are staggered by target index and the glyph swaps source→target
+  mid-flight, so the label types itself into being.
+- **Dithering**: the canvas renders at half resolution, `image-rendering: pixelated`, with a
+  Bayer 4×4 1-bit alpha threshold each frame — chunky, dissolving, dithered letters.
+- The real wordmark fades out for the flight (its letters have left); the DOM label
+  cross-dissolves in as they land; on un-hover the wordmark restores. Fine-pointer only
+  (the lantern link is display:none on touch); `display:none` + snap under reduced motion.
+
+**Verification:** per-char measurement correct (wordmark 12 → label 17 glyphs); on hover the
+wordmark opacity → 0, the canvas draws dithered glyphs whose bounding box travels left→right
+across the screen over ~0.5s (half-res x 208 → 478 → 566) toward the lantern, then settles and
+fades as the label reveals; un-hover restores the wordmark. A frozen mid-flight screenshot
+shows the dithered ice letters in transit. tsc / eslint / build clean; console clean.

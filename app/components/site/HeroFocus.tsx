@@ -1,6 +1,15 @@
 "use client";
 
-import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import { HeroWordmarkFlight } from "./HeroWordmarkFlight";
 
 type HeroFocusValue = {
   /** Binary engagement (hover/keyboard focus) — drives the cue chip + descent
@@ -83,6 +92,7 @@ export function HeroFocusProvider({ children }: { children: ReactNode }) {
     <HeroFocusContext.Provider value={value}>
       {children}
       <div ref={scrimRef} className="hero-focus-scrim" aria-hidden="true" />
+      <HeroWordmarkFlight active={focusing} />
     </HeroFocusContext.Provider>
   );
 }

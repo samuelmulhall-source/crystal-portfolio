@@ -739,6 +739,13 @@ button, input, textarea { font: inherit; }
 .hero-specimen.is-focusing .hero-specimen__cue {
   opacity: 1;
   transform: translateY(0);
+  /* Reveal is DELAYED so it cross-dissolves with the flying wordmark letters as
+     they land (HeroWordmarkFlight). On un-focus the base rule (no delay) hides
+     it promptly. */
+  transition:
+    opacity var(--dur-2) var(--ease-out) 620ms,
+    transform var(--dur-2) var(--ease-out) 620ms,
+    box-shadow var(--dur-2) var(--ease-out);
 }
 /* Route the keyboard focus ring to the caption, not the big invisible hit box. */
 .hero-specimen__link:focus-visible {
@@ -811,7 +818,12 @@ button, input, textarea { font: inherit; }
 }
 @media (prefers-reduced-motion: reduce) {
   .hero-specimen__cue { transition: opacity var(--dur-2) var(--ease-out); transform: none; }
-  .hero-specimen.is-focusing .hero-specimen__cue { transform: none; }
+  /* No flying wordmark under reduced motion → no landing to wait for; reveal
+     the label promptly (drop the cross-dissolve delay). */
+  .hero-specimen.is-focusing .hero-specimen__cue {
+    transform: none;
+    transition: opacity var(--dur-2) var(--ease-out);
+  }
   .hero-specimen__descent-line,
   .hero-specimen.is-focusing .hero-specimen__descent-line { transition: none; transform: translateX(-50%) scaleY(1); }
   /* No flowing marks under reduced motion — show a single static chevron near
@@ -848,6 +860,22 @@ button, input, textarea { font: inherit; }
     rgba(0, 2, 8, 0.5) 72%,
     rgba(0, 2, 8, 0.66) 100%
   );
+}
+
+/* Wordmark flight canvas — the hero wordmark's letters fly to the lantern label
+   as a dithered particle stream (HeroWordmarkFlight). Fixed, full-viewport,
+   pixel-upscaled (half-res backing) for the chunky/dithered read; z-index above
+   the lantern (wrap z 6) so the letters pass over the top; never interactive. */
+.hero-flight-canvas {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+  opacity: 0;
+  image-rendering: pixelated;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-flight-canvas { display: none; }
 }
 
 /* ─── Specimen viewer — interactive 3D asset display ────────────────────── */
