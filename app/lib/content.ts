@@ -30,6 +30,11 @@ const SpecimenSchema = z.object({
   poster: z.string(),
   /** Optional second model merged into the same view (e.g. wrap geometry). */
   extraModelPath: z.string().optional(),
+  /** Optional quad-topology wire asset (edges-only GLB, exported from the DCC
+   *  source where the original quads still exist — the shipped mesh is
+   *  triangulated). Lazy-loaded when the Wire channel is selected; shown as a
+   *  hidden-line view over the depth-only model. */
+  wireModelPath: z.string().optional(),
   /** Vertical framing nudge applied after auto-centering (world units). */
   yOffset: z.number().optional(),
   /** Rigged character: keep the model's own materials, clone skeleton-safe,

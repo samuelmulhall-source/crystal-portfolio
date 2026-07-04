@@ -401,3 +401,48 @@ models, functioning animations, anatomical bone limits, hand open/close.
 `window.__rb.advance(performance.now())` (R3F's manual frame pump, ms timestamps) runs
 useFrame without rAF — that's how the clips/curl/IK were exercised. tsc / eslint /
 build clean; console clean.
+
+---
+
+## Pass 12 — viewer overhaul: side menus, pan, rigged channels, quad wire; hero decode
+
+Owner: move the viewer menus to the side as expandable flyouts; give the rigged character
+the same texture-channel views; add camera pan; make Wire show the ORIGINAL quad topology
+with back-face culling; and replace the hero lantern label with a text morph.
+
+- **Side flyout menus** (`SpecimenViewer`). The bottom toolbar racks are gone. Controls now
+  live in a right-edge rail of collapsed tabs (group name + current value) that expand on
+  hover / keyboard-focus / tap into a panel flying out to the LEFT, so the model stays
+  unobscured. Groups appear by context: Channel always; Rig / Motion / Hand for a poseable
+  rigged character per mode. Flat opaque fills (not glass); the rail is `pointer-events:none`
+  with only tabs/panels interactive so gaps pass drags through to the canvas.
+- **Rigged texture channels.** A rigged character embeds its maps per-mesh in the GLB
+  (content.textures is empty), so the scene now *detects* which channels the materials carry
+  (`onChannelsDetected`) and the Channel menu offers them (Rubia → Albedo / Normal / Rough /
+  Metal). Selecting one shows each mesh's own map flat/unlit (sRGB-tagged to read like the
+  source); meshes without that map read a dim neutral.
+- **Right-drag pan.** OrbitControls `enablePan` + screen-space panning on the RIGHT button
+  (left rotates, wheel zooms), so any region can be centred — not just the fixed pivot.
+  `minDistance` already 1.4 for close zoom; double-click / 0 still reset (reset undoes pan).
+- **Quad-topology hidden-line Wire.** glTF/Draco triangulates the shipped mesh, so a separate
+  edges-only GLB is exported from the DCC source where the original quads survive
+  (`rubia_wire.glb`, 3.17 MB, LINES primitives, 250,813 edges — `use_mesh_edges=True` +
+  bind-pose applied to match). The Wire channel lazy-loads it and draws it as ice line-art
+  over the model rendered DEPTH-ONLY (colorWrite off, polygonOffset) so edges on back faces
+  are occluded — a true hidden-line view. The rig is frozen at bind while Wire is shown so
+  the static edges stay aligned. Props with no wire asset keep the triangulated fallback.
+- **Hero label → decode morph** (`HeroSpecimenCue`). The static name chip is replaced by a
+  `ScrambleText` that, on hover/focus, decrypts from **MULTISCATTER** into the piece name
+  (staggered per-character random glyphs resolving left-to-right, ≈0.6s). NBSP-padded so the
+  mono chip holds constant width through the morph; snaps (no churn) under reduced motion;
+  the link keeps a stable aria-label so assistive tech never sees the scramble.
+
+**Verification (all programmatic — WebGL screenshots hang):** rigged Channel menu detects
+Albedo/Normal/Rough/Metal, Albedo → 16 flat MeshBasicMaterials (15 mapped + 1 neutral for the
+visor); Wire → 16 depth-only occluders + one 109,385-vertex line object, occluder
+colorWrite:false/polygonOffset, lines depthTest on — 93% of lit pixels ice; right-drag moved
+the camera 1.75u in the screen plane (z unchanged = pan not rotation); Pose swaps Motion→Hand
++ 4 IK handles; switching back to Shaded restores 13 physical + 3 standard materials, 9
+transmission, zero leftover occluders. Hero: resting label MULTISCATTER → hover resolves to
+"Soulbound Lantern", reduced-motion false (animated path). tsc / eslint / build clean; console
+clean.

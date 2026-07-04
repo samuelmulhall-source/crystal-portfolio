@@ -952,20 +952,127 @@ button, input, textarea { font: inherit; }
 }
 @keyframes loading-pulse { 50% { opacity: 0.45; } }
 
-/* Control toolbar — docked to the bottom edge. */
-.specimen-viewer__toolbar {
+/* ═══ Side flyout menus — grouped controls on the right edge ═══
+   Each control group collapses to a labelled tab (group name + current value);
+   hover / keyboard-focus / tap expands a panel that flies out to the LEFT, so
+   the model stays unobscured and the chrome reads as a quiet instrument rail
+   rather than a bar across the render. Flat opaque fills (not glass) — dark-mode
+   elevation via a lighter flat step, per Refactoring UI. */
+.specimen-viewer__side {
+  position: absolute;
+  top: 50%;
+  right: 0.9rem;
+  transform: translateY(-50%);
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.4rem;
+  max-height: calc(100% - 2rem);
+  /* Only the tabs/panels capture — the gaps pass drags through to the canvas. */
+  pointer-events: none;
+}
+.specimen-viewer__flyout {
+  position: relative;
+  pointer-events: auto;
+}
+.specimen-viewer__flyout-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.1rem;
+  min-width: 5.4rem;
+  padding: 0.4rem 0.62rem;
+  border-radius: 8px;
+  background: rgba(15, 19, 28, 0.9);
+  cursor: pointer;
+  text-align: right;
+  transition: background var(--dur-1) var(--ease-out);
+}
+.specimen-viewer__flyout:hover .specimen-viewer__flyout-tab,
+.specimen-viewer__flyout.is-open .specimen-viewer__flyout-tab {
+  background: rgba(23, 30, 43, 0.96);
+}
+.specimen-viewer__flyout-name {
+  font-family: var(--font-plex-mono), monospace;
+  font-size: 0.5rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(150, 180, 205, 0.7);
+}
+.specimen-viewer__flyout-value {
+  font-family: var(--font-plex-mono), monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ice-bright);
+  white-space: nowrap;
+}
+/* The expanding option panel — flies out from the tab's left edge. */
+.specimen-viewer__flyout-panel {
+  position: absolute;
+  right: calc(100% + 0.4rem);
+  top: 50%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  padding: 0.3rem;
+  border-radius: 8px;
+  background: rgba(15, 19, 28, 0.96);
+  box-shadow: 0 10px 30px -16px rgba(0, 0, 0, 0.7);
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(-50%) translateX(8px);
+  transition:
+    opacity var(--dur-2) var(--ease-out),
+    transform var(--dur-2) var(--ease-out),
+    visibility 0s var(--dur-2);
+}
+.specimen-viewer__flyout:hover .specimen-viewer__flyout-panel,
+.specimen-viewer__flyout:focus-within .specimen-viewer__flyout-panel,
+.specimen-viewer__flyout.is-open .specimen-viewer__flyout-panel {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(-50%) translateX(0);
+  transition:
+    opacity var(--dur-2) var(--ease-out),
+    transform var(--dur-2) var(--ease-out),
+    visibility 0s;
+}
+.specimen-viewer__flyout-opt {
+  padding: 0.34rem 0.7rem;
+  border-radius: 4px;
+  cursor: pointer;
+  text-align: right;
+  font-family: var(--font-plex-mono), monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(205, 232, 255, 0.62);
+  background: transparent;
+  transition: color var(--dur-1) var(--ease-out), background var(--dur-1) var(--ease-out),
+    transform var(--dur-1) var(--ease-out);
+}
+.specimen-viewer__flyout-opt:hover { color: rgba(226, 243, 255, 0.92); background: rgba(255, 255, 255, 0.055); }
+.specimen-viewer__flyout-opt:active { transform: scale(0.97); }
+.specimen-viewer__flyout-opt.is-active {
+  /* Flat, near-white solid fill + void text — selected read from contrast,
+     not glow (matches the old segmented indicator). */
+  color: var(--void);
+  font-weight: 600;
+  background: rgba(230, 244, 255, 0.96);
+}
+
+/* Interaction hint — bottom-centered, coaches then dismisses. */
+.specimen-viewer__hint {
   position: absolute;
   left: 50%;
   bottom: 1rem;
   transform: translateX(-50%);
   z-index: 4;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.55rem;
-  max-width: calc(100% - 2rem);
-}
-.specimen-viewer__toolbar-hint {
   font-family: var(--font-plex-mono), monospace;
   font-size: 0.58rem;
   letter-spacing: 0.14em;
@@ -973,77 +1080,20 @@ button, input, textarea { font: inherit; }
   color: rgba(210, 236, 255, 0.7);
   text-shadow: 0 1px 3px rgba(0, 4, 10, 0.8);
   pointer-events: none;
+  text-align: center;
+  max-width: calc(100% - 2rem);
   opacity: 0;
   animation: hint-fade-in 600ms ease 900ms forwards;
 }
-/* Chrome recedes once the user actually drags — it's done its job. */
-.specimen-viewer__toolbar-hint.is-dismissed {
+/* Chrome recedes once the user has explored — it's done its job. */
+.specimen-viewer__hint.is-dismissed {
   animation: none;
   opacity: 0;
   transition: opacity var(--dur-2) var(--ease-out);
 }
 @keyframes hint-fade-in { to { opacity: 1; } }
-
-.specimen-viewer__toolbar-racks {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 0.4rem;
-}
-.specimen-viewer__chips {
-  position: relative;
-  display: flex;
-  gap: 0.15rem;
-  padding: 0.25rem;
-  border-radius: 8px;
-  /* Flat, OPAQUE fill — not glass. Dark-mode elevation reads through a
-     lighter flat background step, not translucency/blur or a glowing edge. */
-  background: rgba(15, 19, 28, 0.94);
-}
-/* Sliding selection mark — physically travels between segments on switch
-   instead of just toggling per-segment (Apple's segmented-control pattern: one
-   moving selection, not N independent "lit" states). A flat, solid,
-   high-contrast fill carries the "selected" weight; the segment's own
-   .is-active text color is the fallback before the first measurement. */
-.specimen-viewer__chip-indicator {
-  position: absolute;
-  top: 0.25rem;
-  bottom: 0.25rem;
-  /* "Concentric" radius — the rack's own 8px radius minus its 4px padding —
-     so the indicator nests inside the rack the way Apple's HIG describes for
-     capsule/rounded shapes (developer.apple.com/design/human-interface-
-     guidelines/segmented-controls). */
-  border-radius: 4px;
-  background: rgba(230, 244, 255, 0.96);
-  transition: left var(--dur-2) var(--ease-out), width var(--dur-2) var(--ease-out);
-  pointer-events: none;
-  z-index: 0;
-}
-.specimen-viewer__channel {
-  position: relative;
-  z-index: 1;
-  padding: 0.34rem 0.72rem;
-  border-radius: 4px;
-  cursor: pointer;
-  font-family: var(--font-plex-mono), monospace;
-  font-size: 0.6rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: rgba(205, 232, 255, 0.6);
-  background: transparent;
-  /* No per-segment border — Refactoring UI's guidance is to resist reaching
-     for borders and use background-color contrast + spacing instead; segments
-     are distinguished by the shared rack fill + hover background, not edges. */
-  transition: color var(--dur-1) var(--ease-out), background var(--dur-1) var(--ease-out),
-    transform var(--dur-1) var(--ease-out);
-}
-.specimen-viewer__channel:hover { color: rgba(226, 243, 255, 0.92); background: rgba(255, 255, 255, 0.055); }
-.specimen-viewer__channel:active { transform: scale(0.96); }
-.specimen-viewer__channel.is-active {
-  /* Dark text on the solid, near-white sliding indicator — maximum, flat
-     contrast (the selected-state read comes from contrast, not glow). */
-  color: var(--void);
-  font-weight: 600;
+@media (prefers-reduced-motion: reduce) {
+  .specimen-viewer__hint { animation: none; opacity: 1; }
 }
 
 /* Pack viewer — asset selector pills above the inspector on detail pages. */
@@ -1853,8 +1903,8 @@ button, input, textarea { font: inherit; }
    asset reads on the seamless atmospheric backing instead of a boxed viewport. */
 .specimen-viewer.showcase-viewer { background: transparent; border-radius: 0; }
 /* In the showcase the media-bar owns the bottom edge — lift the viewer's own
-   bottom chrome above it so the toolbar and loading state stay legible. */
-.specimen-viewer.showcase-viewer .specimen-viewer__toolbar,
+   bottom chrome above it so the hint and loading state stay legible. */
+.specimen-viewer.showcase-viewer .specimen-viewer__hint,
 .specimen-viewer.showcase-viewer .specimen-viewer__loading { bottom: 3rem; }
 .specimen-viewer.showcase-viewer .specimen-viewer__poster { object-fit: contain; }
 

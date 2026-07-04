@@ -18,7 +18,7 @@ import { GLTFLoader, type GLTF } from "three/examples/jsm/loaders/GLTFLoader.js"
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 import type { Specimen } from "../../lib/content";
 
-type TexKey = "map" | "normalMap" | "roughnessMap" | "metalnessMap" | "transmissionMap";
+export type TexKey = "map" | "normalMap" | "roughnessMap" | "metalnessMap" | "transmissionMap";
 
 /** What the inspector renders on the model. "material" = full PBR; "wireframe"
  *  = ice line-art; the rest show that raw texture map flat on the surface. */
@@ -65,6 +65,7 @@ function SpecimenModel({
   onStats,
   onClips,
   onPoseable,
+  onChannelsDetected,
   setDragLock,
 }: {
   specimen: Specimen;
@@ -81,6 +82,9 @@ function SpecimenModel({
   onClips?: (names: string[]) => void;
   /** Report whether drag-to-pose is viable on this rig. */
   onPoseable?: (v: boolean) => void;
+  /** Report which texture channels the model's OWN materials carry (rigged
+   *  characters embed their maps in the GLB rather than the content config). */
+  onChannelsDetected?: (keys: TexKey[]) => void;
   /** Freeze OrbitControls while a pose handle is dragged. */
   setDragLock?: (v: boolean) => void;
 }) {
@@ -190,6 +194,39 @@ function SpecimenModel({
     }
     const channelMat = buildMaterial();
 
+    // ── Rigged-character channel materials ──────────────────────────────────
+    // A rigged character embeds its maps in the GLB per-mesh (content.textures
+    // is empty), so its channel views are built from each mesh's OWN material
+    // rather than one shared texture set.
+    const hasWireAsset = isRigged && !!specimen.wireModelPath;
+    // Ice triangulated wire — the fallback for rigged props with no quad-wire
+    // asset (and the prop path already uses buildMaterial()'s version).
+    const rigWireMat = new THREE.MeshBasicMaterial({
+      color: 0x9fdcff, wireframe: true, transparent: true, opacity: 0.5,
+    });
+    // Depth-only occluder: writes depth, no colour. Sits under the quad-wire
+    // overlay so edges on BACK faces are hidden — a real hidden-line view.
+    // Nudged back (polygonOffset) so coincident FRONT edges still read.
+    const depthOnlyMat = new THREE.MeshBasicMaterial({ colorWrite: false });
+    depthOnlyMat.polygonOffset = true;
+    depthOnlyMat.polygonOffsetFactor = 1;
+    depthOnlyMat.polygonOffsetUnits = 1;
+    // Meshes that lack the selected map read as a dim neutral so the silhouette
+    // stays legible (rather than a black hole) in a map-inspection view.
+    const rigNoDataMat = new THREE.MeshBasicMaterial({ color: 0x10151d });
+
+    /** Flat, unlit view of one of a rigged mesh's OWN maps. Display texture is
+     *  tagged sRGB so its stored texels read like the source file (matches the
+     *  prop rawMap() convention). */
+    function rigMapMaterial(orig: THREE.Material | undefined, key: TexKey): THREE.Material | null {
+      const src = orig ? (orig as unknown as Record<string, THREE.Texture | null>)[key] : null;
+      if (!src) return null;
+      const disp = src.clone();
+      disp.colorSpace = THREE.SRGBColorSpace;
+      disp.needsUpdate = true;
+      return new THREE.MeshBasicMaterial({ map: disp, side: THREE.FrontSide });
+    }
+
     // Rigged characters: drive the ORIGINAL loaded object (not a clone) so the
     // embedded animation clips bind correctly and the IK acts on the real
     // skinned bones. Props: merge clones + replace materials.
@@ -226,18 +263,23 @@ function SpecimenModel({
           (geo.index ? geo.index.count : geo.attributes.position?.count ?? 0) / 3,
         );
         if (isRigged) {
-          // The character's own materials are textured (and the visor is
-          // transmissive) — toggling their .wireframe gives near-invisible
-          // textured lines, not the site's ice line-art. Swap to the shared
-          // wireframe material instead and restore the originals on the way
-          // back (cached on the mesh; SkinnedMesh accepts any material and
-          // skinning is preserved).
+          // Cache the character's authored materials once, then drive the
+          // channel view per-mesh from them (skinning is preserved — a
+          // SkinnedMesh accepts any material).
           const store = mesh.userData as { origMat?: THREE.Material | THREE.Material[] };
+          store.origMat ??= mesh.material;
+          const orig0 = Array.isArray(store.origMat) ? store.origMat[0] : store.origMat;
           if (channel === "wireframe") {
-            store.origMat ??= mesh.material;
-            mesh.material = channelMat;
-          } else if (store.origMat) {
+            // Hidden-line quad wire (see WireOverlay): the model renders
+            // depth-only under the real quad edges. No wire asset → fall back
+            // to ice triangulated wireframe on the mesh itself.
+            mesh.material = hasWireAsset ? depthOnlyMat : rigWireMat;
+          } else if (channel === "material") {
             mesh.material = store.origMat;
+          } else {
+            // A texture channel — show this mesh's own map flat, or a dim
+            // neutral where the map is absent.
+            mesh.material = rigMapMaterial(orig0, channel) ?? rigNoDataMat;
           }
         } else if (channel === "wireframe") {
           mesh.material = channelMat;
@@ -285,7 +327,7 @@ function SpecimenModel({
         maxTextureSize,
       } satisfies SpecimenStats,
     };
-  }, [loaded, tex, texList, texEntries, specimen.yOffset, channel, isRigged]);
+  }, [loaded, tex, texList, texEntries, specimen.yOffset, specimen.wireModelPath, channel, isRigged]);
 
   // This rig (a Reallusion/CC export) arrives as ~14 separate skinned meshes,
   // EACH with its own full clone of the skeleton (identical bone names). A single
@@ -294,6 +336,27 @@ function SpecimenModel({
   // mirrored onto the same-named bones of the other skeletons so the whole
   // character moves as one. `groups` is empty for a normal single-skeleton rig.
   const rigSync = useMemo(() => buildRigSync(isRigged ? object : null), [object, isRigged]);
+
+  // Which texture channels the rigged character's OWN materials carry (its maps
+  // live in the GLB, not the content config). Read from the cached originals so
+  // the answer is stable regardless of the currently-selected channel.
+  const detectedChannels = useMemo(() => {
+    if (!isRigged) return null;
+    const keys = new Set<TexKey>();
+    const CHECK: TexKey[] = ["map", "normalMap", "roughnessMap", "metalnessMap", "transmissionMap"];
+    object.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      const store = mesh.userData as { origMat?: THREE.Material | THREE.Material[] };
+      const src = store.origMat ?? mesh.material;
+      const m = (Array.isArray(src) ? src[0] : src) as unknown as Record<string, THREE.Texture | null>;
+      for (const k of CHECK) if (m?.[k]) keys.add(k);
+    });
+    return CHECK.filter((k) => keys.has(k));
+  }, [object, isRigged]);
+  useEffect(() => {
+    if (detectedChannels) onChannelsDetected?.(detectedChannels);
+  }, [detectedChannels, onChannelsDetected]);
 
   const anims = useMemo(() => {
     if (!isRigged) return [];
@@ -353,8 +416,17 @@ function SpecimenModel({
 
   // Drive the rig (real clip OR procedural clip), then propagate the lead pose to
   // the duplicate skeletons. Pose mode is handled separately by RigPoser.
+  const wireHiddenLine = channel === "wireframe" && !!specimen.wireModelPath;
   useFrame((state, dt) => {
     if (!rigSync || poseMode) return;
+    // Hidden-line wireframe overlays a STATIC (bind-pose) quad-edge asset, so
+    // hold the model at bind while it's shown or the depth occluder desyncs
+    // from the edges.
+    if (wireHiddenLine) {
+      rigSync.primary.skeleton.pose();
+      mirrorRig(rigSync);
+      return;
+    }
     const m = mixerRef.current;
     if (m) m.update(dt);
     else if (idle) {
@@ -396,6 +468,13 @@ function SpecimenModel({
       <group position={[centreOffset.x, centreOffset.y, centreOffset.z]}>
         <group scale={normScale}>
           <primitive object={object} />
+          {/* Quad-topology hidden-line overlay — same scaled/centred frame as
+              the model, so the edges land exactly on the depth-only surface. */}
+          {wireHiddenLine && specimen.wireModelPath ? (
+            <Suspense fallback={null}>
+              <WireOverlay path={enc(specimen.wireModelPath)} />
+            </Suspense>
+          ) : null}
         </group>
       </group>
       <ShadowCatcher y={groundY} />
@@ -404,6 +483,38 @@ function SpecimenModel({
       ) : null}
     </>
   );
+}
+
+/** Quad-edge wireframe overlay. Loads the edges-only GLB (exported from the DCC
+ *  source where the original quads survive — the shipped model is triangulated)
+ *  and renders it as ice line-art. It's drawn AFTER the depth-only model in the
+ *  same frame, with depthTest on, so edges behind the surface are occluded — a
+ *  real hidden-line view with the back-of-model quads culled. */
+function WireOverlay({ path }: { path: string }) {
+  const gltf = useLoader(GLTFLoader, path, (loader) => {
+    loader.setDRACOLoader(getDracoLoader());
+  });
+  // Retint every line to the ice line-art material and draw after the model so
+  // the depth-only surface occludes back-face edges. Same scene graph as the
+  // model asset → identical transform, exact alignment on the bind pose.
+  useMemo(() => {
+    const mat = new THREE.LineBasicMaterial({
+      color: 0x9fdcff,
+      transparent: true,
+      opacity: 0.62,
+      depthTest: true,
+      depthWrite: false,
+    });
+    gltf.scene.traverse((o) => {
+      const line = o as THREE.Line;
+      if ((line as unknown as { isLine?: boolean }).isLine) {
+        line.material = mat;
+        line.renderOrder = 2;
+      }
+    });
+    return null;
+  }, [gltf]);
+  return <primitive object={gltf.scene} />;
 }
 
 /** An invisible ground plane that shows ONLY the real-time shadow cast by the
@@ -1119,6 +1230,7 @@ export default function SpecimenScene({
   onStats,
   onClips,
   onPoseable,
+  onChannelsDetected,
 }: {
   specimen: Specimen;
   channel?: SpecimenChannel;
@@ -1135,6 +1247,7 @@ export default function SpecimenScene({
   onStats?: (stats: SpecimenStats) => void;
   onClips?: (names: string[]) => void;
   onPoseable?: (v: boolean) => void;
+  onChannelsDetected?: (keys: TexKey[]) => void;
 }) {
   const [interacting, setInteracting] = useState(false);
   // When a pose handle is being dragged, freeze orbit so the camera doesn't spin.
@@ -1175,6 +1288,7 @@ export default function SpecimenScene({
           onStats={onStats}
           onClips={onClips}
           onPoseable={onPoseable}
+          onChannelsDetected={onChannelsDetected}
           handPose={handPose}
           setDragLock={setDragLock}
         />
@@ -1182,7 +1296,18 @@ export default function SpecimenScene({
       <KeyboardOrbit controls={controlsRef} />
       <OrbitControls
         ref={controlsRef as never}
-        enablePan={false}
+        // Right-drag pans (screen-space), left-drag rotates, wheel zooms — the
+        // pan lets you inspect any region, not just the centred pivot. Panning
+        // stops the auto-rotate too (it fires interacting via pointerdown).
+        enablePan
+        screenSpacePanning
+        panSpeed={0.8}
+        mouseButtons={{
+          LEFT: THREE.MOUSE.ROTATE,
+          MIDDLE: THREE.MOUSE.DOLLY,
+          RIGHT: THREE.MOUSE.PAN,
+        }}
+        touches={{ ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN }}
         enableZoom={allowZoom}
         enabled={!dragLock}
         minDistance={1.4}

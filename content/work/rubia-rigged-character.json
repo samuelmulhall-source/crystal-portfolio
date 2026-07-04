@@ -44,6 +44,7 @@
   },
   "specimen": {
     "modelPath": "/Rigged Characters/rubia.glb",
+    "wireModelPath": "/Rigged Characters/rubia_wire.glb",
     "poster": "/images/posters/rubia.webp",
     "rigged": true,
     "textures": {}
