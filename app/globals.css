@@ -426,12 +426,24 @@ button, input, textarea { font: inherit; }
 
 .hero-wordmark__text {
   display: inline-block;
+  /* Original internal-luminosity glow that breathes behind the letterforms */
+  animation: hero-glow-pulse 7.5s ease-in-out infinite;
+}
+/* Each letter carries its OWN gradient (not the wrapper's) so the fill travels
+   with the glyph when the letters fly to the lantern and become the label
+   (HeroWordmark). transform-origin top-left makes the FLIP math exact. */
+.hero-wordmark__letter {
+  display: inline-block;
+  transform-origin: left top;
+  will-change: transform;
   background: linear-gradient(176deg, #ffffff 4%, #e2f7ff 30%, var(--ice) 76%, #6fc4e0 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  /* Original internal-luminosity glow that breathes behind the letterforms */
-  animation: hero-glow-pulse 7.5s ease-in-out infinite;
+}
+.hero-wordmark__letter.is-space {
+  background: none;
+  -webkit-text-fill-color: transparent;
 }
 
 .page-title {
@@ -736,15 +748,31 @@ button, input, textarea { font: inherit; }
   border: 1px solid var(--ice-bright, #c8faff);
   background: rgba(200, 250, 255, 0.14);
 }
+/* The label is the TARGET TEMPLATE the wordmark letters fly onto (HeroWordmark):
+   display font (same as the wordmark) at the small label size, so the flown
+   real letters land on it 1:1 and become the visible label. Kept invisible —
+   the flown letters are what shows — except under reduced motion, where nothing
+   flies so it renders statically. */
+.hero-specimen__cue-label {
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-size: 1rem;
+  letter-spacing: 0.08em;
+  line-height: 0.98;
+  text-transform: uppercase;
+  visibility: hidden;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-specimen__cue-label { visibility: visible; color: var(--ice-bright, #c8faff); }
+}
 .hero-specimen.is-focusing .hero-specimen__cue {
   opacity: 1;
   transform: translateY(0);
-  /* Reveal is DELAYED so it cross-dissolves with the flying wordmark letters as
-     they land (HeroWordmarkFlight). On un-focus the base rule (no delay) hides
-     it promptly. */
+  /* Reveal is DELAYED so the chip settles in as the flying wordmark letters land
+     on it (HeroWordmark). On un-focus the base rule (no delay) hides it
+     promptly. */
   transition:
-    opacity var(--dur-2) var(--ease-out) 620ms,
-    transform var(--dur-2) var(--ease-out) 620ms,
+    opacity var(--dur-2) var(--ease-out) 560ms,
+    transform var(--dur-2) var(--ease-out) 560ms,
     box-shadow var(--dur-2) var(--ease-out);
 }
 /* Route the keyboard focus ring to the caption, not the big invisible hit box. */
@@ -860,22 +888,6 @@ button, input, textarea { font: inherit; }
     rgba(0, 2, 8, 0.5) 72%,
     rgba(0, 2, 8, 0.66) 100%
   );
-}
-
-/* Wordmark flight canvas — the hero wordmark's letters fly to the lantern label
-   as a dithered particle stream (HeroWordmarkFlight). Fixed, full-viewport,
-   pixel-upscaled (half-res backing) for the chunky/dithered read; z-index above
-   the lantern (wrap z 6) so the letters pass over the top; never interactive. */
-.hero-flight-canvas {
-  position: fixed;
-  inset: 0;
-  z-index: 20;
-  pointer-events: none;
-  opacity: 0;
-  image-rendering: pixelated;
-}
-@media (prefers-reduced-motion: reduce) {
-  .hero-flight-canvas { display: none; }
 }
 
 /* ─── Specimen viewer — interactive 3D asset display ────────────────────── */

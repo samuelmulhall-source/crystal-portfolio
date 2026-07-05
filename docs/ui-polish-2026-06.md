@@ -475,3 +475,34 @@ wordmark opacity → 0, the canvas draws dithered glyphs whose bounding box trav
 across the screen over ~0.5s (half-res x 208 → 478 → 566) toward the lantern, then settles and
 fades as the label reveals; un-hover restores the wordmark. A frozen mid-flight screenshot
 shows the dithered ice letters in transit. tsc / eslint / build clean; console clean.
+
+---
+
+## Pass 14 — letter flight, done right: the REAL wordmark letters become the label
+
+Owner on Pass 13: "why didn't you just replace the label with the text that goes over? the
+text at the start disappears and then a flying animation plays — use the actual text." The
+canvas version was fundamentally a *copy* (the real wordmark faded out, a canvas clone flew,
+then cross-dissolved to a separate label). Rebuilt to animate the ACTUAL DOM letters, which
+become the label.
+
+- `HeroWordmark` (replaces the wordmark `<span>` in page.tsx): splits the title into
+  per-letter spans, each carrying its OWN gradient fill (so the fill travels with the glyph),
+  `transform-origin: top-left`.
+- On hover each REAL letter springs from its place in the wordmark to its slot in the label —
+  no copy, no fade-out. Physics: spring + **mouse-gravity** (G/d², capped, eased off near the
+  slot) + a **retype stagger** by index; the letters shrink from the wordmark size to the
+  label size en route.
+- Targets come from `.hero-specimen__cue-label`, now a **hidden template** with the same text
+  in the display font at label size — measured per-character with `Range`, so the flown
+  letters land on it 1:1 and *are* the visible label (no separate label, no swap). On
+  un-hover they fly back and reassemble the wordmark.
+- `hero-core` z-index lifts to 7 during flight so the letters pass OVER the lantern (wrap z 6)
+  instead of behind it; restored when they settle home. Reduced motion: no flight, the
+  template shows statically. The canvas component + its CSS were deleted.
+
+**Verification:** 12 real letters "Multiscatter" fly from the wordmark (x 64–241, h 88) and
+land on the label slots (x 888–1013, h 16), shrinking en route; `hero-core` z = 7 during
+flight; a screenshot shows the wordmark gone from the left and "◊ MULTISCATTER" assembled in
+the chip at the lantern; un-hover returns the letters to the wordmark. tsc / eslint / build
+clean; console clean.

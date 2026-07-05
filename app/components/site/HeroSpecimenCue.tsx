@@ -31,10 +31,15 @@ const PROXIMITY_RADIUS = 360;
 export function HeroSpecimenCue({
   slug,
   title,
+  wordmark,
   children,
 }: {
   slug: string;
   title: string;
+  /** The hero wordmark text — used as the label TEMPLATE (same text, small): the
+   *  real wordmark letters fly here and land on it, becoming the visible label
+   *  (HeroWordmark). Hidden except under reduced motion (static fallback). */
+  wordmark: string;
   /** The masked .hero-viewport (lantern). Wrapped so the overlay link can size
    *  to the lantern exactly, while staying OUTSIDE the viewport's dissolve mask. */
   children: ReactNode;
@@ -96,9 +101,12 @@ export function HeroSpecimenCue({
       >
         <span className="hero-specimen__cue">
           <span className="hero-specimen__cue-tick" aria-hidden="true" />
-          {/* The wordmark clone (HeroFocus) flies in and cross-dissolves into
-              this label as it lands — see .hero-wordmark-ghost. */}
-          <span className="hero-specimen__cue-label">{title}</span>
+          {/* Target TEMPLATE for the flying wordmark letters (HeroWordmark):
+              same text, small. The real letters land on it and become the
+              visible label; it's hidden except under reduced motion (where it
+              shows statically since nothing flies). aria-hidden — the link's
+              own aria-label carries the accessible name. */}
+          <span className="hero-specimen__cue-label" aria-hidden="true">{wordmark}</span>
         </span>
       </a>
 

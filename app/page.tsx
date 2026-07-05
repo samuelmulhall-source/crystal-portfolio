@@ -4,6 +4,7 @@ import { Header } from "./components/site/Header";
 import { HeroFocusProvider } from "./components/site/HeroFocus";
 import { HeroIntro } from "./components/site/HeroIntro";
 import { HeroSpecimenCue } from "./components/site/HeroSpecimenCue";
+import { HeroWordmark } from "./components/site/HeroWordmark";
 import { SpecimenPreview } from "./components/site/SpecimenPreview";
 import { WorkShowcase } from "./components/site/WorkShowcase";
 import {
@@ -41,13 +42,13 @@ export default function HomePage() {
               </p>
             ) : null}
             <h1 className="hero-wordmark" data-hero-entrance="title">
-              <span className="hero-wordmark__text">{home.hero.title}</span>
+              <HeroWordmark text={home.hero.title} />
             </h1>
           </div>
 
           <div className="hero-viewport-wrap" data-parallax="0.06" data-hero-fade="asset">
             {/* The lantern is a hover/focus doorway into its own showcase entry. */}
-            <HeroSpecimenCue slug={heroEntry.slug} title={heroEntry.title}>
+            <HeroSpecimenCue slug={heroEntry.slug} title={heroEntry.title} wordmark={home.hero.title}>
               <div className="hero-viewport" data-hero-entrance="viewport">
                 <SpecimenPreview
                   posterAsset={
