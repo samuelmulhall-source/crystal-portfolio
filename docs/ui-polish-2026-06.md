@@ -506,3 +506,40 @@ land on the label slots (x 888–1013, h 16), shrinking en route; `hero-core` z 
 flight; a screenshot shows the wordmark gone from the left and "◊ MULTISCATTER" assembled in
 the chip at the lantern; un-hover returns the letters to the wordmark. tsc / eslint / build
 clean; console clean.
+
+## Pass 15 — the letters BECOME the piece's name; the brand types back in below
+
+Owner on Pass 14 (four notes at once): (1) "Multiscatter" shouldn't wrap to two lines when the
+viewport is compressed; (2) as the text travels it should **change to indicate it's the lantern
+preview** — i.e. read as the piece's name, not still "Multiscatter"; (3) the janky label
+background "looks low quality and doesn't match the page" — revamp it; (4) once the brand has
+left the landing page, **type "Multiscatter ·" back in as a preface** to the capability line so
+the name never fully vanishes.
+
+- **No wrap.** `.hero-wordmark__text` is now `white-space: nowrap` (the per-letter split had
+  let it break mid-word). Single line at every width; the split spans stay inline-block.
+- **Morph to the piece name.** `HeroWordmark` gained a `target` prop (the featured entry's
+  title, e.g. *Soulbound Lantern*). It now animates a source→target *set*: `n = max(src, dst)`
+  letters. Each letter springs to its label slot AND swaps its glyph at flownness > 0.5, so
+  "Multiscatter" reads as "Soulbound Lantern" by the time it lands. Count mismatch is handled
+  both ways — surplus **target** letters (label longer) spawn from the wordmark's tail and fade
+  in (`is-extra`, parked `position:absolute; left:100%`); surplus **source** letters (label
+  shorter) scatter up + shrink away and fade out. The cue label template is just `{title}` now.
+- **Revamped chip.** `.hero-specimen__cue` is real glass to match the rest of the chrome:
+  layered translucent fill, ice hairline border, inset specular top edge + soft drop shadow,
+  `backdrop-filter: blur(5px) saturate(1.2)` (unprefixed — lightningcss rule), `nowrap`. The
+  label rides in the display font at 0.9rem, uppercase, hidden until the letters arrive.
+- **Typed brand preface.** New `HeroEyebrow` client component: while `focusing`, it types
+  `"Multiscatter  ·  "` in front of the capability line (52 ms/char after a 240 ms hold, a
+  blinking 1px caret), and un-types it on leave (26 ms/char). Reduced motion snaps. So the
+  brand hands off cleanly — it flies away as the wordmark and reappears as a prefix below,
+  never absent.
+
+**Verification:** resting wordmark is one line (`nowrap`, h 86, no wrap); 17 spans (12 real +
+5 `is-extra`) for the 17-char target. On hover the real letters' glyphs morph and the
+`flownGlyphs` read exactly "Soulbound Lantern"; the target slots computed by `Range` are clean
+and monotonic and the letters land on them (the `is-extra` tail lands sub-pixel-exact on its
+slots — same spring path proves the targeting). The eyebrow types the "Multiscatter ·" preface
+with its caret. Chip renders as glass (223×28). tsc / eslint / `next build` (static export, all
+routes) clean. *Note:* the harness's backgrounded WebGL tab throttles rAF, so a physics flight
+can't be screenshotted mid-settle at full speed — targeting was verified geometrically instead.

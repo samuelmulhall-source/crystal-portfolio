@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Footer } from "./components/site/Footer";
 import { Header } from "./components/site/Header";
+import { HeroEyebrow } from "./components/site/HeroEyebrow";
 import { HeroFocusProvider } from "./components/site/HeroFocus";
 import { HeroIntro } from "./components/site/HeroIntro";
 import { HeroSpecimenCue } from "./components/site/HeroSpecimenCue";
@@ -37,18 +38,16 @@ export default function HomePage() {
         <div className="hero-grid">
           <div className="hero-core hero-core--left" data-parallax="0.16" data-hero-fade="text">
             {home.hero.capabilities?.length ? (
-              <p className="hero-capabilities" data-hero-entrance="eyebrow">
-                {home.hero.capabilities.join("  ·  ")}
-              </p>
+              <HeroEyebrow text={home.hero.capabilities.join("  ·  ")} />
             ) : null}
             <h1 className="hero-wordmark" data-hero-entrance="title">
-              <HeroWordmark text={home.hero.title} />
+              <HeroWordmark text={home.hero.title} target={heroEntry.title} />
             </h1>
           </div>
 
           <div className="hero-viewport-wrap" data-parallax="0.06" data-hero-fade="asset">
             {/* The lantern is a hover/focus doorway into its own showcase entry. */}
-            <HeroSpecimenCue slug={heroEntry.slug} title={heroEntry.title} wordmark={home.hero.title}>
+            <HeroSpecimenCue slug={heroEntry.slug} title={heroEntry.title}>
               <div className="hero-viewport" data-hero-entrance="viewport">
                 <SpecimenPreview
                   posterAsset={

@@ -5,28 +5,37 @@ import { useHeroFocus } from "./HeroFocus";
 
 /**
  * HeroWordmark — the hero wordmark, split into per-letter spans so the ACTUAL
- * letters (real DOM, with their gradient) can fly to the lantern and BECOME its
- * label. No canvas, no clone: on hover each real letter springs from its place
- * in the wordmark to its slot in the (hidden) label template at the lantern —
- * with a retype stagger and mouse-gravity swirl — and stays there as the label.
- * On un-hover they fly back and reassemble the wordmark. Fine-pointer only; snaps
- * off (no flight) under reduced motion, where the label shows statically.
+ * letters (real DOM, with their gradient) fly to the lantern and BECOME its
+ * label — and MORPH into the label text on the way (so it reads as the lantern's
+ * name, not the brand). No canvas, no clone.
  *
- * The target slots come from the `.hero-specimen__cue-label` template (same text,
- * small), measured per-character — so the flown letters land exactly on it.
+ * Physics: each real letter springs from its place in the wordmark to its slot
+ * in the (hidden) label template, with a retype stagger + mouse-gravity swirl,
+ * shrinking to label size and swapping its glyph (source → target) mid-flight.
+ * When the label is LONGER than the wordmark the surplus letters emerge from the
+ * wordmark's tail and fade in; when shorter, the extra wordmark letters fly off
+ * and fade. On un-hover everything flies home and reassembles the wordmark.
+ *
+ * `hero-core` is lifted above the lantern for the flight so the letters pass over
+ * it. Fine-pointer only; snaps off under reduced motion (label shows statically).
  */
-type Letter = {
+type L = {
   el: HTMLSpanElement;
-  ax: number; ay: number; aw: number; ah: number; // rest rect (viewport)
+  src: string; dst: string; hasSrc: boolean; hasDst: boolean;
+  ax: number; ay: number; // rest position (viewport)
   cx: number; cy: number; vx: number; vy: number; scale: number; // live transform
-  dx: number; dy: number; ts: number; // target translate + scale
-  delay: number;
+  fx: number; fy: number; fscale: number; // flown target (delta + scale)
+  delay: number; shown: string;
 };
 
-export function HeroWordmark({ text }: { text: string }) {
+export function HeroWordmark({ text, target }: { text: string; target: string }) {
   const { focusing } = useHeroFocus();
-  const letterRefs = useRef<(HTMLSpanElement | null)[]>([]);
-  const state = useRef<Letter[]>([]);
+  const srcChars = [...text];
+  const dstChars = [...target];
+  const n = Math.max(srcChars.length, dstChars.length);
+
+  const refs = useRef<(HTMLSpanElement | null)[]>([]);
+  const st = useRef<L[]>([]);
   const mouse = useRef({ x: 0, y: 0, has: false });
   const raf = useRef(0);
   const mode = useRef<"fly" | "return" | "idle">("idle");
@@ -39,66 +48,71 @@ export function HeroWordmark({ text }: { text: string }) {
 
   useEffect(() => {
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const els = letterRefs.current.filter((e): e is HTMLSpanElement => !!e);
-    if (reduce || !els.length) return;
+    const els = refs.current.slice(0, n).filter((e): e is HTMLSpanElement => !!e);
+    if (reduce || els.length < n) return;
 
-    // Lift the wordmark's stacking context above the lantern (wrap z 6) while its
-    // letters are in flight, or they'd pass BEHIND the lantern on the way over.
     const heroCore = els[0].closest<HTMLElement>(".hero-core");
     const liftZ = (on: boolean) => { if (heroCore) heroCore.style.zIndex = on ? "7" : ""; };
 
-    // Ensure per-letter state exists, keyed to the current live transforms.
-    if (state.current.length !== els.length) {
-      state.current = els.map((el) => ({
-        el, ax: 0, ay: 0, aw: 0, ah: 0, cx: 0, cy: 0, vx: 0, vy: 0, scale: 1, dx: 0, dy: 0, ts: 1, delay: 0,
+    const sc = [...text];
+    const dc = [...target];
+    if (st.current.length !== n) {
+      st.current = els.map((el, i) => ({
+        el,
+        src: sc[i] ?? "", dst: dc[i] ?? "",
+        hasSrc: i < sc.length, hasDst: i < dc.length,
+        ax: 0, ay: 0, cx: 0, cy: 0, vx: 0, vy: 0, scale: 1,
+        fx: 0, fy: 0, fscale: 1, delay: 0, shown: sc[i] ?? "",
       }));
     }
 
-    // Measure REST rects (clear transform → read → the loop reapplies).
+    const labelEl = document.querySelector<HTMLElement>(".hero-specimen__cue-label");
+    const node = labelEl?.firstChild;
+
+    // Rest positions: source letters use their own box; surplus (label-longer)
+    // letters spawn from the wordmark's tail.
     const measureRest = () => {
-      for (const L of state.current) {
+      let lastRight = 0, lastTop = 0;
+      for (const L of st.current) {
+        if (!L.hasSrc) continue;
         const prev = L.el.style.transform;
         L.el.style.transform = "none";
         const r = L.el.getBoundingClientRect();
         L.el.style.transform = prev;
-        L.ax = r.left; L.ay = r.top; L.aw = r.width; L.ah = r.height;
+        L.ax = r.left; L.ay = r.top; lastRight = r.right; lastTop = r.top;
+      }
+      for (const L of st.current) {
+        if (!L.hasSrc) { L.ax = lastRight; L.ay = lastTop; }
       }
     };
 
-    if (focusing) {
-      const label = document.querySelector<HTMLElement>(".hero-specimen__cue-label");
-      const node = label?.firstChild;
-      if (!label || !node || node.nodeType !== Node.TEXT_NODE) return;
+    if (focusing && labelEl && node && node.nodeType === Node.TEXT_NODE) {
       measureRest();
-      // Uniform scale = target font size ÷ wordmark letter font size.
-      const wfs = parseFloat(getComputedStyle(state.current[0].el).fontSize) || 1;
-      const tfs = parseFloat(getComputedStyle(label).fontSize) || wfs;
-      const ts = tfs / wfs;
-      // Per-character target top-left from the label template.
+      const wfsEl = st.current.find((l) => l.hasSrc)?.el ?? els[0];
+      const wfs = parseFloat(getComputedStyle(wfsEl).fontSize) || 1;
+      const tfs = parseFloat(getComputedStyle(labelEl).fontSize) || wfs;
+      const fscale = tfs / wfs;
       const range = document.createRange();
-      const text2 = label.textContent ?? "";
-      state.current.forEach((L, i) => {
-        let bx = L.ax, by = L.ay;
-        if (i < text2.length) {
+      st.current.forEach((L, i) => {
+        if (L.hasDst) {
           range.setStart(node, i);
           range.setEnd(node, i + 1);
           const r = range.getBoundingClientRect();
-          bx = r.left; by = r.top;
+          L.fx = r.left - L.ax; L.fy = r.top - L.ay; L.fscale = fscale;
+        } else {
+          // surplus wordmark letter (label shorter): scatter up + shrink away
+          L.fx = (i % 2 ? 1 : -1) * (40 + Math.random() * 90);
+          L.fy = -70 - Math.random() * 70;
+          L.fscale = 0.1;
         }
-        L.dx = bx - L.ax;
-        L.dy = by - L.ay;
-        L.ts = ts;
-        L.delay = i * 0.03;
+        L.delay = i * 0.028;
+        if (!L.hasSrc) { L.el.textContent = L.dst; L.shown = L.dst; } // surplus label letter — set glyph now, it fades in
       });
       liftZ(true);
       mode.current = "fly";
     } else {
-      // Fly home: targets are the rest positions.
-      if (state.current[0]?.aw === 0) measureRest();
-      state.current.forEach((L, i) => {
-        L.dx = 0; L.dy = 0; L.ts = 1;
-        L.delay = (state.current.length - 1 - i) * 0.014; // unwind right→left
-      });
+      if (!st.current[0] || st.current.find((l) => l.hasSrc)?.ax === 0) measureRest();
+      st.current.forEach((_, i) => { st.current[i].delay = (n - 1 - i) * 0.012; });
       mode.current = "return";
     }
 
@@ -109,44 +123,52 @@ export function HeroWordmark({ text }: { text: string }) {
 
     const tick = (now: number) => {
       const dt = Math.min((now - last) / 1000, 0.033);
-      last = now;
-      elapsed += dt;
-      let settled = 0;
+      last = now; elapsed += dt;
       const flying = mode.current === "fly";
-      for (const L of state.current) {
+      let settled = 0;
+      for (const L of st.current) {
+        const tx = flying ? L.fx : 0;
+        const ty = flying ? L.fy : 0;
+        const tsc = flying ? L.fscale : 1;
         if (elapsed >= L.delay) {
-          let ax = (L.dx - L.cx) * K - L.vx * DAMP;
-          let ay = (L.dy - L.cy) * K - L.vy * DAMP;
-          if (flying && mouse.current.has) {
-            // letter's live viewport centre
-            const px = L.ax + L.cx + (L.aw * L.scale) / 2;
-            const py = L.ay + L.cy + (L.ah * L.scale) / 2;
-            const gx = mouse.current.x - px, gy = mouse.current.y - py;
-            const d2 = gx * gx + gy * gy + SOFT;
-            const d = Math.sqrt(d2);
-            const distT = Math.hypot(L.dx - L.cx, L.dy - L.cy);
-            const g = Math.min(1, distT / 140); // ease off near the slot
-            let f = GRAV / d2;
-            if (f > MAXF) f = MAXF;
-            ax += (gx / d) * f * g;
-            ay += (gy / d) * f * g;
+          let ax = (tx - L.cx) * K - L.vx * DAMP;
+          let ay = (ty - L.cy) * K - L.vy * DAMP;
+          if (flying && mouse.current.has && L.hasDst) {
+            const gx = mouse.current.x - (L.ax + L.cx), gy = mouse.current.y - (L.ay + L.cy);
+            const d2 = gx * gx + gy * gy + SOFT, d = Math.sqrt(d2);
+            const distT = Math.hypot(tx - L.cx, ty - L.cy);
+            const g = Math.min(1, distT / 140);
+            let f = GRAV / d2; if (f > MAXF) f = MAXF;
+            ax += (gx / d) * f * g; ay += (gy / d) * f * g;
           }
           L.vx += ax * dt; L.vy += ay * dt;
           L.cx += L.vx * dt; L.cy += L.vy * dt;
         }
-        L.scale += (L.ts - L.scale) * Math.min(1, dt * 9);
-        const settledPos = Math.hypot(L.dx - L.cx, L.dy - L.cy) < 0.6 && Math.hypot(L.vx, L.vy) < 5;
-        if (settledPos && Math.abs(L.scale - L.ts) < 0.01) settled++;
-        if (Math.abs(L.cx) < 0.01 && Math.abs(L.cy) < 0.01 && Math.abs(L.scale - 1) < 0.002 && mode.current === "return") {
-          L.el.style.transform = "";
-        } else {
-          L.el.style.transform = `translate(${L.cx.toFixed(2)}px, ${L.cy.toFixed(2)}px) scale(${L.scale.toFixed(4)})`;
-        }
+        L.scale += (tsc - L.scale) * Math.min(1, dt * 9);
+
+        const flownMag = Math.hypot(L.fx, L.fy) || 1;
+        const flownness = Math.min(1, Math.hypot(L.cx, L.cy) / flownMag);
+        const want = flownness > 0.5 ? (L.hasDst ? L.dst : L.src) : (L.src || L.dst);
+        if (want !== L.shown) { L.el.textContent = want; L.shown = want; }
+
+        let op = 1;
+        if (L.hasSrc && !L.hasDst) op = 1 - flownness;      // surplus source → fade out flying
+        else if (!L.hasSrc && L.hasDst) op = flownness;     // surplus label → fade in flying
+        L.el.style.opacity = op < 0.999 ? op.toFixed(3) : "";
+
+        const atRest = !flying && Math.abs(L.cx) < 0.01 && Math.abs(L.cy) < 0.01 && Math.abs(L.scale - 1) < 0.002;
+        L.el.style.transform = atRest ? "" : `translate(${L.cx.toFixed(2)}px, ${L.cy.toFixed(2)}px) scale(${L.scale.toFixed(4)})`;
+        if (Math.hypot(tx - L.cx, ty - L.cy) < 0.6 && Math.hypot(L.vx, L.vy) < 5 && Math.abs(L.scale - tsc) < 0.01) settled++;
       }
-      if (settled === state.current.length) {
+      if (settled === st.current.length) {
         if (mode.current === "return") {
-          state.current.forEach((L) => { L.el.style.transform = ""; });
-          liftZ(false); // letters home — drop back below the lantern
+          for (const L of st.current) {
+            L.el.style.transform = "";
+            L.el.style.opacity = "";
+            if (!L.hasSrc) { L.el.textContent = ""; L.shown = ""; }
+            else if (L.shown !== L.src) { L.el.textContent = L.src; L.shown = L.src; }
+          }
+          liftZ(false);
         }
         mode.current = "idle";
         return;
@@ -155,18 +177,17 @@ export function HeroWordmark({ text }: { text: string }) {
     };
     raf.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf.current);
-  }, [focusing, text]);
+  }, [focusing, text, target, n]);
 
-  const chars = [...text];
   return (
     <span className="hero-wordmark__text">
-      {chars.map((ch, i) => (
+      {Array.from({ length: n }, (_, i) => (
         <span
           key={i}
-          ref={(el) => { letterRefs.current[i] = el; }}
-          className={`hero-wordmark__letter${ch === " " ? " is-space" : ""}`}
+          ref={(el) => { refs.current[i] = el; }}
+          className={`hero-wordmark__letter${i >= srcChars.length ? " is-extra" : ""}`}
         >
-          {ch === " " ? " " : ch}
+          {srcChars[i] ?? ""}
         </span>
       ))}
     </span>

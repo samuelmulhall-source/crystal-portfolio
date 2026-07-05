@@ -426,6 +426,10 @@ button, input, textarea { font: inherit; }
 
 .hero-wordmark__text {
   display: inline-block;
+  position: relative;
+  /* The word is now per-letter spans (which can wrap between them) — keep it on
+     ONE line; the responsive font-size already scales it to fit. */
+  white-space: nowrap;
   /* Original internal-luminosity glow that breathes behind the letterforms */
   animation: hero-glow-pulse 7.5s ease-in-out infinite;
 }
@@ -441,9 +445,14 @@ button, input, textarea { font: inherit; }
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
-.hero-wordmark__letter.is-space {
-  background: none;
-  -webkit-text-fill-color: transparent;
+/* Surplus letters (label longer than the wordmark) — parked out of flow at the
+   wordmark's tail so they don't widen the resting wordmark; they emerge and
+   fade in during the flight. */
+.hero-wordmark__letter.is-extra {
+  position: absolute;
+  left: 100%;
+  top: 0;
+  opacity: 0;
 }
 
 .page-title {
@@ -551,6 +560,21 @@ button, input, textarea { font: inherit; }
   /* Subtle dark glow to lift the label off the smoke */
   text-shadow: 0 0 14px rgba(2, 5, 12, 0.9), 0 1px 3px rgba(2, 5, 12, 0.95);
 }
+/* Typed "Multiscatter ·" preface — the brand types itself in front of the
+   descriptor while the wordmark's letters are away at the lantern (HeroEyebrow).
+   Brighter than the descriptor so it reads as the name, with a blinking caret. */
+.hero-eyebrow-preface { color: var(--ice-bright, #c8faff); }
+.hero-eyebrow-caret {
+  display: inline-block;
+  width: 1px;
+  height: 0.92em;
+  margin: 0 0.18em 0 0.04em;
+  vertical-align: -0.06em;
+  background: var(--ice-bright, #c8faff);
+  animation: eyebrow-caret-blink 1s steps(1, end) infinite;
+}
+@keyframes eyebrow-caret-blink { 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .hero-eyebrow-caret { animation: none; } }
 
 /* ─── Hero scroll cue — minimalist "Selected Work ↓" ─────────────────────── */
 .hero-scroll-cue {
@@ -715,20 +739,21 @@ button, input, textarea { font: inherit; }
 .hero-specimen__cue {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.42rem 0.72rem;
-  border-radius: 7px;
-  /* Small chrome: a plain dark scrim + hairline (no backdrop-filter — it sits
-     over a moving video, and the lantern base behind it is already dim from the
-     dissolve mask, so a scrim reads crisp and cheap-perf). */
-  background: rgba(6, 12, 22, 0.64);
-  border: 1px solid rgba(184, 240, 255, 0.2);
-  box-shadow: 0 8px 22px -14px rgba(0, 0, 0, 0.85);
-  font-family: var(--font-plex-mono), monospace;
-  font-size: 0.58rem;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: rgba(220, 242, 255, 0.94);
+  gap: 0.55rem;
+  padding: 0.36rem 0.82rem 0.4rem;
+  border-radius: 11px;
+  /* Refined glass chip (small chrome, per the visual system): a cool
+     translucent fill, a fine specular top edge, a soft drop shadow, and a light
+     blur — reads as premium glass over the lantern, not a flat dark box.
+     backdrop-filter is unprefixed + blur() only (no url()), so lightningcss
+     leaves it intact; this is small chrome, never the pinned header. */
+  background: linear-gradient(180deg, rgba(20, 31, 52, 0.5), rgba(7, 13, 26, 0.44));
+  border: 1px solid rgba(184, 240, 255, 0.16);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.09),
+    inset 0 0 0 1px rgba(130, 180, 220, 0.05),
+    0 16px 38px -22px rgba(0, 0, 0, 0.82);
+  backdrop-filter: blur(5px) saturate(1.2);
   white-space: nowrap;
   /* Quiet reveal — fades and lifts in. */
   opacity: 0;
@@ -755,8 +780,8 @@ button, input, textarea { font: inherit; }
    flies so it renders statically. */
 .hero-specimen__cue-label {
   font-family: var(--font-display), system-ui, sans-serif;
-  font-size: 1rem;
-  letter-spacing: 0.08em;
+  font-size: 0.9rem;
+  letter-spacing: 0.06em;
   line-height: 0.98;
   text-transform: uppercase;
   visibility: hidden;
