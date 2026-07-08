@@ -46,12 +46,7 @@ export function HeroEyebrow({ text }: { text: string }) {
 
   return (
     <p className="hero-capabilities" data-hero-entrance="eyebrow">
-      {typed ? (
-        <span className="hero-eyebrow-preface">
-          {typed}
-          <span className="hero-eyebrow-caret" aria-hidden="true" />
-        </span>
-      ) : null}
+      {typed ? <span className="hero-eyebrow-preface">{typed}</span> : null}
       {text}
     </p>
   );

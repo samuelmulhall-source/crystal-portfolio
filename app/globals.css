@@ -555,6 +555,13 @@ button, input, textarea { font: inherit; }
 .hero-core.is-flying::before {
   opacity: 0;
 }
+/* The letters become the lantern label with no chip behind them — give them a
+   soft scrim so the ice gradient stays legible over the bright render. Scoped
+   to the flight only, so the big resting wordmark on the void is untouched.
+   drop-shadow works on background-clip:text (it shadows the glyph alpha). */
+.hero-core.is-flying .hero-wordmark__letter {
+  filter: drop-shadow(0 1px 5px rgba(0, 2, 8, 0.9));
+}
 
 /* ─── Hero descriptor — single concise capability line ───────────────────── */
 .hero-capabilities {
@@ -569,19 +576,8 @@ button, input, textarea { font: inherit; }
 }
 /* Typed "Multiscatter ·" preface — the brand types itself in front of the
    descriptor while the wordmark's letters are away at the lantern (HeroEyebrow).
-   Brighter than the descriptor so it reads as the name, with a blinking caret. */
+   Brighter than the descriptor so it reads as the name. */
 .hero-eyebrow-preface { color: var(--ice-bright, #c8faff); }
-.hero-eyebrow-caret {
-  display: inline-block;
-  width: 1px;
-  height: 0.92em;
-  margin: 0 0.18em 0 0.04em;
-  vertical-align: -0.06em;
-  background: var(--ice-bright, #c8faff);
-  animation: eyebrow-caret-blink 1s steps(1, end) infinite;
-}
-@keyframes eyebrow-caret-blink { 50% { opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { .hero-eyebrow-caret { animation: none; } }
 
 /* ─── Hero scroll cue — minimalist "Selected Work ↓" ─────────────────────── */
 .hero-scroll-cue {
@@ -746,38 +742,18 @@ button, input, textarea { font: inherit; }
 .hero-specimen__cue {
   display: inline-flex;
   align-items: center;
-  gap: 0.55rem;
-  padding: 0.36rem 0.82rem 0.4rem;
-  border-radius: 11px;
-  /* Refined glass chip (small chrome, per the visual system): a cool
-     translucent fill, a fine specular top edge, a soft drop shadow, and a light
-     blur — reads as premium glass over the lantern, not a flat dark box.
-     backdrop-filter is unprefixed + blur() only (no url()), so lightningcss
-     leaves it intact; this is small chrome, never the pinned header. */
-  background: linear-gradient(180deg, rgba(20, 31, 52, 0.5), rgba(7, 13, 26, 0.44));
-  border: 1px solid rgba(184, 240, 255, 0.16);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.09),
-    inset 0 0 0 1px rgba(130, 180, 220, 0.05),
-    0 16px 38px -22px rgba(0, 0, 0, 0.82);
-  backdrop-filter: blur(5px) saturate(1.2);
+  gap: 0.5rem;
   white-space: nowrap;
-  /* Hidden at rest via VISIBILITY, not just opacity: any backdrop-filter ≠ none
-     re-snapshots the lantern video behind the chip every frame even at
-     opacity 0 (blur(0) included) — visibility:hidden skips paint entirely, so
-     the flight runs with zero backdrop cost. The 0s visibility transition is
-     DELAYED to flip only after the opacity fade ends (and after the 560ms
-     reveal hold, below). No transform here: the label slots are measured the
-     instant focus flips, so the chip must not move under the landed letters. */
-  visibility: hidden;
+  /* No chip: the label floats as clean HUD text over the lantern (owner ditched
+     the glass box). Legibility over the bright render comes from the tick + the
+     flown letters' own drop-shadow (see .hero-core.is-flying .hero-wordmark__letter),
+     per the visual system's "label over a bright model gets its own scrim". */
   opacity: 0;
-  transition:
-    opacity var(--dur-2) var(--ease-out),
-    box-shadow var(--dur-2) var(--ease-out),
-    visibility 0s linear var(--dur-2);
+  transition: opacity var(--dur-2) var(--ease-out);
 }
-/* Line-art tick — a small rotated square that ties the caption to the ◊ HUD
-   mark used elsewhere; brightens the label as a "selected" marker. */
+/* Line-art tick — a small rotated square in the ◊ HUD language; anchors the
+   floating label as a "selected" marker, with its own scrim to hold over the
+   lantern. */
 .hero-specimen__cue-tick {
   width: 5px;
   height: 5px;
@@ -785,6 +761,7 @@ button, input, textarea { font: inherit; }
   transform: rotate(45deg);
   border: 1px solid var(--ice-bright, #c8faff);
   background: rgba(200, 250, 255, 0.14);
+  box-shadow: 0 0 6px rgba(0, 2, 8, 0.9);
 }
 /* The label is the TARGET TEMPLATE the wordmark letters fly onto (HeroWordmark):
    display font (same as the wordmark) at the small label size, so the flown
@@ -800,19 +777,17 @@ button, input, textarea { font: inherit; }
   visibility: hidden;
 }
 @media (prefers-reduced-motion: reduce) {
-  .hero-specimen__cue-label { visibility: visible; color: var(--ice-bright, #c8faff); }
+  .hero-specimen__cue-label {
+    visibility: visible;
+    color: var(--ice-bright, #c8faff);
+    text-shadow: 0 1px 5px rgba(0, 2, 8, 0.9); /* scrim — no flown letters here to carry it */
+  }
 }
 .hero-specimen.is-focusing .hero-specimen__cue {
   opacity: 1;
-  visibility: visible;
-  /* Reveal is DELAYED so the chip fades in around the flying wordmark letters
-     as they land (HeroWordmark); visibility flips at the same moment so the
-     backdrop blur only starts paying once something is visible. On un-focus
-     the base rule (no delay) hides it promptly. */
-  transition:
-    opacity var(--dur-2) var(--ease-out) 560ms,
-    box-shadow var(--dur-2) var(--ease-out),
-    visibility 0s linear 560ms;
+  /* Reveal is DELAYED so the tick fades in as the flying wordmark letters land
+     (HeroWordmark). On un-focus the base rule (no delay) hides it promptly. */
+  transition: opacity var(--dur-2) var(--ease-out) 560ms;
 }
 /* Route the keyboard focus ring to the caption, not the big invisible hit box. */
 .hero-specimen__link:focus-visible {
@@ -884,11 +859,10 @@ button, input, textarea { font: inherit; }
   100% { opacity: 0; transform: translate(-50%, var(--flow)) rotate(45deg); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .hero-specimen__cue { transition: opacity var(--dur-2) var(--ease-out), visibility 0s; }
   /* No flying wordmark under reduced motion → no landing to wait for; reveal
      the label promptly (drop the cross-dissolve delay). */
   .hero-specimen.is-focusing .hero-specimen__cue {
-    transition: opacity var(--dur-2) var(--ease-out), visibility 0s;
+    transition: opacity var(--dur-2) var(--ease-out);
   }
   .hero-specimen__descent-line,
   .hero-specimen.is-focusing .hero-specimen__descent-line { transition: none; transform: translateX(-50%) scaleY(1); }
