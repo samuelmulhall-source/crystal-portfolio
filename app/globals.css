@@ -522,7 +522,11 @@ button, input, textarea { font: inherit; }
 
 .hero-core {
   position: relative;
-  z-index: 2;
+  /* Above the lantern-proximity scrim (z 4) so the wordmark + capability line
+     stay a standout while the surroundings recede — the darkening pulls focus
+     to the lantern without dimming the brand text. Still below the lantern wrap
+     (z 6); the flight lifts this to z 7 so the letters pass over the lantern. */
+  z-index: 5;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -875,11 +879,13 @@ button, input, textarea { font: inherit; }
   }
 }
 
-/* Hero-level receding scrim — dims the wordmark + starfield to pull focus to the
-   lantern. Layers above the wordmark (z 2) but below the lantern wrap (z 6) and
-   scroll cue (z 5). Over-sized + clipped by the stage's overflow so it reaches
-   the hero edges; radial-cleared over the lantern so the falloff feels lit, not
-   like a flat panel. Decorative, click-through.
+/* Hero-level receding scrim — dims the STARFIELD + background to pull focus to
+   the lantern. The hero text column (.hero-core, z 5) sits ABOVE this so the
+   wordmark + capability line stay a standout over the darkening; it layers
+   below the text, the lantern wrap (z 6) and scroll cue (z 5). Over-sized +
+   clipped by the stage's overflow so it reaches the hero edges; radial-cleared
+   over the lantern so the falloff feels lit, not like a flat panel. Decorative,
+   click-through.
 
    Opacity is JS-owned (HeroFocus writes it per pointermove): a continuous
    pointer-proximity field, not an on/off hover — the surroundings recede in
