@@ -543,3 +543,41 @@ slots — same spring path proves the targeting). The eyebrow types the "Multisc
 with its caret. Chip renders as glass (223×28). tsc / eslint / `next build` (static export, all
 routes) clean. *Note:* the harness's backgrounded WebGL tab throttles rAF, so a physics flight
 can't be screenshotted mid-settle at full speed — targeting was verified geometrically instead.
+
+## Pass 16 — flight stabilized; landing/jitter defects fixed (adversarial review)
+
+Owner on Pass 15, with a screenshot of a garbled landed label: "bro. also the lantern spazzes
+during transition of text." Root cause of both: the free spring + capped mouse-gravity peaked
+exactly where the letters converge (the cursor sits on the label), piling arriving letters onto
+the pointer, underdamped (DAMP 19 < critical) so it oscillated instead of settling — the pileup
+IS the garble, and 17 gradient text layers thrashing over the video reads as the lantern
+jittering.
+
+- **Motion model replaced** (`HeroWordmark`): one flight amount `t`∈[0,1] per letter eased by an
+  exponential smoother (`t += (target−t)·(1−e^(−rate·dt))`) — unconditionally stable at any
+  frame delta, always converges. Cursor sway, arc, and shimmer all run through a `sin(π·t)`
+  envelope that is ZERO at both ends: the mouse bends the mid-flight but cannot move the
+  landing; a final snap writes the exact slot transforms.
+- A worked adversarial review (multi-agent; most verifiers lost to a rate limit, findings
+  hand-verified against the code) then caught, all fixed:
+  - **Label truncated to "SOULBOUND LA" on settle** — the snap cleared inline opacity on the 5
+    surplus letters, letting `.is-extra { opacity: 0 }` reassert. Now explicitly `opacity: 1`.
+  - **Every landing 9px low** — slots were measured while the chip still held its resting
+    `translateY(9px)` (reveal transition delay holds the old value). The chip now has NO
+    transform: it fades in place around the landed letters.
+  - **`blur(0)` is not `none`** — any backdrop-filter re-snapshots the video behind the chip
+    every frame, even invisible. Now: constant `blur(5px)` gated by `visibility: hidden`
+    (skips paint entirely) with 0s delayed visibility flips tied to the reveal/hide.
+  - **`.hero-core::before` dark radial popped over the video** on each z-lift → fades via
+    `.is-flying` for the flight.
+  - **Latched hover under scroll/resize** — the pin-dive shears letters (on `hero-core`) from
+    the label (on the viewport wrap) and pointerleave never fires without mouse movement; a
+    scroll/resize listener now releases `focusing` (the return flight is exact at any layout).
+  - **Reduced-motion enabled mid-session** stranded flown letters + a stuck z-index — the
+    effect's reduce branch now does a full reset. Also: UTF-16-safe Range offsets (astral chars
+    in titles), state rebuild keyed on text+target (not just length), focus ring no longer
+    dropped on Enter (scroll releases the state instead).
+
+tsc / eslint / `next build` clean. Preview tab was hidden all session (rAF fully suspended, 0
+frames in 1.8s; screenshots hang) — needs an on-device hover check: clean landing spelling
+"SOULBOUND LANTERN", no video stutter, wheel-scroll while hovering returns the letters home.

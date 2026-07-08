@@ -75,6 +75,26 @@ export function HeroSpecimenCue({
     };
   }, [setProximity]);
 
+  // Layout shifts under a latched hover — a wheel scroll starting the pin-dive,
+  // or a window resize — move the measured letter slots out from under the
+  // flown wordmark (HeroWordmark measures once, at flight start), and an
+  // element scrolled away from a stationary cursor never fires pointerleave.
+  // Disengage instead: the letters fly home (a return lands at delta 0, which
+  // is exact under ANY layout) and the chip hides with the state.
+  useEffect(() => {
+    if (!focusing) return;
+    const release = () => {
+      setFocusing(false);
+      setProximity(0);
+    };
+    window.addEventListener("scroll", release, { passive: true });
+    window.addEventListener("resize", release);
+    return () => {
+      window.removeEventListener("scroll", release);
+      window.removeEventListener("resize", release);
+    };
+  }, [focusing, setFocusing, setProximity]);
+
   return (
     <div className={`hero-specimen${focusing ? " is-focusing" : ""}`}>
       {children}
@@ -89,8 +109,10 @@ export function HeroSpecimenCue({
         onFocus={() => setFocusing(true)}
         onBlur={() => setFocusing(false)}
         onClick={() => {
-          setFocusing(false);
-          setProximity(0);
+          // Don't drop `focusing` here: the link keeps keyboard focus after
+          // Enter, and its only focus indicator rides the cue chip — hiding it
+          // would leave a focused control with no visible ring. The scroll the
+          // click triggers releases the state (listener above) instead.
           window.dispatchEvent(new CustomEvent(WORK_FOCUS_EVENT, { detail: { slug } }));
         }}
       >

@@ -547,6 +547,13 @@ button, input, textarea { font: inherit; }
     rgba(0, 2, 8, 0.34) 40%,
     rgba(0, 2, 8, 0) 72%
   );
+  transition: opacity var(--dur-2) var(--ease-out);
+}
+/* While the wordmark letters fly (HeroWordmark lifts .hero-core above the
+   lantern wrap), this dark radial would ride along and wash OVER the video —
+   an on/off pop each hover. Fade it for the flight instead. */
+.hero-core.is-flying::before {
+  opacity: 0;
 }
 
 /* ─── Hero descriptor — single concise capability line ───────────────────── */
@@ -755,13 +762,19 @@ button, input, textarea { font: inherit; }
     0 16px 38px -22px rgba(0, 0, 0, 0.82);
   backdrop-filter: blur(5px) saturate(1.2);
   white-space: nowrap;
-  /* Quiet reveal — fades and lifts in. */
+  /* Hidden at rest via VISIBILITY, not just opacity: any backdrop-filter ≠ none
+     re-snapshots the lantern video behind the chip every frame even at
+     opacity 0 (blur(0) included) — visibility:hidden skips paint entirely, so
+     the flight runs with zero backdrop cost. The 0s visibility transition is
+     DELAYED to flip only after the opacity fade ends (and after the 560ms
+     reveal hold, below). No transform here: the label slots are measured the
+     instant focus flips, so the chip must not move under the landed letters. */
+  visibility: hidden;
   opacity: 0;
-  transform: translateY(9px);
   transition:
     opacity var(--dur-2) var(--ease-out),
-    transform var(--dur-2) var(--ease-out),
-    box-shadow var(--dur-2) var(--ease-out);
+    box-shadow var(--dur-2) var(--ease-out),
+    visibility 0s linear var(--dur-2);
 }
 /* Line-art tick — a small rotated square that ties the caption to the ◊ HUD
    mark used elsewhere; brightens the label as a "selected" marker. */
@@ -791,14 +804,15 @@ button, input, textarea { font: inherit; }
 }
 .hero-specimen.is-focusing .hero-specimen__cue {
   opacity: 1;
-  transform: translateY(0);
-  /* Reveal is DELAYED so the chip settles in as the flying wordmark letters land
-     on it (HeroWordmark). On un-focus the base rule (no delay) hides it
-     promptly. */
+  visibility: visible;
+  /* Reveal is DELAYED so the chip fades in around the flying wordmark letters
+     as they land (HeroWordmark); visibility flips at the same moment so the
+     backdrop blur only starts paying once something is visible. On un-focus
+     the base rule (no delay) hides it promptly. */
   transition:
     opacity var(--dur-2) var(--ease-out) 560ms,
-    transform var(--dur-2) var(--ease-out) 560ms,
-    box-shadow var(--dur-2) var(--ease-out);
+    box-shadow var(--dur-2) var(--ease-out),
+    visibility 0s linear 560ms;
 }
 /* Route the keyboard focus ring to the caption, not the big invisible hit box. */
 .hero-specimen__link:focus-visible {
@@ -870,12 +884,11 @@ button, input, textarea { font: inherit; }
   100% { opacity: 0; transform: translate(-50%, var(--flow)) rotate(45deg); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .hero-specimen__cue { transition: opacity var(--dur-2) var(--ease-out); transform: none; }
+  .hero-specimen__cue { transition: opacity var(--dur-2) var(--ease-out), visibility 0s; }
   /* No flying wordmark under reduced motion → no landing to wait for; reveal
      the label promptly (drop the cross-dissolve delay). */
   .hero-specimen.is-focusing .hero-specimen__cue {
-    transform: none;
-    transition: opacity var(--dur-2) var(--ease-out);
+    transition: opacity var(--dur-2) var(--ease-out), visibility 0s;
   }
   .hero-specimen__descent-line,
   .hero-specimen.is-focusing .hero-specimen__descent-line { transition: none; transform: translateX(-50%) scaleY(1); }
