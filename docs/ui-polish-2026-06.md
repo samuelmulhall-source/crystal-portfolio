@@ -581,3 +581,23 @@ jittering.
 tsc / eslint / `next build` clean. Preview tab was hidden all session (rAF fully suspended, 0
 frames in 1.8s; screenshots hang) — needs an on-device hover check: clean landing spelling
 "SOULBOUND LANTERN", no video stutter, wheel-scroll while hovering returns the letters home.
+
+## Pass 17 — THE bug: reflow, not physics (owner: "it wasnt fixed")
+
+Pass 16 landed exact *in theory* but the owner still saw the garble. The real cause was never in
+the motion model: the wordmark letters are `inline-block` in normal flow, so when a letter's glyph
+MORPHS mid-flight (`textContent` M→S…) its intrinsic width changes and REFLOWS the line, shifting
+every following letter's layout box out from under its transform. Each letter's `translate(fx,fy)`
+— and even the final exact snap — is relative to a box that has since moved, so the "Soulbound"
+half (in-flow) drifts into a pile while "…tern" (the `is-extra`, `position:absolute` letters) sits
+pixel-perfect. That split — the *absolute* letters exact, the *in-flow* letters scattered — was
+visible in the raw geometry the whole time and is the tell. Determinism in `t` can't fix a moving
+coordinate origin.
+
+- Fix: **lock each in-flow letter's box `width` to its rest width for the flight** (measured with
+  transform+width cleared), released on return/reset. Glyph swaps can no longer reflow the line,
+  so the landing origin is stable. The staggered reflow was also a big part of the "spazz."
+- Verified at real speed (healthy 1340px viewport, rAF live): all 17 letters land `err = 0`
+  (pixel-exact), glyphs = "Soulbound Lantern", every letter opacity 1, label top 907 vs letters
+  906; un-hover/scroll-release returns to "Multiscatter" with transforms, widths, z-index and
+  `.is-flying` all cleared. Screenshot confirms "◊ SOULBOUND LANTERN" clean in the glass chip.
