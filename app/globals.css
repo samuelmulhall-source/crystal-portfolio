@@ -790,9 +790,9 @@ button, input, textarea { font: inherit; }
 .hero-specimen.is-focusing .hero-specimen__cue {
   opacity: 1;
   /* Reveal is DELAYED so the tick fades in as the flying wordmark letters land
-     (HeroWordmark) — shortened to match the faster flight. On un-focus the base
+     (HeroWordmark) — tuned to the flight's settle time. On un-focus the base
      rule (no delay) hides it promptly. */
-  transition: opacity var(--dur-2) var(--ease-out) 360ms;
+  transition: opacity var(--dur-2) var(--ease-out) 460ms;
 }
 /* Route the keyboard focus ring to the caption, not the big invisible hit box. */
 .hero-specimen__link:focus-visible {
