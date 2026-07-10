@@ -62,6 +62,23 @@ export default async function WorkDetailPage({ params }: WorkPageProps) {
   // Don't repeat the hero media inside the gallery.
   const gallery = entry.gallery.filter((asset) => asset.src !== entry.heroMedia.src);
 
+  // JSON-LD for this piece — pairs with the site-level Person/WebSite graph in
+  // layout.tsx. `<` escaped so content strings can never close the script.
+  const structuredData = JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "VisualArtwork",
+    name: entry.title,
+    description: entry.seo.description,
+    image: `${site.deployment.siteUrl}${entry.seo.ogImage}`,
+    url: `${site.deployment.siteUrl}/work/${entry.slug}`,
+    dateCreated: entry.created ?? entry.year,
+    creator: {
+      "@type": "Person",
+      name: site.brand.name,
+      url: site.deployment.siteUrl,
+    },
+  }).replace(/</g, "\\u003c");
+
   return (
     <>
       {/* Outside <main> so <header>/<footer> keep their banner/contentinfo
@@ -70,6 +87,10 @@ export default async function WorkDetailPage({ params }: WorkPageProps) {
       <main className="page-root">
 
       <article className="case-study">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: structuredData }}
+        />
         <PageEntrance>
         <section className="case-study__hero page-shell">
           <div className="case-study__copy">

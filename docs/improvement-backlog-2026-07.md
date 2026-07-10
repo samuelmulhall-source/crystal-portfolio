@@ -14,15 +14,15 @@ Read CLAUDE.md first — the guardrails at the bottom of this file are non-negot
    (refraction paths, typed eyebrow preface, scrim standout). **Owner must say ship**;
    then merge, push, and eyeball production. After deploy: quick Lighthouse pass.
 
-2. **Content-asset existence validation.** `app/lib/content.ts` (Zod) validates shape,
-   not files — a typo'd `src`/`poster`/`ogImage`/`modelPath` in `content/**/*.json`
-   ships silently and 404s in prod. Add a small validation script (walk every
-   string field that looks like a path, assert it exists under `public/`), wired as
-   `npm run validate` and called before `next build`. ~40 lines, no new deps.
+2. ~~**Content-asset existence validation.**~~ **DONE 2026-07-10** —
+   `scripts/validate-content.mjs` (every root-relative file-like string in
+   `content/**/*.json` must exist under `public/`; `featuredSlug` must resolve),
+   chained into `npm run build` alongside the asset-size guard. All 9 content
+   files pass.
 
-3. **CI gate.** Deploys are push-to-`main` with zero remote checks. Add one GitHub
-   Action running the local trio (`tsc --noEmit`, `eslint app/`, `next build` +
-   the validator from #2) on push/PR. Keeps a bad push from becoming a bad deploy.
+3. ~~**CI gate.**~~ **DONE 2026-07-10** — `.github/workflows/ci.yml`: eslint, tsc,
+   and `npm run build` (which runs both guards + the static export) on push to
+   main and on PRs. Goes live once main is pushed.
 
 ## P1 — Content depth (owner-gated — never fabricate)
 
@@ -55,26 +55,21 @@ Read CLAUDE.md first — the guardrails at the bottom of this file are non-negot
    gates: tsc/eslint/build + a manual viewer pass (orbit, channels, wire, IK drag,
    hand poses, clips) on both Models and Rigged tabs.
 
-8. **Delete dead code.** Verified unreachable via import trace (2026-07-10):
-   `app/lib/audio/AudioEngine.ts`, `ambientDrone.ts`, `sfx.ts`, `useAudio.ts`
-   (only reference each other; `featureFlags.ambientAudio` is false and no
-   component imports the hook) and `app/scene/wireframeShader.ts` (zero importers).
-   Re-verify with a fresh trace, then remove; also consider dropping the
-   `ambientAudio`/`experienceRoute` feature flags if nothing reads them.
-   (Everything else suspected stale is LIVE: VoidBackground/EffectsOverlay/
-   CursorFollower mount via `EnhancementLayers`; `loadingOrchestrator` via
-   `HeroIntro`.)
+8. ~~**Delete dead code.**~~ **DONE 2026-07-10** — removed `app/lib/audio/*`
+   (AudioEngine, ambientDrone, sfx, useAudio) and `app/scene/wireframeShader.ts`
+   after a fresh import trace, plus the entirely-unread `featureFlags` object
+   (schema + settings.json). Everything else suspected stale is LIVE:
+   VoidBackground/EffectsOverlay/CursorFollower mount via `EnhancementLayers`;
+   `loadingOrchestrator` via `HeroIntro`.
 
-9. **Stable accessible name for the hero `<h1>`.** The letter-flight mutates the
-   h1's text content — keyboard-focusing the lantern doorway morphs the heading to
-   "Soulbound Lantern" for screen readers too. Put `aria-label="Multiscatter"`
-   (from `home.hero.title`) on the h1 and `aria-hidden="true"` on the letter-span
-   wrapper so AT always reads the brand regardless of flight state.
-   (`app/page.tsx` + `HeroWordmark.tsx`.)
+9. ~~**Stable accessible name for the hero `<h1>`.**~~ **DONE 2026-07-10** —
+   `aria-label={home.hero.title}` on the h1, `aria-hidden` on the letter-span
+   wrapper and on the eyebrow's typed preface (per-character churn a reader
+   shouldn't narrate). Verified in the static export.
 
-10. **JSON-LD structured data.** `layout.tsx` has rich OG/Twitter meta but no
-    JSON-LD. Add a `Person` (brand, sameAs → X) on the root and `CreativeWork` per
-    `/work/[slug]`. Cheap, export-safe, real SEO trust for a portfolio.
+10. ~~**JSON-LD structured data.**~~ **DONE 2026-07-10** — Person + WebSite
+    `@graph` in `layout.tsx`; `VisualArtwork` (name/description/image/url/
+    dateCreated/creator) per `/work/[slug]`. Verified present in the export.
 
 ## P3 — Design & performance polish
 
@@ -91,10 +86,11 @@ Read CLAUDE.md first — the guardrails at the bottom of this file are non-negot
     cue link is hidden on touch and the flight is pointer:fine-gated — confirm the
     static composition still reads. (Harness can't do this; needs a phone.)
 
-13. **Performance budget snapshot.** Record first-load JS per route from `next
-    build`, confirm the three.js stack stays out of first load (lazy chunks), note
-    GLB/Draco payload sizes (`rubia.glb` 965 KB + wire 250k-edge GLB). Store the
-    numbers in this doc as the baseline to defend.
+13. **Performance budget snapshot.** Baseline recorded 2026-07-10 from the static
+    export: the home page references **12 script chunks, 742 KB raw** (pre-gzip;
+    the three.js stack stays lazy, out of first load). Still to do: per-route
+    numbers, gzip/brotli figures, GLB/Draco payload table (`rubia.glb` 965 KB +
+    wire GLB), and a prod Lighthouse run after deploy. Defend the 742 KB number.
 
 14. **Hero video poster pipeline.** When hero art changes: regenerate
     `public/images/og/*` (sharp, 1200×630) per the CLAUDE.md pending note.

@@ -46,7 +46,9 @@ export function HeroEyebrow({ text }: { text: string }) {
 
   return (
     <p className="hero-capabilities" data-hero-entrance="eyebrow">
-      {typed ? <span className="hero-eyebrow-preface">{typed}</span> : null}
+      {/* aria-hidden: types in/out per-character and duplicates the brand the
+          h1 already announces — churn a screen reader shouldn't narrate. */}
+      {typed ? <span className="hero-eyebrow-preface" aria-hidden="true">{typed}</span> : null}
       {text}
     </p>
   );

@@ -72,6 +72,28 @@ export const metadata: Metadata = {
   },
 };
 
+// JSON-LD — machine-readable identity for search/preview cards. Person (the
+// artist) + WebSite in one @graph; per-entry VisualArtwork lives on the work
+// detail pages. `<` is escaped so content strings can never close the script.
+const structuredData = JSON.stringify({
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Person",
+      name: siteSettings.brand.name,
+      jobTitle: siteSettings.brand.studioLabel,
+      url: siteSettings.deployment.siteUrl,
+      sameAs: [siteSettings.social.xUrl],
+    },
+    {
+      "@type": "WebSite",
+      name: siteSettings.brand.name,
+      url: siteSettings.deployment.siteUrl,
+      description: siteSettings.seo.description,
+    },
+  ],
+}).replace(/</g, "\\u003c");
+
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
@@ -82,6 +104,10 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: structuredData }}
+        />
         <GlassRefraction />
         <DisplayModeScript
           enhancedMinDeviceMemory={siteSettings.qualityPresets.enhancedMinDeviceMemory}

@@ -40,7 +40,10 @@ export default function HomePage() {
             {home.hero.capabilities?.length ? (
               <HeroEyebrow text={home.hero.capabilities.join("  ·  ")} />
             ) : null}
-            <h1 className="hero-wordmark" data-hero-entrance="title">
+            {/* Stable accessible name: the letter-flight mutates the visual
+                glyphs (brand → piece name) on hover/focus, but AT should always
+                read the brand — the letter spans are decorative to a reader. */}
+            <h1 className="hero-wordmark" data-hero-entrance="title" aria-label={home.hero.title}>
               <HeroWordmark text={home.hero.title} target={heroEntry.title} />
             </h1>
           </div>
