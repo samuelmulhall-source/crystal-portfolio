@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { DecodeText } from "./DecodeText";
 import { Magnetic } from "./Magnetic";
 
 export function Header({
@@ -53,11 +54,14 @@ export function Header({
               className={pathname.startsWith("/work") ? "is-active" : ""}
               aria-current={pathname.startsWith("/work") ? "page" : undefined}
             >
-              Work
+              {/* HUD decode on hover/focus — mono nav, widths can't reflow. */}
+              <DecodeText text="Work" on="hover" />
             </Link>
           </Magnetic>
           <Magnetic strength={0.5}>
-            <Link href="/#contact">Contact</Link>
+            <Link href="/#contact">
+              <DecodeText text="Contact" on="hover" />
+            </Link>
           </Magnetic>
         </nav>
       </div>

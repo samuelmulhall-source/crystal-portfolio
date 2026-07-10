@@ -601,3 +601,16 @@ coordinate origin.
   (pixel-exact), glyphs = "Soulbound Lantern", every letter opacity 1, label top 907 vs letters
   906; un-hover/scroll-release returns to "Multiscatter" with transforms, widths, z-index and
   `.is-flying` all cleared. Screenshot confirms "◊ SOULBOUND LANTERN" clean in the glass chip.
+
+## Pass 18 — ASCII dither micro-flare (owner: "add some dithering ascii-mini flare… juicy")
+
+HUD-voice-only decode flourishes, action-tied. New `DecodeText`: text resolves left→right
+through pure-ASCII noise (`#=+*<>/:.`), letters only (punctuation/spaces hold the string's
+shape). Mono elements exclusively — ASCII noise shares the advance width, so no reflow (the
+letter-flight lesson). Wired: showcase category eyebrow + `01 / 04` index + media-bar caption
+(decode on tab switch / slide step; `mount` covers the per-entry remount), header Work/Contact
+and the hero scroll cue (one pass on hover/focus). The viewer's loading `…` became a rolling
+`░▒▓` shade-ramp wave (pure CSS `content` keyframes; fixed-width box absorbs glyph variance).
+Reduced motion: no decodes, static ellipsis. A11y: churn is aria-hidden with a static sr-only
+name. Hidden-tab settle-timeout guarantees a readout can never stick mid-scramble — verified in
+a rAF-suspended tab (hover + tab-switch both settle correctly, sr names stable).

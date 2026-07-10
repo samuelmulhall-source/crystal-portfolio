@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { DecodeText } from "./components/site/DecodeText";
 import { Footer } from "./components/site/Footer";
 import { Header } from "./components/site/Header";
 import { HeroEyebrow } from "./components/site/HeroEyebrow";
@@ -74,7 +75,8 @@ export default function HomePage() {
 
         {home.hero.scrollCue ? (
           <a className="hero-scroll-cue" href="#selected-work" data-hero-entrance="lead" data-hero-fade="cue">
-            <span>{home.hero.scrollCue}</span>
+            {/* HUD decode on hover — the cue label resolves like a readout. */}
+            <DecodeText text={home.hero.scrollCue} on="hover" />
             <span className="hero-scroll-cue__arrow" aria-hidden="true">↓</span>
           </a>
         ) : null}

@@ -1003,13 +1003,26 @@ button, input, textarea { font: inherit; }
 .specimen-viewer__loading::after {
   content: "…";
   display: inline-block;
-  width: 1.2em;
+  width: 2em;
   text-align: left;
 }
 @media (prefers-reduced-motion: no-preference) {
   .specimen-viewer__loading { animation: loading-pulse 1.4s ease-in-out infinite; }
+  /* ASCII dither wave — the readout's ellipsis becomes a rolling shade ramp
+     (discrete `content` keyframes, supported in all evergreen engines; the
+     fixed-width box absorbs any glyph-width variance). Reduced motion keeps
+     the static "…" above. */
+  .specimen-viewer__loading::after { animation: ascii-dither-load 0.84s steps(1, end) infinite; }
 }
 @keyframes loading-pulse { 50% { opacity: 0.45; } }
+@keyframes ascii-dither-load {
+  0%    { content: "░··"; }
+  16.6% { content: "▒░·"; }
+  33.3% { content: "▓▒░"; }
+  50%   { content: "▒▓▒"; }
+  66.6% { content: "░▒▓"; }
+  83.3% { content: "·░▒"; }
+}
 
 /* ═══ Side flyout menus — grouped controls on the right edge ═══
    Each control group collapses to a labelled tab (group name + current value);

@@ -18,6 +18,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import type { PackAsset, WorkCategory, WorkEntry } from "../../lib/content";
+import { DecodeText } from "./DecodeText";
 import { SpecimenViewer } from "./SpecimenViewer";
 import { GlassVideo } from "./GlassVideo";
 import { WORK_FOCUS_EVENT } from "./HeroSpecimenCue";
@@ -310,9 +311,18 @@ export function WorkShowcase({ groups }: { groups: Record<WorkCategory, WorkEntr
           <>
             {/* ── Left: typographic datasheet ── */}
             <div className="showcase__info" key={`info-${active.entry.slug}`}>
+              {/* HUD decode on action: the category readout and index resolve
+                  through ASCII dither on tab switches and slide steps (the info
+                  block remounts per entry, hence mount; within-pack steps decode
+                  via text change). Mono only — glyph widths can't reflow. */}
               <p className="showcase__eyebrow">
-                <span>{label}</span>
-                <span className="showcase__eyebrow-idx">{pad(idx + 1)} / {pad(count)}</span>
+                <DecodeText text={label ?? ""} on="change" mount />
+                <DecodeText
+                  className="showcase__eyebrow-idx"
+                  text={`${pad(idx + 1)} / ${pad(count)}`}
+                  on="change"
+                  mount
+                />
               </p>
               <h3 className="showcase__title">{active.entry.title}</h3>
               <dl className="showcase__specs">
@@ -354,7 +364,12 @@ export function WorkShowcase({ groups }: { groups: Record<WorkCategory, WorkEntr
                 <Presentation slide={active} enabled={inView} />
                 {category !== "video" ? (
                   <div className="showcase__media-bar" aria-hidden="true">
-                    <span className="showcase__media-name">{slideTitle(active)}</span>
+                    <DecodeText
+                      className="showcase__media-name"
+                      text={slideTitle(active)}
+                      on="change"
+                      mount
+                    />
                   </div>
                 ) : null}
               </div>
