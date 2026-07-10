@@ -135,11 +135,6 @@ const SiteSettingsSchema = z.object({
     xHandle: z.string(),
     xUrl: z.string(),
   }),
-  featureFlags: z.object({
-    experienceRoute: z.boolean(),
-    ambientAudio: z.boolean(),
-    specimenPreview: z.boolean(),
-  }),
   qualityPresets: z.object({
     defaultMode: z.enum(["auto", "reduced", "enhanced"]),
     enhancedMinDeviceMemory: z.number(),

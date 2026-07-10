@@ -34,11 +34,6 @@
     "xHandle": "@multiscatter",
     "xUrl": "https://x.com/multiscatter"
   },
-  "featureFlags": {
-    "experienceRoute": false,
-    "ambientAudio": false,
-    "specimenPreview": true
-  },
   "qualityPresets": {
     "defaultMode": "auto",
     "enhancedMinDeviceMemory": 4,
