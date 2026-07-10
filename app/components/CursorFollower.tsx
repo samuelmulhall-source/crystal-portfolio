@@ -204,6 +204,9 @@ export default function CursorFollower() {
         `drop-shadow(0 0 ${(2.5 * g).toFixed(1)}px rgba(215,240,255,${Math.min(0.60 * g, 1).toFixed(2)}))`,
         `drop-shadow(0 0 ${(10  * g).toFixed(1)}px rgba(184,240,255,${Math.min(0.30 * g, 0.9).toFixed(2)}))`,
         `drop-shadow(0 0 ${(22  * g).toFixed(1)}px rgba(184,240,255,${Math.min(0.10 * g, 0.4).toFixed(2)}))`,
+        // Constant dark grounding shadow — separates the arrow from bright
+        // surfaces (the ice glows above vanish against them).
+        `drop-shadow(0 1.5px 2.5px rgba(0,4,12,0.65))`,
       ].join(" ");
 
       // ── Canvas — click particles ──────────────────────────────────────────
@@ -260,11 +263,12 @@ export default function CursorFollower() {
         }}
       >
         <defs>
-          {/* Glass body fill — increased opacity so tint is visible on dark bg */}
+          {/* Glass body fill — dense enough to hold its shape over bright,
+              busy backdrops (the dark keyline below does the rest). */}
           <linearGradient id="gc-body" x1="0" y1="0" x2="12" y2="19.5" gradientUnits="userSpaceOnUse">
-            <stop offset="0%"   stopColor="#b8e4ff" stopOpacity="0.78" />
-            <stop offset="42%"  stopColor="#88c4f0" stopOpacity="0.44" />
-            <stop offset="100%" stopColor="#5090c0" stopOpacity="0.14" />
+            <stop offset="0%"   stopColor="#c4ecff" stopOpacity="0.94" />
+            <stop offset="42%"  stopColor="#8cc8f2" stopOpacity="0.64" />
+            <stop offset="100%" stopColor="#5090c0" stopOpacity="0.32" />
           </linearGradient>
           {/* Caustic light pool near tip */}
           <radialGradient id="gc-caustic" cx="2" cy="2.5" r="7" gradientUnits="userSpaceOnUse">
@@ -284,6 +288,17 @@ export default function CursorFollower() {
           </linearGradient>
         </defs>
 
+        {/* Dark contrast keyline — painted FIRST, beneath the glass. The light
+            edges alone wash out over bright renders/video; a dark rim (the
+            classic OS-cursor trick) keeps the arrow legible on any surface,
+            while staying invisible against the void. */}
+        <path
+          d="M 0,0 L 0,17 L 4.5,13 L 7,18.5 L 9,17.5 L 6.5,12 L 12,12 Z"
+          fill="rgba(6, 12, 22, 0.45)"
+          stroke="rgba(2, 6, 14, 0.85)"
+          strokeWidth="1.7"
+          strokeLinejoin="round"
+        />
         {/* Glass body — tinted fill */}
         <path
           d="M 0,0 L 0,17 L 4.5,13 L 7,18.5 L 9,17.5 L 6.5,12 L 12,12 Z"
@@ -296,12 +311,13 @@ export default function CursorFollower() {
           fill="url(#gc-caustic)"
           stroke="none"
         />
-        {/* Outer body outline — subtle fixed white, not holo */}
+        {/* Outer body outline — fixed white, strong enough to read as the
+            cursor's silhouette against mid-tones */}
         <path
           d="M 0,0 L 0,17 L 4.5,13 L 7,18.5 L 9,17.5 L 6.5,12 L 12,12 Z"
           fill="none"
-          stroke="rgba(255,255,255,0.45)"
-          strokeWidth="0.55"
+          stroke="rgba(255,255,255,0.85)"
+          strokeWidth="0.65"
           strokeLinejoin="round"
         />
         {/* Lit leading edges — holographic on hover, white at rest */}

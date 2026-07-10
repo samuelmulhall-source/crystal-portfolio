@@ -17,6 +17,14 @@
   --shell:          min(1320px, calc(100% - 3rem));
   /* Skew angle for the angled "chip" selects (tabs, channel + pack pills). */
   --chip-skew:      -11deg;
+  /* Ordered-dither material — real Bayer 4×4 halftone tiles (1px ice dots on a
+     4px grid at 25% / 50% coverage) for surface fills: button background ramps,
+     tab-chip washes, section-edge dissolves. Inline SVG data-URIs (same
+     technique as the viewer's noise texture — background url() literals
+     survive lightningcss; only *filter* url()s get stripped). Always applied
+     through a mask ramp so coverage fades like classic halftone. */
+  --dither-25: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4'%3E%3Cpath d='M0 0h1v1H0zM2 0h1v1H2zM0 2h1v1H0zM2 2h1v1H2z' fill='%23cdeeff'/%3E%3C/svg%3E");
+  --dither-50: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4'%3E%3Cpath d='M0 0h1v1H0zM2 0h1v1H2zM0 2h1v1H0zM2 2h1v1H2zM1 1h1v1H1zM3 1h1v1H3zM1 3h1v1H1zM3 3h1v1H3z' fill='%23cdeeff'/%3E%3C/svg%3E");
   /* Motion — one designed easing/timing system so interactions never fall back
      to browser defaults (premium-UI craft per Linear/Vercel/Stripe). The decel
      curve was already used ad-hoc across the file; this just names it. */
@@ -1240,6 +1248,10 @@ button, input, textarea { font: inherit; }
 
 /* ─── Buttons ─────────────────────────────────────────────────────────────── */
 .button-link {
+  position: relative;
+  /* Own stacking context so the z:-1 dither layer sits above this button's
+     background but below its label — never behind the page. */
+  isolation: isolate;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1257,6 +1269,24 @@ button, input, textarea { font: inherit; }
   transition: transform var(--dur-2) var(--ease-out), border-color var(--dur-2) var(--ease-out),
     box-shadow var(--dur-2) var(--ease-out), background var(--dur-2) var(--ease-out);
 }
+/* Ordered-dither fill: a Bayer halftone field rising from the button's base
+   edge — reads as material (screened ink / CRT shadowmask), not decoration.
+   Static texture; only its strength transitions, so reduced motion is clean. */
+.button-link::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--dither-50) left bottom / 4px 4px repeat;
+  image-rendering: pixelated;
+  -webkit-mask-image: linear-gradient(0deg, rgba(0, 0, 0, 0.95), transparent 62%);
+  mask-image: linear-gradient(0deg, rgba(0, 0, 0, 0.95), transparent 62%);
+  opacity: 0.12;
+  pointer-events: none;
+  transition: opacity var(--dur-2) var(--ease-out);
+}
+.button-link:hover::before { opacity: 0.28; }
 
 .button-link:hover {
   transform: translateY(-1px);
@@ -1455,6 +1485,21 @@ button, input, textarea { font: inherit; }
     linear-gradient(180deg, rgba(0, 0, 5, 0.06), rgba(0, 0, 5, 0.6)),
     radial-gradient(circle at 22% 40%, rgba(184, 240, 255, 0.08), transparent 48%),
     radial-gradient(circle at 80% 60%, rgba(184, 240, 255, 0.08), transparent 46%);
+  pointer-events: none;
+}
+/* Halftone dissolve into the section — the top boundary breaks up as an
+   ordered-dither ramp instead of an airbrushed gradient (the smooth scrim
+   above still does the tonal work; this is the material grain on its edge). */
+.contact-section::after {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: clamp(90px, 16vh, 150px);
+  background: var(--dither-25) left top / 4px 4px repeat;
+  image-rendering: pixelated;
+  -webkit-mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.85), transparent);
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.85), transparent);
+  opacity: 0.09;
   pointer-events: none;
 }
 
@@ -1782,6 +1827,7 @@ button, input, textarea { font: inherit; }
 }
 .showcase__tab {
   position: relative;
+  isolation: isolate; /* keeps the z:-1 dither wash inside this chip */
   display: inline-flex;
   align-items: baseline;
   gap: 0.45rem;
@@ -1803,6 +1849,25 @@ button, input, textarea { font: inherit; }
     transform var(--dur-1) var(--ease-out);
 }
 .showcase__tab > span { display: inline-block; transform: skewX(calc(-1 * var(--chip-skew))); }
+/* Ordered-dither wash inside the chip — halftone dust settling from the top
+   edge (rides the skew, so it lives inside the parallelogram). Hidden at rest;
+   strengthens through hover → active. */
+.showcase__tab::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--dither-25) left top / 4px 4px repeat;
+  image-rendering: pixelated;
+  -webkit-mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.9), transparent 75%);
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.9), transparent 75%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-2) var(--ease-out);
+}
+.showcase__tab:hover::after { opacity: 0.14; }
+.showcase__tab.is-active::after { opacity: 0.22; }
 .showcase__tab:hover {
   color: rgba(225, 240, 255, 0.92);
   background: linear-gradient(135deg, rgba(190, 225, 255, 0.06), rgba(120, 170, 220, 0.01));

@@ -614,3 +614,24 @@ and the hero scroll cue (one pass on hover/focus). The viewer's loading `…` be
 Reduced motion: no decodes, static ellipsis. A11y: churn is aria-hidden with a static sr-only
 name. Hidden-tab settle-timeout guarantees a readout can never stick mid-scramble — verified in
 a rAF-suspended tab (hover + tab-switch both settle correctly, sr names stable).
+
+## Pass 19 — cursor contrast + ordered dither as MATERIAL (owner: "real dithering, think
+button background shaders")
+
+- **Cursor legibility:** the glass arrow washed out over bright renders/video. Added a dark
+  contrast keyline painted beneath the glass (fill rgba(6,12,22,.45), stroke rgba(2,6,14,.85)
+  @1.7 — the classic OS-cursor rim, invisible against the void), densified the body fill
+  (.94/.64/.32), raised the white silhouette stroke to 0.85@0.65, and appended a constant dark
+  grounding drop-shadow to the glow stack.
+- **Dither material system:** real Bayer 4×4 ordered-dither tiles (1px ice dots, 25%/50%
+  coverage) as inline-SVG data-URIs on `:root` (`--dither-25/50`; background url() literals
+  survive lightningcss — only *filter* url()s are stripped). Always applied through a mask ramp
+  so coverage fades like classic halftone; `image-rendering: pixelated` keeps dots crisp.
+  Applied: **buttons** (`.button-link::before` — halftone field rising from the base edge,
+  0.12 → 0.28 on hover), **showcase tab chips** (`::after` rides the parallelogram skew, hidden
+  → 0.14 hover → 0.22 active), **contact section top edge** (halftone dissolve band replacing an
+  airbrushed-only transition, 0.09). Static textures — only opacity transitions; reduced-motion
+  clean. Verified: tile rasterizes 8/16 cells in the exact Bayer 50% pattern; computed styles
+  live on all three surfaces; cursor paint order confirmed in-DOM (keyline beneath glass).
+  Evaluated and rejected: dithering the hero focus scrim (JS-driven opacity — shimmer risk),
+  the divider grip (2px — below tile resolution), starfield (owns its own material language).
