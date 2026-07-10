@@ -1,0 +1,26 @@
+# CI gate — the same trio required locally before shipping (CLAUDE.md), plus the
+# content/asset guards. Deploys are Cloudflare Pages on push to main with no
+# checks of their own, so this is the only remote signal that a push is sound.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Lint
+        run: npx eslint app/
+      - name: Types
+        run: npx tsc --noEmit
+      - name: Build (asset sizes + content refs + static export)
+        run: npm run build
