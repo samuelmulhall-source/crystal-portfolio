@@ -15,7 +15,7 @@
 
 import dynamic from "next/dynamic";
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useDisplayMode } from "./DisplayModeProvider";
 import type { Specimen } from "../../lib/content";
 import type { HandPose, SpecimenChannel, SpecimenStats, TexKey } from "./SpecimenScene";
@@ -184,6 +184,20 @@ export function SpecimenViewer({
     setHintStage(0);
   }
 
+  // STABLE identity (the scene's clip-announce effect depends on this
+  // callback): an inline arrow here re-fires that effect on every viewer
+  // render, and since this handler re-applies the Idle default, every clip
+  // the user clicked snapped straight back to Idle — "clicking does nothing".
+  const handleReady = useCallback(() => setSceneReady(true), []);
+  const handleClips = useCallback((names: string[]) => {
+    setClips(names);
+    // Default to Idle when the clip set offers one (the procedural set leads
+    // with the static "A Pose" — a lifeless default). Runs only when the
+    // scene genuinely re-announces (new model), never on ordinary renders.
+    const i = names.indexOf("Idle");
+    if (i > 0) setClipIndex(i);
+  }, []);
+
   const rigged = !!specimen.rigged;
   const enhanced = mounted && effectiveMode === "enhanced";
   const format = (specimen.modelPath.split(".").pop() ?? "").toUpperCase();
@@ -296,15 +310,9 @@ export function SpecimenViewer({
             poseMode={poseMode}
             allowZoom={allowZoom || zoomArmed}
             handPose={handPose}
-            onReady={() => setSceneReady(true)}
+            onReady={handleReady}
             onStats={setStats}
-            onClips={(names) => {
-              setClips(names);
-              // Default to Idle when the clip set offers one (the procedural
-              // set leads with the static "A Pose" — a lifeless default).
-              const i = names.indexOf("Idle");
-              if (i > 0) setClipIndex(i);
-            }}
+            onClips={handleClips}
             onPoseable={setPoseable}
             onChannelsDetected={setDetectedChannels}
           />
