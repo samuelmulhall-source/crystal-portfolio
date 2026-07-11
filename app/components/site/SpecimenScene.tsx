@@ -700,16 +700,17 @@ const STANCE: Record<string, [number, number, number]> = {
 {
   // Relaxed finger curl ≈ 30% of the fist flex the hand-pose presets use.
   // MEASURED axes (tangent-tested against the GLB bind): fingers hinge on
-  // local Z mirrored per side (R +, L −); thumbs flex −X on both sides with a
-  // mirrored Y opposition sweep.
+  // local Z mirrored per side (R +, L −); the thumb rests at ~30% of its
+  // measured across-the-fingers wrap (−X flex + mirrored-Y opposition).
   const F = [0.26, 0.35, 0.27];
-  const T = [0.09, 0.17, 0.14];
+  const TX = [0.045, 0.12, 0.15];
+  const TY = [0.15, 0.024, 0];
   for (const side of ["L", "R"] as const) {
     const sgn = side === "R" ? 1 : -1;
     for (const f of ["Thumb", "Index", "Mid", "Ring", "Pinky"])
       for (let s = 1; s <= 3; s++)
         STANCE[`CC_Base_${side}_${f}${s}`] =
-          f === "Thumb" ? [-T[s - 1], sgn * T[s - 1] * 0.35, 0] : [0, 0, sgn * F[s - 1]];
+          f === "Thumb" ? [-TX[s - 1], sgn * TY[s - 1], 0] : [0, 0, sgn * F[s - 1]];
   }
 }
 
@@ -1244,16 +1245,21 @@ const HAND_CURL: Record<HandPose, number> = { open: -0.22, rest: 0, fist: 1 };
 // palm normal): fingers hinge about local Z, MIRRORED (R +Z, L −Z; toward-palm
 // scores 0.8–0.99 — the previously-shipped −X barely moved the index and did
 // nothing for mid/pinky, which is why a "fist" splayed instead of closing).
-// Thumbs flex about −X with the SAME sign on both sides (0.97), plus a
-// mirrored Y opposition sweep (R +Y, L −Y) that carries them across the palm.
+// The thumb WRAPS ACROSS the closed fingers rather than folding under:
+// grid-searched offline against the curled index/mid knuckles, its tip lands
+// half a knuckle-width from them, slightly palm-side — segment 1 is mostly
+// mirrored-Y opposition (R +Y / L −Y) with light −X flexion, 2–3 mostly −X.
 const FINGER_SEG_FLEX = [0.85, 1.15, 0.9];
-const THUMB_SEG_FLEX = [0.3, 0.55, 0.45];
+const THUMB_SEG_FLEX: Array<[number, number]> = [[0.15, 0.5], [0.4, 0.08], [0.5, 0]]; // [−x flex, ±y opposition]
 const FINGER_RE = /_(Thumb|Index|Mid|Ring|Pinky)([123])$/;
 
 type FingerJoint = {
   bone: THREE.Bone;
   rest: THREE.Quaternion;
-  flex: number;
+  /** Radians at curl=1: fingers use fx about mirrored Z; thumbs −fx about X
+   *  plus side·fy about Y (the opposition sweep). */
+  fx: number;
+  fy: number;
   isThumb: boolean;
   /** +1 right hand, −1 left — the mirrored component's sign. */
   side: number;
@@ -1271,7 +1277,7 @@ function RigPoser({
   const chains = useMemo(() => buildChains(rig.primary), [rig]);
   const dragRef = useRef<{ chain: THREE.Bone[]; plane: THREE.Plane } | null>(null);
   const targetRef = useRef(new THREE.Vector3());
-  const handleRefs = useRef<Array<THREE.Mesh | null>>([]);
+  const handleRefs = useRef<Array<THREE.Group | null>>([]);
   const { camera, gl } = useThree();
   const camDir = useMemo(() => new THREE.Vector3(), []);
   const raycaster = useMemo(() => new THREE.Raycaster(), []);
@@ -1302,10 +1308,14 @@ function RigPoser({
       if (!m) continue;
       const isThumb = m[1] === "Thumb";
       const seg = Number(m[2]) - 1;
+      const [fx, fy] = isThumb
+        ? (THUMB_SEG_FLEX[seg] ?? [0.4, 0])
+        : [FINGER_SEG_FLEX[seg] ?? 0.8, 0];
       fingers.push({
         bone,
         rest: bone.quaternion.clone(),
-        flex: (isThumb ? THUMB_SEG_FLEX : FINGER_SEG_FLEX)[seg] ?? 0.8,
+        fx,
+        fy,
         isThumb,
         side: /_L_/.test(bone.name) ? -1 : 1,
       });
@@ -1352,6 +1362,8 @@ function RigPoser({
       if (h && dragRef.current?.chain !== c.bones) {
         h.position.setFromMatrixPosition(c.effector.matrixWorld);
       }
+      // Reticle gizmos billboard toward the camera (manipulator convention).
+      if (h) h.quaternion.copy(camera.quaternion);
     });
     if (dragRef.current) solveCCD(dragRef.current.chain, targetRef.current, jointsRef.current);
     // Hand pose — critically-damped ease toward the preset curl.
@@ -1360,12 +1372,12 @@ function RigPoser({
     cs.cur += (target - cs.cur) * Math.min(1, dt * 9);
     for (const f of fingersRef.current) {
       // Measured axes (see HAND_CURL note): fingers hinge on local Z mirrored
-      // per side; thumbs flex −X (both sides) with a mirrored Y opposition.
+      // per side; the thumb wraps across via −X flex + mirrored-Y opposition.
       if (f.isThumb) {
-        _fe.set(-cs.cur * f.flex, f.side * cs.cur * f.flex * 0.35, 0);
+        _fe.set(-cs.cur * f.fx, f.side * cs.cur * f.fy, 0);
         _fq.setFromEuler(_fe);
       } else {
-        _fq.setFromAxisAngle(_fz, f.side * cs.cur * f.flex);
+        _fq.setFromAxisAngle(_fz, f.side * cs.cur * f.fx);
       }
       f.bone.quaternion.copy(f.rest).multiply(_fq);
     }
@@ -1376,12 +1388,19 @@ function RigPoser({
 
   return (
     <group>
+      {/* Drag handles as manipulator reticles (DCC gizmo language): a thin
+          billboarded ring + a center dot, drawn over the model, with a FAT
+          invisible hit sphere so they stay easy to grab. Hover swells the
+          reticle slightly — the old solid sphere read as a blob glued to the
+          hand rather than a control. */}
       {chains.map((c, i) => (
-        <mesh
+        <group
           key={c.name}
           ref={(el) => {
             handleRefs.current[i] = el;
           }}
+          onPointerOver={(e) => e.eventObject.scale.setScalar(1.25)}
+          onPointerOut={(e) => e.eventObject.scale.setScalar(1)}
           onPointerDown={(e) => {
             e.stopPropagation();
             camera.getWorldDirection(camDir);
@@ -1394,9 +1413,20 @@ function RigPoser({
             setDragLock?.(true);
           }}
         >
-          <sphereGeometry args={[0.08, 16, 16]} />
-          <meshBasicMaterial color="#9fe6ff" transparent opacity={0.9} depthTest={false} />
-        </mesh>
+          <mesh renderOrder={10}>
+            <ringGeometry args={[0.05, 0.058, 32]} />
+            <meshBasicMaterial color="#c8faff" transparent opacity={0.85} depthTest={false} side={THREE.DoubleSide} />
+          </mesh>
+          <mesh renderOrder={10}>
+            <circleGeometry args={[0.011, 12]} />
+            <meshBasicMaterial color="#c8faff" transparent opacity={0.95} depthTest={false} side={THREE.DoubleSide} />
+          </mesh>
+          {/* invisible grab volume — keeps the small reticle easy to hit */}
+          <mesh>
+            <sphereGeometry args={[0.085, 8, 8]} />
+            <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+          </mesh>
+        </group>
       ))}
     </group>
   );

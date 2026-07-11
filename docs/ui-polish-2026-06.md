@@ -707,3 +707,18 @@ presets (Open/Rest/Fist), the relaxed-stance finger curl, and the idle knuckle m
 Verified the corrected full fist offline: every fingertip moves toward the palm (+0.36–0.41)
 AND pulls in toward the wrist (the closing arc), thumbs +0.83 across the palm, perfectly
 mirrored L/R. tsc / eslint / build clean.
+
+## Pass 24 — fist thumb wraps across; IK handles become reticle gizmos (owner: "the thumb
+sticks out still in fist and the controller UI isnt great")
+
+- **Thumb:** grid-searched offline against the CLOSED fist (fingers curled on the measured
+  Z-hinges): the thumb doesn't fold under — it WRAPS ACROSS, segment 1 mostly mirrored-Y
+  opposition (0.5) with light −X flex (0.15), segments 2–3 mostly −X (0.4/0.5). Its tip lands
+  0.037 from the index/mid knuckle midpoint (hand-scale ref 0.063 ≈ half a knuckle-width),
+  slightly palm-side, symmetric L/R. `THUMB_SEG_FLEX` is now per-segment [x, y] pairs; the
+  stance thumb rests at 30% of the same wrap.
+- **Drag handles:** the solid 0.08-radius cyan sphere (opacity .9, depthTest off) read as a
+  blob glued to the hand. Replaced with manipulator reticles — a thin billboarded ring
+  (0.05/0.058) + center dot in ice, drawn over the model, an invisible 0.085 hit sphere so
+  they stay easy to grab, and a 1.25× hover swell. DCC gizmo language, HUD palette.
+  tsc / eslint / build clean; thumb geometry verified offline both hands.
