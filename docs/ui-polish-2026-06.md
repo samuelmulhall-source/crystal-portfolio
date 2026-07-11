@@ -693,3 +693,17 @@ ForearmTwist01→02 bones inherit the full twist, so they counter-rotate (+0.55/
 grade the skin from ~zero twist at the elbow to full at the wrist — no candy-wrapping.
 The wave's stanceMask already fades the right limb's stance during the raise, so the
 greeting hand still opens palm-out at head height. tsc / eslint / build clean.
+
+## Pass 23 — hand-pose presets fixed: the fist actually closes (owner: "finger/hand layout
+on pose positions (fist ect) is completely messed up")
+
+The Pass-11 "probed" finger axes were wrong. Tangent-tested against the GLB bind transforms
+(rotate segment 1, watch segment 2 move relative to the palm normal): fingers hinge about
+local **Z, mirrored** (R +Z, L −Z; toward-palm 0.8–0.99) — the shipped −X barely moved the
+index (+0.24) and did NOTHING for mid/pinky (≈0), so a "fist" splayed the fingers sideways.
+Thumbs flex about **−X on BOTH sides** (0.97) with a mirrored-Y opposition sweep (R +/L −) —
+the shipped +Z moved thumbs AWAY from the palm. Corrected all three consumers: the pose-mode
+presets (Open/Rest/Fist), the relaxed-stance finger curl, and the idle knuckle micro-motion.
+Verified the corrected full fist offline: every fingertip moves toward the palm (+0.36–0.41)
+AND pulls in toward the wrist (the closing arc), thumbs +0.83 across the palm, perfectly
+mirrored L/R. tsc / eslint / build clean.

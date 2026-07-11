@@ -676,8 +676,8 @@ type ProcClip = {
 // only add gestures still read as a mannequin. The stance lowers the arms to
 // the sides (slight elbow bend, neutral wrists, small counter-tilt so the
 // hands hang just forward of the torso) and settles the fingers into a natural
-// curl, reusing the axes the hand-pose presets probed: fingers flex about
-// local −X on BOTH sides, thumbs about +Z.
+// curl on the MEASURED hinge axes (fingers local Z mirrored per side, thumbs
+// −X + mirrored-Y opposition — see the HAND_CURL note).
 const STANCE: Record<string, [number, number, number]> = {
   CC_Base_R_Upperarm: [-0.12, 0, 0.42],
   CC_Base_L_Upperarm: [-0.12, 0, -0.42],
@@ -699,12 +699,18 @@ const STANCE: Record<string, [number, number, number]> = {
 };
 {
   // Relaxed finger curl ≈ 30% of the fist flex the hand-pose presets use.
+  // MEASURED axes (tangent-tested against the GLB bind): fingers hinge on
+  // local Z mirrored per side (R +, L −); thumbs flex −X on both sides with a
+  // mirrored Y opposition sweep.
   const F = [0.26, 0.35, 0.27];
   const T = [0.09, 0.17, 0.14];
-  for (const side of ["L", "R"] as const)
+  for (const side of ["L", "R"] as const) {
+    const sgn = side === "R" ? 1 : -1;
     for (const f of ["Thumb", "Index", "Mid", "Ring", "Pinky"])
       for (let s = 1; s <= 3; s++)
-        STANCE[`CC_Base_${side}_${f}${s}`] = f === "Thumb" ? [0, 0, T[s - 1]] : [-F[s - 1], 0, 0];
+        STANCE[`CC_Base_${side}_${f}${s}`] =
+          f === "Thumb" ? [-T[s - 1], sgn * T[s - 1] * 0.35, 0] : [0, 0, sgn * F[s - 1]];
+  }
 }
 
 function stanceWeight(clip: ProcClip, name: string, ph: number): number {
@@ -806,13 +812,16 @@ const IDLE: ProcClip = {
   ],
 };
 // Idle finger life — the base knuckles breathe slowly around the stance curl
-// (curl axis −X per the hand-pose probe), phases staggered so the hands never
-// pulse in unison.
+// (measured hinge: local Z, mirrored R +/L −), phases staggered so the hands
+// never pulse in unison.
 {
   let ph = 0.3;
   for (const side of ["L", "R"] as const)
     for (const f of ["Index", "Mid", "Ring", "Pinky"]) {
-      IDLE.bones.push({ name: `CC_Base_${side}_${f}1`, sines: [{ axis: 0, amp: -0.05, cycles: 1, phase: ph }] });
+      IDLE.bones.push({
+        name: `CC_Base_${side}_${f}1`,
+        sines: [{ axis: 2, amp: (side === "R" ? 1 : -1) * 0.05, cycles: 1, phase: ph }],
+      });
       ph += 0.9;
     }
 }
@@ -1230,13 +1239,25 @@ function solveCCD(
 /** Hand pose presets — curl scalar applied across the finger segments. */
 export type HandPose = "open" | "rest" | "fist";
 const HAND_CURL: Record<HandPose, number> = { open: -0.22, rest: 0, fist: 1 };
-// Per-segment flex (radians at curl=1); axes probed on this rig: fingers curl
-// about local −X (both sides), thumbs about local +Z.
+// Per-segment flex (radians at curl=1). Axes MEASURED against the GLB bind
+// transforms (tangent test: rotate segment 1, watch segment 2 move toward the
+// palm normal): fingers hinge about local Z, MIRRORED (R +Z, L −Z; toward-palm
+// scores 0.8–0.99 — the previously-shipped −X barely moved the index and did
+// nothing for mid/pinky, which is why a "fist" splayed instead of closing).
+// Thumbs flex about −X with the SAME sign on both sides (0.97), plus a
+// mirrored Y opposition sweep (R +Y, L −Y) that carries them across the palm.
 const FINGER_SEG_FLEX = [0.85, 1.15, 0.9];
 const THUMB_SEG_FLEX = [0.3, 0.55, 0.45];
 const FINGER_RE = /_(Thumb|Index|Mid|Ring|Pinky)([123])$/;
 
-type FingerJoint = { bone: THREE.Bone; rest: THREE.Quaternion; flex: number; isThumb: boolean };
+type FingerJoint = {
+  bone: THREE.Bone;
+  rest: THREE.Quaternion;
+  flex: number;
+  isThumb: boolean;
+  /** +1 right hand, −1 left — the mirrored component's sign. */
+  side: number;
+};
 
 function RigPoser({
   rig,
@@ -1286,6 +1307,7 @@ function RigPoser({
         rest: bone.quaternion.clone(),
         flex: (isThumb ? THUMB_SEG_FLEX : FINGER_SEG_FLEX)[seg] ?? 0.8,
         isThumb,
+        side: /_L_/.test(bone.name) ? -1 : 1,
       });
     }
     fingersRef.current = fingers;
@@ -1322,7 +1344,7 @@ function RigPoser({
   // ease the hands toward the selected pose, then propagate the lead pose onto
   // the duplicate skeletons so the whole character poses as one.
   const _fq = useMemo(() => new THREE.Quaternion(), []);
-  const _fx = useMemo(() => new THREE.Vector3(1, 0, 0), []);
+  const _fe = useMemo(() => new THREE.Euler(), []);
   const _fz = useMemo(() => new THREE.Vector3(0, 0, 1), []);
   useFrame((_, dt) => {
     chains.forEach((c, i) => {
@@ -1337,8 +1359,14 @@ function RigPoser({
     const cs = curlRef.current;
     cs.cur += (target - cs.cur) * Math.min(1, dt * 9);
     for (const f of fingersRef.current) {
-      // fingers: local −X curl · thumbs: local +Z curl (probed on this rig)
-      _fq.setFromAxisAngle(f.isThumb ? _fz : _fx, (f.isThumb ? 1 : -1) * cs.cur * f.flex);
+      // Measured axes (see HAND_CURL note): fingers hinge on local Z mirrored
+      // per side; thumbs flex −X (both sides) with a mirrored Y opposition.
+      if (f.isThumb) {
+        _fe.set(-cs.cur * f.flex, f.side * cs.cur * f.flex * 0.35, 0);
+        _fq.setFromEuler(_fe);
+      } else {
+        _fq.setFromAxisAngle(_fz, f.side * cs.cur * f.flex);
+      }
       f.bone.quaternion.copy(f.rest).multiply(_fq);
     }
     mirrorRig(rig);
