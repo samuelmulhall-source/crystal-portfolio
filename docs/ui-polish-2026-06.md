@@ -679,3 +679,17 @@ knuckle "breathing" on eight base fingers. Jump's airborne arm-throw keys booste
 stance offset so the throw still reaches the probed raise. Blends: A Pose ↔ others lerp the
 stance in/out per-axis automatically. tsc / eslint / build clean; stance world-effect computed
 from probe vectors (tab suspended — on-device eyeball wanted; every amplitude is one number).
+
+## Pass 22 — palms face the thighs (owner: "hands still sort of cup outwards")
+
+The stance lowered the arms but never PRONATED them, so the hands kept their bind
+orientation (palms cupping forward/out). Measured offline against the GLB's bind
+transforms (bone data isn't Draco-compressed — a pure-Python probe computes each palm's
+normal from the hand/index/pinky bone positions under candidate twists, with the stance
+applied): forearm −1.2 rad about local Y (the along-bone twist axis, confirmed by the
+thigh/calf Y-probes) + wrist −0.35 lands the right palm normal at r −0.98 — facing the
+leg with a slight natural forward bias; the left mirrors (+Y). The chained
+ForearmTwist01→02 bones inherit the full twist, so they counter-rotate (+0.55/+0.15) to
+grade the skin from ~zero twist at the elbow to full at the wrist — no candy-wrapping.
+The wave's stanceMask already fades the right limb's stance during the raise, so the
+greeting hand still opens palm-out at head height. tsc / eslint / build clean.

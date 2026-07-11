@@ -681,10 +681,21 @@ type ProcClip = {
 const STANCE: Record<string, [number, number, number]> = {
   CC_Base_R_Upperarm: [-0.12, 0, 0.42],
   CC_Base_L_Upperarm: [-0.12, 0, -0.42],
-  CC_Base_R_Forearm: [0, 0, 0.22],
-  CC_Base_L_Forearm: [0, 0, -0.22],
-  CC_Base_R_Hand: [0, 0, 0.08],
-  CC_Base_L_Hand: [0, 0, -0.08],
+  // Pronation: palms turn IN toward the thighs (bind palms cup forward/out).
+  // Measured against the GLB bind transforms with the stance applied: forearm
+  // −1.2 rad about local Y (the along-bone twist axis) + wrist −0.35 lands the
+  // right palm normal at r −0.98 (facing the leg, slight natural forward
+  // bias); the left mirrors. The chained ForearmTwist01→02 bones inherit the
+  // full twist, so they COUNTER-rotate (+0.55 / +0.15) to grade the skin from
+  // ~zero twist at the elbow to full at the wrist — no candy-wrapping.
+  CC_Base_R_Forearm: [0, -1.2, 0.22],
+  CC_Base_L_Forearm: [0, 1.2, -0.22],
+  CC_Base_R_ForearmTwist01: [0, 0.55, 0],
+  CC_Base_L_ForearmTwist01: [0, -0.55, 0],
+  CC_Base_R_ForearmTwist02: [0, 0.15, 0],
+  CC_Base_L_ForearmTwist02: [0, -0.15, 0],
+  CC_Base_R_Hand: [0, -0.35, 0.08],
+  CC_Base_L_Hand: [0, 0.35, -0.08],
 };
 {
   // Relaxed finger curl ≈ 30% of the fist flex the hand-pose presets use.
