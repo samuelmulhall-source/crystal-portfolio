@@ -662,3 +662,20 @@ over the selection menu and mouse out to subselect… animations are terrible/in
   feet stay planted while grounded (verified: 0.006 residual). tsc / eslint / build clean.
   Real-time playback couldn't be watched here (hidden-tab rAF suspension) — motion FEEL wants
   an on-device eyeball; every timing/amplitude is a single keyframe number to tweak.
+
+## Pass 21 — relaxed stance layer: arms down, living hands (owner: "hands/fingers don't
+really do anything and the arms are constantly outstretched")
+
+Root cause: the clips ADD gestures on top of the raw bind — an A-pose with outstretched arms
+and board-flat hands — so everything below the gesture read as a mannequin. Added a shared
+STANCE layer under every lifelike clip ("A Pose" alone omits it, that's its point): arms
+lowered to the sides (upperarm x −0.12 / z ±0.42 per the probed axis vectors ≈ hand 11% of
+hip height down, 21% inward), slight elbow bend, neutral wrists, and a natural finger curl at
+~30% of the hand-pose presets' fist flex (their probed axes reused: fingers −X both sides,
+thumbs +Z). Per-clip `stance` weight + `stanceMask` prefix overrides: the wave fades the
+right limb's stance out while raised — so the hand rises to the probed head-height pose with
+an open flat greeting hand — and settles it back as the arm lowers. Idle adds slow staggered
+knuckle "breathing" on eight base fingers. Jump's airborne arm-throw keys boosted by the
+stance offset so the throw still reaches the probed raise. Blends: A Pose ↔ others lerp the
+stance in/out per-axis automatically. tsc / eslint / build clean; stance world-effect computed
+from probe vectors (tab suspended — on-device eyeball wanted; every amplitude is one number).

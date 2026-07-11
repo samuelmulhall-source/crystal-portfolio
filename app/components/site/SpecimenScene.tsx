@@ -658,7 +658,49 @@ function clipHasMotion(clip: THREE.AnimationClip): boolean {
 type SineComp = { axis: 0 | 1 | 2; amp: number; cycles: number; phase?: number; gate?: [number, number] };
 type KeyTrack = { axis: 0 | 1 | 2; keys: Array<[number, number]> };
 type BoneSpec = { name: string; tracks?: KeyTrack[]; sines?: SineComp[] };
-type ProcClip = { name: string; dur: number; bones: BoneSpec[]; rootY?: Array<[number, number]> };
+type ProcClip = {
+  name: string;
+  dur: number;
+  bones: BoneSpec[];
+  rootY?: Array<[number, number]>;
+  /** Weight of the shared relaxed STANCE layer (default 0 — pure bind). */
+  stance?: number;
+  /** Per-bone-prefix stance-weight overrides across the clip (first match
+   *  wins) — e.g. the wave fades the right arm's stance to 0 while raised so
+   *  the probed raise pose stays world-accurate, then restores it. */
+  stanceMask?: Array<{ match: string; keys: Array<[number, number]> }>;
+};
+
+// ── Relaxed stance ── shared beneath every lifelike clip ("A Pose" omits it):
+// the bind is an A-pose — arms outstretched, hands board-flat — so clips that
+// only add gestures still read as a mannequin. The stance lowers the arms to
+// the sides (slight elbow bend, neutral wrists, small counter-tilt so the
+// hands hang just forward of the torso) and settles the fingers into a natural
+// curl, reusing the axes the hand-pose presets probed: fingers flex about
+// local −X on BOTH sides, thumbs about +Z.
+const STANCE: Record<string, [number, number, number]> = {
+  CC_Base_R_Upperarm: [-0.12, 0, 0.42],
+  CC_Base_L_Upperarm: [-0.12, 0, -0.42],
+  CC_Base_R_Forearm: [0, 0, 0.22],
+  CC_Base_L_Forearm: [0, 0, -0.22],
+  CC_Base_R_Hand: [0, 0, 0.08],
+  CC_Base_L_Hand: [0, 0, -0.08],
+};
+{
+  // Relaxed finger curl ≈ 30% of the fist flex the hand-pose presets use.
+  const F = [0.26, 0.35, 0.27];
+  const T = [0.09, 0.17, 0.14];
+  for (const side of ["L", "R"] as const)
+    for (const f of ["Thumb", "Index", "Mid", "Ring", "Pinky"])
+      for (let s = 1; s <= 3; s++)
+        STANCE[`CC_Base_${side}_${f}${s}`] = f === "Thumb" ? [0, 0, T[s - 1]] : [-F[s - 1], 0, 0];
+}
+
+function stanceWeight(clip: ProcClip, name: string, ph: number): number {
+  if (clip.stanceMask)
+    for (const m of clip.stanceMask) if (name.includes(m.match)) return trackEval(m.keys, ph);
+  return clip.stance ?? 0;
+}
 
 /** Smoothstep-eased keyframe lookup. Keys are authored spanning phase 0→1. */
 function trackEval(keys: Array<[number, number]>, ph: number): number {
@@ -696,6 +738,21 @@ function evalBone(spec: BoneSpec | undefined, ph: number): [number, number, numb
   return out;
 }
 
+/** Full pose for one bone: the clip's own gesture + the weighted stance. */
+function evalPose(clip: ProcClip, name: string, ph: number): [number, number, number] {
+  const out = evalBone(clip.bones.find((s) => s.name === name), ph);
+  const st = STANCE[name];
+  if (st) {
+    const w = stanceWeight(clip, name, ph);
+    if (w !== 0) {
+      out[0] += st[0] * w;
+      out[1] += st[1] * w;
+      out[2] += st[2] * w;
+    }
+  }
+  return out;
+}
+
 // ── The clip set ── "A Pose" is the pure bind pose (all offsets zero).
 const A_POSE: ProcClip = { name: "A Pose", dur: 2, bones: [] };
 
@@ -704,6 +761,7 @@ const A_POSE: ProcClip = { name: "A Pose", dur: 2, bones: [] };
 const IDLE: ProcClip = {
   name: "Idle",
   dur: 8,
+  stance: 1,
   bones: [
     { name: "CC_Base_Spine02", sines: [{ axis: 0, amp: 0.028, cycles: 2 }] },
     { name: "CC_Base_Spine01", sines: [{ axis: 0, amp: 0.016, cycles: 2 }] },
@@ -736,6 +794,17 @@ const IDLE: ProcClip = {
     { name: "CC_Base_R_Forearm", sines: [{ axis: 0, amp: 0.04, cycles: 1, phase: 0.95 }] },
   ],
 };
+// Idle finger life — the base knuckles breathe slowly around the stance curl
+// (curl axis −X per the hand-pose probe), phases staggered so the hands never
+// pulse in unison.
+{
+  let ph = 0.3;
+  for (const side of ["L", "R"] as const)
+    for (const f of ["Index", "Mid", "Ring", "Pinky"]) {
+      IDLE.bones.push({ name: `CC_Base_${side}_${f}1`, sines: [{ axis: 0, amp: -0.05, cycles: 1, phase: ph }] });
+      ph += 0.9;
+    }
+}
 
 // Wave — a real greeting: raise (anticipation), ~2Hz wave with wrist
 // follow-through while held, lower, settle. Arm pose per the probed frontal
@@ -743,6 +812,12 @@ const IDLE: ProcClip = {
 const WAVE: ProcClip = {
   name: "Wave",
   dur: 4.8,
+  stance: 1,
+  // The waving arm's raise keys were probed FROM BIND — fade that whole limb's
+  // stance (arm-down + finger curl) out for the gesture so the hand rises to
+  // the probed head-height pose with an open, flat greeting hand, then settle
+  // it back into the relaxed stance as the arm lowers.
+  stanceMask: [{ match: "CC_Base_R_", keys: [[0, 1], [0.08, 1], [0.18, 0], [0.62, 0], [0.75, 1], [1, 1]] }],
   bones: [
     {
       name: "CC_Base_R_Clavicle",
@@ -800,6 +875,7 @@ const WAVE: ProcClip = {
 const LOOK: ProcClip = {
   name: "Look Around",
   dur: 8,
+  stance: 1,
   bones: [
     {
       name: "CC_Base_Head",
@@ -838,6 +914,7 @@ const FOOT_X: Array<[number, number]> = [[0, 0], [0.2, 0], [0.3, 0.35], [0.36, 0
 const JUMP: ProcClip = {
   name: "Jump",
   dur: 3.2,
+  stance: 1,
   // rootY depths PROBED against the folded-leg shortening so the feet stay
   // planted while grounded: crouch pose shortens the legs by 0.227 of hip
   // height, the landing pose by 0.179 — the dips match, so nothing floats.
@@ -860,17 +937,19 @@ const JUMP: ProcClip = {
       tracks: [{ axis: 0, keys: [[0, 0], [0.2, 0], [0.3, 0.15], [0.4, -0.1], [0.5, -0.12], [0.63, 0.02], [0.68, 0.1], [0.85, 0], [1, 0]] }],
     },
     {
+      // Throw keys are boosted ~the stance offset (arms start lowered now), so
+      // the airborne arms still reach the probed up-and-out raise.
       name: "CC_Base_L_Upperarm",
       tracks: [
-        { axis: 0, keys: [[0, 0], [0.2, 0], [0.3, -0.45], [0.38, 0.6], [0.5, 0.85], [0.63, 0.35], [0.7, 0.1], [0.85, 0], [1, 0]] },
-        { axis: 2, keys: [[0, 0], [0.2, 0], [0.3, 0.1], [0.38, 0.5], [0.5, 0.7], [0.63, 0.25], [0.78, 0], [1, 0]] },
+        { axis: 0, keys: [[0, 0], [0.2, 0], [0.3, -0.45], [0.38, 0.7], [0.5, 0.95], [0.63, 0.35], [0.7, 0.1], [0.85, 0], [1, 0]] },
+        { axis: 2, keys: [[0, 0], [0.2, 0], [0.3, 0.1], [0.38, 0.85], [0.5, 1.12], [0.63, 0.5], [0.78, 0], [1, 0]] },
       ],
     },
     {
       name: "CC_Base_R_Upperarm",
       tracks: [
-        { axis: 0, keys: [[0, 0], [0.2, 0], [0.3, -0.45], [0.38, 0.6], [0.5, 0.85], [0.63, 0.35], [0.7, 0.1], [0.85, 0], [1, 0]] },
-        { axis: 2, keys: [[0, 0], [0.2, 0], [0.3, -0.1], [0.38, -0.5], [0.5, -0.7], [0.63, -0.25], [0.78, 0], [1, 0]] },
+        { axis: 0, keys: [[0, 0], [0.2, 0], [0.3, -0.45], [0.38, 0.7], [0.5, 0.95], [0.63, 0.35], [0.7, 0.1], [0.85, 0], [1, 0]] },
+        { axis: 2, keys: [[0, 0], [0.2, 0], [0.3, -0.1], [0.38, -0.85], [0.5, -1.12], [0.63, -0.5], [0.78, 0], [1, 0]] },
       ],
     },
     { name: "CC_Base_L_Forearm", tracks: [{ axis: 0, keys: [[0, 0], [0.2, 0], [0.3, 0.3], [0.42, 0.1], [0.63, 0.15], [0.8, 0], [1, 0]] }] },
@@ -902,6 +981,7 @@ function buildIdle(primary: THREE.SkinnedMesh): IdleRig | null {
   const byName = new Map<string, number>();
   const wanted = new Set<string>();
   for (const clip of PROC_CLIPS) for (const s of clip.bones) wanted.add(s.name);
+  for (const name of Object.keys(STANCE)) wanted.add(name); // stance layer bones (arms + fingers)
   for (const name of wanted) {
     const bone = primary.skeleton.getBoneByName(name);
     if (!bone) continue;
@@ -947,8 +1027,8 @@ function applyIdle(
   const phB = clipPhase(clipB, t, toT0);
   idle.byName.forEach((idx, name) => {
     const d = idle.drivers[idx];
-    const a = blend < 1 ? evalBone(clipA.bones.find((s) => s.name === name), phA) : null;
-    const b = evalBone(clipB.bones.find((s) => s.name === name), phB);
+    const a = blend < 1 ? evalPose(clipA, name, phA) : null;
+    const b = evalPose(clipB, name, phB);
     const rx = a ? a[0] + (b[0] - a[0]) * blend : b[0];
     const ry = a ? a[1] + (b[1] - a[1]) * blend : b[1];
     const rz = a ? a[2] + (b[2] - a[2]) * blend : b[2];
