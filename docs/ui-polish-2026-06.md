@@ -635,3 +635,30 @@ button background shaders")
   live on all three surfaces; cursor paint order confirmed in-DOM (keyline beneath glass).
   Evaluated and rejected: dithering the hero focus scrim (JS-driven opacity — shimmer risk),
   the divider grip (2px — below tile resolution), starfield (owns its own material language).
+
+## Pass 20 — flyout hover UX + a real motion set for the rig (owner: "you cant hover
+over the selection menu and mouse out to subselect… animations are terrible/incorrect")
+
+- **Flyout hover:** the option panel sat across a 0.4rem dead gap with base
+  `pointer-events:none`, so leaving the tab instantly killed the panel — hover users had to
+  click-lock. Fixed three ways: hit-testing now gated by `visibility` alone (a hidden panel
+  is unhittable anyway), a 160ms grace delay on hide, and an invisible bridge pseudo spanning
+  the gap. Hover → cross → subselect now just works.
+- **Motion engine rewritten:** endless layered sines → keyframed timelines (smoothstep-eased
+  keys; equal-value neighbours = holds) + gated oscillations + a `rootY` world-space hip
+  translation channel scaled by the measured hip→foot height. Each clip has its own phase
+  clock, so selecting one always starts at its anticipation.
+- **Clip set (owner's list):** A Pose (pure bind, static) · Idle (4s breath, one weight-shift
+  per 8s loop, two-period head wander — no metronome) · Wave (raise → ~2Hz wave with wrist
+  follow-through while HELD → lower → settle) · Look Around (eased sweeps with true holds and
+  a downward scan inside each hold; neck/torso follow at a lagged fraction) · Jump (crouch
+  anticipation → launch → airborne arc with leg tuck → landing absorb → recover). Menu order
+  matches; the viewer defaults to Idle.
+- **Everything probed, not guessed** (new `?debug` rig hook exposes the lead skinned mesh):
+  leg axes measured (thigh +x = hip flexion, calf −x = knee bend, foot −x = toe point);
+  the wave's raised pose measured in world space and corrected until the hand sits exactly at
+  head height (x 1.3 / z −1.15 — the first guess only reached shoulder); jump rootY depths
+  matched to the folded-leg shortening (crouch 0.227, landing 0.179 of hip height) so the
+  feet stay planted while grounded (verified: 0.006 residual). tsc / eslint / build clean.
+  Real-time playback couldn't be watched here (hidden-tab rAF suspension) — motion FEEL wants
+  an on-device eyeball; every timing/amplitude is a single keyframe number to tweak.

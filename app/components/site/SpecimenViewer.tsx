@@ -298,7 +298,13 @@ export function SpecimenViewer({
             handPose={handPose}
             onReady={() => setSceneReady(true)}
             onStats={setStats}
-            onClips={setClips}
+            onClips={(names) => {
+              setClips(names);
+              // Default to Idle when the clip set offers one (the procedural
+              // set leads with the static "A Pose" — a lifeless default).
+              const i = names.indexOf("Idle");
+              if (i > 0) setClipIndex(i);
+            }}
             onPoseable={setPoseable}
             onChannelsDetected={setDetectedChannels}
           />

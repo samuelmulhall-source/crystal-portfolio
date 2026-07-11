@@ -383,15 +383,19 @@ function SpecimenModel({
   // Procedural clips — used when the rig has no real motion clips. Captures each
   // driver bone's base pose once (clean bind), then layers sine offsets on top.
   const idle = useMemo(() => (rigSync ? buildIdle(rigSync.primary) : null), [rigSync]);
-  // Clip-switch cross-blend: remember the previous clip and ramp to the new one.
-  const procSwitch = useRef({ from: 0, to: 0, start: -1 });
+  // Clip-switch cross-blend: remember the previous clip and ramp to the new
+  // one. Each clip keeps its own phase clock (fromT0/toT0) so a freshly
+  // selected clip always starts at phase 0 (its anticipation), not mid-gesture.
+  const procSwitch = useRef({ from: 0, to: 0, start: -1, fromT0: 0, toT0: -1 });
   useEffect(() => {
     if (playable.length) return; // real clips: the mixer handles switching
     const s = procSwitch.current;
     if (clipIndex !== s.to) {
       s.from = s.to;
+      s.fromT0 = s.toT0;
       s.to = clipIndex;
       s.start = -1; // stamped with clock time on the next frame
+      s.toT0 = -1;
     }
   }, [clipIndex, playable.length]);
 
@@ -433,9 +437,10 @@ function SpecimenModel({
       const s = procSwitch.current;
       const t = state.clock.elapsedTime;
       if (s.start < 0) s.start = t;
+      if (s.toT0 < 0) s.toT0 = t; // the new clip's phase 0 = the moment it was selected
       const raw = s.from === s.to ? 1 : Math.min(1, (t - s.start) / 0.7);
       const blend = raw * raw * (3 - 2 * raw); // smoothstep the cross-fade
-      applyIdle(idle, t, s.from, s.to, blend);
+      applyIdle(idle, t, s.from, s.to, blend, s.fromT0, s.toT0);
     }
     mirrorRig(rigSync);
   });
@@ -443,6 +448,15 @@ function SpecimenModel({
   useEffect(() => {
     onPoseable?.(rigSync?.poseable ?? false);
   }, [rigSync, onPoseable]);
+
+  // Field-QA rig probe (?debug): expose the lead skinned mesh so bone axes can
+  // be measured from the console when authoring procedural clips — same
+  // sanctioned read-only QA family as ?fps / ?off (see CLAUDE.md).
+  useEffect(() => {
+    if (!rigSync || typeof window === "undefined") return;
+    if (!new URLSearchParams(window.location.search).has("debug")) return;
+    (window as unknown as { __rig?: THREE.SkinnedMesh }).__rig = rigSync.primary;
+  }, [rigSync]);
 
   // Signal readiness once the model is mounted (assets resolved via Suspense).
   // Defer one frame so the canvas paints before the poster fades, but fall back
@@ -623,126 +637,250 @@ function clipHasMotion(clip: THREE.AnimationClip): boolean {
 }
 
 // ─── Procedural clips ────────────────────────────────────────────────────────
-// Layered-sine motion applied as local-rotation offsets on top of each bone's
-// authored base pose — a rig with no authored motion still gets a small set of
-// selectable, believable clips (Idle / Wave / Look Around). Axis: 0=x
-// (nod/breathe), 1=y (turn), 2=z (sway/tilt). Amplitudes in radians; `base` is
-// a constant offset (posed limbs, e.g. the raised wave arm) under the sine.
-type IdleComp = { axis: 0 | 1 | 2; amp: number; speed: number; phase: number; base?: number };
-const IDLE_SPECS: Array<{ name: string; comps: IdleComp[] }> = [
-  // Breathing — chest/upper spine ease back as the ribcage lifts.
-  { name: "CC_Base_Spine02", comps: [{ axis: 0, amp: 0.03, speed: 1.5, phase: 0 }] },
-  { name: "CC_Base_Spine01", comps: [{ axis: 0, amp: 0.018, speed: 1.5, phase: 0 }] },
-  // Weight shift — torso sways gently, hips counter it.
-  { name: "CC_Base_Waist", comps: [{ axis: 2, amp: 0.035, speed: 0.5, phase: 0 }] },
-  { name: "CC_Base_Hip", comps: [{ axis: 2, amp: -0.022, speed: 0.5, phase: 0 }] },
-  // Head — slow look-around with a slight nod, plus neck follow-through.
-  {
-    name: "CC_Base_Head",
-    comps: [
-      { axis: 1, amp: 0.09, speed: 0.33, phase: 1.0 },
-      { axis: 0, amp: 0.045, speed: 0.5, phase: 0.5 },
-    ],
-  },
-  { name: "CC_Base_NeckTwist02", comps: [{ axis: 1, amp: 0.04, speed: 0.33, phase: 1.0 }] },
-  // Arms — shoulders drift, forearms ease, offset L/R so it isn't symmetrical.
-  {
-    name: "CC_Base_L_Upperarm",
-    comps: [
-      { axis: 2, amp: 0.055, speed: 0.5, phase: 0 },
-      { axis: 0, amp: 0.03, speed: 0.42, phase: 0.7 },
-    ],
-  },
-  {
-    name: "CC_Base_R_Upperarm",
-    comps: [
-      { axis: 2, amp: -0.055, speed: 0.5, phase: 0.4 },
-      { axis: 0, amp: 0.03, speed: 0.42, phase: 1.1 },
-    ],
-  },
-  { name: "CC_Base_L_Forearm", comps: [{ axis: 0, amp: 0.05, speed: 0.55, phase: 0.2 }] },
-  { name: "CC_Base_R_Forearm", comps: [{ axis: 0, amp: 0.05, speed: 0.55, phase: 0.95 }] },
-];
+// Keyframed timelines + additive oscillations, applied as local-rotation
+// offsets on top of each bone's authored base pose — a rig with no authored
+// motion gets a set of REAL gestures (anticipation, holds, recovery), not
+// endless sines. Each clip owns a duration; its tracks are keyframes
+// [phase 0..1, radians] eased with smoothstep (equal-value neighbours = a
+// hold), plus sine components (integer `cycles` loop seamlessly; fractional
+// cycles must be windowed with `gate`, which feathers them to zero). `rootY`
+// keys translate the hip in WORLD units as a fraction of the measured
+// hip-to-foot height (jump arc) — converted into the hip parent's local space
+// at apply time so bone orientation never matters.
+//
+// Axes were PROBED on this rig (see the ?debug rig hook; world deltas of each
+// chain end, projected on the character's own frame):
+//   thigh +x   → leg swings forward (hip flexion)   calf −x → knee bend
+//   foot  +x   → toes rise (dorsiflex); −x → toes point (push-off)
+//   spine +x   → lean forward;  spine +z → lean toward character right
+//   R upperarm +x/−z → arm rises up-and-out in the frontal plane; the LEFT
+//   arm mirrors on z (a raise to head height = x 1.3, z ∓1.15 — probed).
+type SineComp = { axis: 0 | 1 | 2; amp: number; cycles: number; phase?: number; gate?: [number, number] };
+type KeyTrack = { axis: 0 | 1 | 2; keys: Array<[number, number]> };
+type BoneSpec = { name: string; tracks?: KeyTrack[]; sines?: SineComp[] };
+type ProcClip = { name: string; dur: number; bones: BoneSpec[]; rootY?: Array<[number, number]> };
 
-// Wave — right arm raised UP AND OUT to the side (probed on this rig: on the
-// right side, shoulder local +x lifts out/up/forward and local −z lifts
-// out/up/back — combining them cancels the fore/aft drift so the arm rises in
-// the character's frontal plane, a real greeting wave rather than a zombie
-// reach toward the camera). Layered secondary motion keeps it organic: the
-// forearm carries a two-frequency wave, the wrist follows through late, the
-// clavicle bounces with each swing, and the torso/head lean into the gesture.
-const WAVE_SPECS: Array<{ name: string; comps: IdleComp[] }> = [
-  { name: "CC_Base_Spine02", comps: [
-    { axis: 0, amp: 0.03, speed: 1.5, phase: 0 },
-    { axis: 1, amp: 0, speed: 1, phase: 0, base: -0.05 },
-    { axis: 2, amp: 0, speed: 1, phase: 0, base: 0.04 },
-  ] },
-  { name: "CC_Base_Spine01", comps: [{ axis: 0, amp: 0.018, speed: 1.5, phase: 0 }] },
-  { name: "CC_Base_Waist", comps: [
-    { axis: 1, amp: 0, speed: 1, phase: 0, base: -0.06 },
-    { axis: 2, amp: 0.025, speed: 0.5, phase: 0 },
-  ] },
-  { name: "CC_Base_R_Clavicle", comps: [
-    { axis: 0, amp: 0.05, speed: 4.2, phase: 0.3, base: 0.22 },
-  ] },
-  {
-    name: "CC_Base_R_Upperarm",
-    comps: [
-      { axis: 0, amp: 0.04, speed: 4.2, phase: 0, base: 0.95 },
-      { axis: 2, amp: 0.09, speed: 2.1, phase: 0, base: -0.85 },
-    ],
-  },
-  {
-    name: "CC_Base_R_Forearm",
-    comps: [
-      { axis: 2, amp: 0.42, speed: 4.2, phase: 0.6, base: 0.95 },
-      { axis: 2, amp: 0.1, speed: 2.1, phase: 1.3 },
-    ],
-  },
-  { name: "CC_Base_R_Hand", comps: [
-    { axis: 2, amp: 0.26, speed: 4.2, phase: 1.0, base: 0.1 },
-    { axis: 0, amp: 0.06, speed: 2.1, phase: 0.4 },
-  ] },
-  {
-    name: "CC_Base_Head",
-    comps: [
-      { axis: 1, amp: 0, speed: 1, phase: 0, base: -0.14 },
-      { axis: 2, amp: 0.02, speed: 1.2, phase: 0, base: -0.07 },
-      { axis: 0, amp: 0.035, speed: 0.5, phase: 0.5 },
-    ],
-  },
-  // The idle arm keeps a gentle counter-sway so the body doesn't freeze.
-  {
-    name: "CC_Base_L_Upperarm",
-    comps: [{ axis: 2, amp: 0.05, speed: 2.1, phase: 1.6 }],
-  },
-];
+/** Smoothstep-eased keyframe lookup. Keys are authored spanning phase 0→1. */
+function trackEval(keys: Array<[number, number]>, ph: number): number {
+  if (ph <= keys[0][0]) return keys[0][1];
+  for (let i = 1; i < keys.length; i++) {
+    if (ph <= keys[i][0]) {
+      const [t0, v0] = keys[i - 1];
+      const [t1, v1] = keys[i];
+      const u = t1 > t0 ? (ph - t0) / (t1 - t0) : 1;
+      const s = u * u * (3 - 2 * u);
+      return v0 + (v1 - v0) * s;
+    }
+  }
+  return keys[keys.length - 1][1];
+}
 
-// Look Around — slow, wide head sweeps with torso follow-through.
-const LOOK_SPECS: Array<{ name: string; comps: IdleComp[] }> = [
-  { name: "CC_Base_Spine02", comps: [{ axis: 0, amp: 0.03, speed: 1.5, phase: 0 }, { axis: 1, amp: 0.1, speed: 0.21, phase: 0.4 }] },
-  { name: "CC_Base_Spine01", comps: [{ axis: 0, amp: 0.018, speed: 1.5, phase: 0 }] },
-  { name: "CC_Base_Waist", comps: [{ axis: 1, amp: 0.06, speed: 0.21, phase: 0.2 }] },
-  {
-    name: "CC_Base_Head",
-    comps: [
-      { axis: 1, amp: 0.46, speed: 0.21, phase: 1.0 },
-      { axis: 0, amp: 0.07, speed: 0.34, phase: 0.5 },
-      { axis: 2, amp: 0.04, speed: 0.27, phase: 1.4 },
-    ],
-  },
-  { name: "CC_Base_NeckTwist02", comps: [{ axis: 1, amp: 0.2, speed: 0.21, phase: 1.0 }] },
-  { name: "CC_Base_L_Upperarm", comps: [{ axis: 2, amp: 0.04, speed: 0.5, phase: 0 }] },
-  { name: "CC_Base_R_Upperarm", comps: [{ axis: 2, amp: -0.04, speed: 0.5, phase: 0.4 }] },
-];
+/** Feathered on/off window for gated sines — 0 outside [a,b], eased edges. */
+function gateEnv(ph: number, a: number, b: number): number {
+  const w = 0.06;
+  const up = Math.min(1, Math.max(0, (ph - a) / w));
+  const dn = Math.min(1, Math.max(0, (b - ph) / w));
+  const e = Math.min(up, dn);
+  return e * e * (3 - 2 * e);
+}
+
+function evalBone(spec: BoneSpec | undefined, ph: number): [number, number, number] {
+  const out: [number, number, number] = [0, 0, 0];
+  if (!spec) return out;
+  if (spec.tracks) for (const t of spec.tracks) out[t.axis] += trackEval(t.keys, ph);
+  if (spec.sines)
+    for (const s of spec.sines) {
+      const g = s.gate ? gateEnv(ph, s.gate[0], s.gate[1]) : 1;
+      if (g > 0) out[s.axis] += Math.sin(ph * Math.PI * 2 * s.cycles + (s.phase ?? 0)) * s.amp * g;
+    }
+  return out;
+}
+
+// ── The clip set ── "A Pose" is the pure bind pose (all offsets zero).
+const A_POSE: ProcClip = { name: "A Pose", dur: 2, bones: [] };
+
+// Idle — standing at rest: 4s breath, one slow weight-shift per loop, the head
+// wandering on two mixed periods so it never reads as a metronome.
+const IDLE: ProcClip = {
+  name: "Idle",
+  dur: 8,
+  bones: [
+    { name: "CC_Base_Spine02", sines: [{ axis: 0, amp: 0.028, cycles: 2 }] },
+    { name: "CC_Base_Spine01", sines: [{ axis: 0, amp: 0.016, cycles: 2 }] },
+    { name: "CC_Base_Waist", sines: [{ axis: 2, amp: 0.032, cycles: 1 }] },
+    { name: "CC_Base_Hip", sines: [{ axis: 2, amp: -0.02, cycles: 1 }] },
+    {
+      name: "CC_Base_Head",
+      sines: [
+        { axis: 1, amp: 0.055, cycles: 1, phase: 1.0 },
+        { axis: 1, amp: 0.03, cycles: 2, phase: 2.3 },
+        { axis: 0, amp: 0.035, cycles: 1, phase: 0.5 },
+      ],
+    },
+    { name: "CC_Base_NeckTwist02", sines: [{ axis: 1, amp: 0.028, cycles: 1, phase: 1.0 }] },
+    {
+      name: "CC_Base_L_Upperarm",
+      sines: [
+        { axis: 2, amp: 0.045, cycles: 1 },
+        { axis: 0, amp: 0.025, cycles: 1, phase: 0.7 },
+      ],
+    },
+    {
+      name: "CC_Base_R_Upperarm",
+      sines: [
+        { axis: 2, amp: -0.045, cycles: 1, phase: 0.4 },
+        { axis: 0, amp: 0.025, cycles: 1, phase: 1.1 },
+      ],
+    },
+    { name: "CC_Base_L_Forearm", sines: [{ axis: 0, amp: 0.04, cycles: 1, phase: 0.2 }] },
+    { name: "CC_Base_R_Forearm", sines: [{ axis: 0, amp: 0.04, cycles: 1, phase: 0.95 }] },
+  ],
+};
+
+// Wave — a real greeting: raise (anticipation), ~2Hz wave with wrist
+// follow-through while held, lower, settle. Arm pose per the probed frontal
+// plane (x +0.95 / z −0.85 on the right side).
+const WAVE: ProcClip = {
+  name: "Wave",
+  dur: 4.8,
+  bones: [
+    {
+      name: "CC_Base_R_Clavicle",
+      tracks: [{ axis: 0, keys: [[0, 0], [0.08, 0], [0.17, 0.3], [0.6, 0.3], [0.72, 0], [1, 0]] }],
+      sines: [{ axis: 0, amp: 0.045, cycles: 10, gate: [0.18, 0.62] }],
+    },
+    {
+      // Raised pose PROBED in world space: with x 1.3 / z −1.15 (+ forearm 1.3)
+      // the hand sits exactly at head height, out to the side and slightly
+      // forward — the classic greeting silhouette (0.95/−0.85 only reached
+      // shoulder height).
+      name: "CC_Base_R_Upperarm",
+      tracks: [
+        { axis: 0, keys: [[0, 0], [0.08, 0], [0.18, 1.3], [0.62, 1.3], [0.74, 0], [1, 0]] },
+        { axis: 2, keys: [[0, 0], [0.08, 0], [0.18, -1.15], [0.62, -1.15], [0.74, 0], [1, 0]] },
+      ],
+      sines: [{ axis: 2, amp: 0.07, cycles: 10, gate: [0.2, 0.62] }],
+    },
+    {
+      name: "CC_Base_R_Forearm",
+      tracks: [{ axis: 2, keys: [[0, 0], [0.09, 0], [0.19, 1.3], [0.63, 1.3], [0.75, 0], [1, 0]] }],
+      sines: [
+        { axis: 2, amp: 0.48, cycles: 10, phase: -1.2, gate: [0.2, 0.62] },
+        { axis: 2, amp: 0.1, cycles: 5, phase: 0.4, gate: [0.2, 0.62] },
+      ],
+    },
+    {
+      name: "CC_Base_R_Hand",
+      tracks: [{ axis: 2, keys: [[0, 0], [0.1, 0], [0.2, 0.12], [0.62, 0.12], [0.74, 0], [1, 0]] }],
+      sines: [{ axis: 2, amp: 0.22, cycles: 10, phase: -1.9, gate: [0.21, 0.63] }],
+    },
+    {
+      name: "CC_Base_Head",
+      tracks: [
+        { axis: 1, keys: [[0, 0], [0.1, 0], [0.2, -0.13], [0.62, -0.13], [0.75, 0], [1, 0]] },
+        { axis: 2, keys: [[0, 0], [0.1, 0], [0.2, -0.06], [0.62, -0.06], [0.75, 0], [1, 0]] },
+      ],
+      sines: [{ axis: 0, amp: 0.03, cycles: 2 }],
+    },
+    {
+      name: "CC_Base_Spine02",
+      tracks: [
+        { axis: 1, keys: [[0, 0], [0.1, 0], [0.2, -0.05], [0.62, -0.05], [0.75, 0], [1, 0]] },
+        { axis: 2, keys: [[0, 0], [0.1, 0], [0.2, 0.04], [0.62, 0.04], [0.75, 0], [1, 0]] },
+      ],
+      sines: [{ axis: 0, amp: 0.028, cycles: 2 }],
+    },
+    { name: "CC_Base_Waist", tracks: [{ axis: 1, keys: [[0, 0], [0.1, 0], [0.2, -0.05], [0.62, -0.05], [0.75, 0], [1, 0]] }] },
+    { name: "CC_Base_L_Upperarm", sines: [{ axis: 2, amp: 0.04, cycles: 2, phase: 1.6 }] },
+  ],
+};
+
+// Look Around — eased sweeps with true HOLDS (near-equal key pairs), a small
+// downward scan inside each hold, the torso following at a fraction with lag.
+const LOOK: ProcClip = {
+  name: "Look Around",
+  dur: 8,
+  bones: [
+    {
+      name: "CC_Base_Head",
+      tracks: [
+        { axis: 1, keys: [[0, 0], [0.06, 0], [0.15, 0.48], [0.32, 0.42], [0.44, -0.5], [0.6, -0.44], [0.7, 0.08], [0.8, 0], [1, 0]] },
+        { axis: 0, keys: [[0, 0], [0.15, 0.03], [0.24, -0.05], [0.32, 0.02], [0.5, 0.06], [0.6, -0.03], [0.72, 0], [1, 0]] },
+        { axis: 2, keys: [[0, 0], [0.15, 0.04], [0.44, -0.04], [0.7, 0], [1, 0]] },
+      ],
+    },
+    {
+      name: "CC_Base_NeckTwist02",
+      tracks: [{ axis: 1, keys: [[0, 0], [0.08, 0], [0.17, 0.2], [0.33, 0.18], [0.46, -0.21], [0.61, -0.19], [0.72, 0.03], [0.82, 0], [1, 0]] }],
+    },
+    {
+      name: "CC_Base_Spine02",
+      tracks: [{ axis: 1, keys: [[0, 0], [0.1, 0], [0.19, 0.1], [0.34, 0.09], [0.48, -0.11], [0.62, -0.1], [0.75, 0], [1, 0]] }],
+      sines: [{ axis: 0, amp: 0.028, cycles: 2 }],
+    },
+    { name: "CC_Base_Spine01", sines: [{ axis: 0, amp: 0.016, cycles: 2 }] },
+    {
+      name: "CC_Base_Waist",
+      tracks: [{ axis: 1, keys: [[0, 0], [0.12, 0], [0.21, 0.05], [0.35, 0.05], [0.5, -0.06], [0.64, -0.06], [0.77, 0], [1, 0]] }],
+    },
+    { name: "CC_Base_L_Upperarm", sines: [{ axis: 2, amp: 0.035, cycles: 1 }] },
+    { name: "CC_Base_R_Upperarm", sines: [{ axis: 2, amp: -0.035, cycles: 1, phase: 0.4 }] },
+  ],
+};
+
+// Jump — anticipation crouch → extension/launch → airborne arc (root rises on
+// the measured hip height) with a leg tuck → landing absorb → recover. Leg
+// axes per the probe: thigh +x flexes forward, calf −x bends the knee, foot −x
+// points the toes for push-off.
+const THIGH_X: Array<[number, number]> = [[0, 0], [0.2, 0], [0.3, 0.8], [0.38, -0.05], [0.47, 0.55], [0.56, 0.55], [0.63, 0.15], [0.68, 0.7], [0.82, 0.1], [0.9, 0], [1, 0]];
+const CALF_X: Array<[number, number]> = [[0, 0], [0.2, 0], [0.3, -1.2], [0.38, 0], [0.47, -0.9], [0.56, -0.9], [0.63, -0.2], [0.68, -1.05], [0.82, -0.15], [0.9, 0], [1, 0]];
+const FOOT_X: Array<[number, number]> = [[0, 0], [0.2, 0], [0.3, 0.35], [0.36, 0.1], [0.4, -0.5], [0.47, -0.2], [0.56, -0.12], [0.63, 0.15], [0.68, 0.3], [0.82, 0], [1, 0]];
+const JUMP: ProcClip = {
+  name: "Jump",
+  dur: 3.2,
+  // rootY depths PROBED against the folded-leg shortening so the feet stay
+  // planted while grounded: crouch pose shortens the legs by 0.227 of hip
+  // height, the landing pose by 0.179 — the dips match, so nothing floats.
+  rootY: [[0, 0], [0.2, 0], [0.3, -0.22], [0.36, -0.17], [0.4, 0.1], [0.5, 0.32], [0.6, 0.1], [0.64, -0.14], [0.7, -0.18], [0.85, 0], [1, 0]],
+  bones: [
+    { name: "CC_Base_L_Thigh", tracks: [{ axis: 0, keys: THIGH_X }] },
+    { name: "CC_Base_R_Thigh", tracks: [{ axis: 0, keys: THIGH_X }] },
+    { name: "CC_Base_L_Calf", tracks: [{ axis: 0, keys: CALF_X }] },
+    { name: "CC_Base_R_Calf", tracks: [{ axis: 0, keys: CALF_X }] },
+    { name: "CC_Base_L_Foot", tracks: [{ axis: 0, keys: FOOT_X }] },
+    { name: "CC_Base_R_Foot", tracks: [{ axis: 0, keys: FOOT_X }] },
+    {
+      name: "CC_Base_Spine02",
+      tracks: [{ axis: 0, keys: [[0, 0], [0.2, 0], [0.3, 0.22], [0.4, -0.02], [0.5, -0.07], [0.63, 0.05], [0.68, 0.18], [0.85, 0], [1, 0]] }],
+      sines: [{ axis: 0, amp: 0.028, cycles: 2, gate: [0.78, 1] }],
+    },
+    { name: "CC_Base_Spine01", tracks: [{ axis: 0, keys: [[0, 0], [0.2, 0], [0.3, 0.12], [0.4, -0.01], [0.5, -0.04], [0.68, 0.09], [0.85, 0], [1, 0]] }] },
+    {
+      name: "CC_Base_Head",
+      tracks: [{ axis: 0, keys: [[0, 0], [0.2, 0], [0.3, 0.15], [0.4, -0.1], [0.5, -0.12], [0.63, 0.02], [0.68, 0.1], [0.85, 0], [1, 0]] }],
+    },
+    {
+      name: "CC_Base_L_Upperarm",
+      tracks: [
+        { axis: 0, keys: [[0, 0], [0.2, 0], [0.3, -0.45], [0.38, 0.6], [0.5, 0.85], [0.63, 0.35], [0.7, 0.1], [0.85, 0], [1, 0]] },
+        { axis: 2, keys: [[0, 0], [0.2, 0], [0.3, 0.1], [0.38, 0.5], [0.5, 0.7], [0.63, 0.25], [0.78, 0], [1, 0]] },
+      ],
+    },
+    {
+      name: "CC_Base_R_Upperarm",
+      tracks: [
+        { axis: 0, keys: [[0, 0], [0.2, 0], [0.3, -0.45], [0.38, 0.6], [0.5, 0.85], [0.63, 0.35], [0.7, 0.1], [0.85, 0], [1, 0]] },
+        { axis: 2, keys: [[0, 0], [0.2, 0], [0.3, -0.1], [0.38, -0.5], [0.5, -0.7], [0.63, -0.25], [0.78, 0], [1, 0]] },
+      ],
+    },
+    { name: "CC_Base_L_Forearm", tracks: [{ axis: 0, keys: [[0, 0], [0.2, 0], [0.3, 0.3], [0.42, 0.1], [0.63, 0.15], [0.8, 0], [1, 0]] }] },
+    { name: "CC_Base_R_Forearm", tracks: [{ axis: 0, keys: [[0, 0], [0.2, 0], [0.3, 0.3], [0.42, 0.1], [0.63, 0.15], [0.8, 0], [1, 0]] }] },
+  ],
+};
 
 /** Procedural clip registry — offered in the clip selector when the rig ships
- *  no real motion clips. */
-const PROC_CLIPS: Array<{ name: string; specs: Array<{ name: string; comps: IdleComp[] }> }> = [
-  { name: "Idle", specs: IDLE_SPECS },
-  { name: "Wave", specs: WAVE_SPECS },
-  { name: "Look Around", specs: LOOK_SPECS },
-];
+ *  no real motion clips. Order is the menu order; the viewer defaults to Idle. */
+const PROC_CLIPS: ProcClip[] = [A_POSE, IDLE, WAVE, LOOK, JUMP];
 
 type IdleRig = {
   /** Union of every bone any clip drives, with its clean base pose captured at
@@ -750,55 +888,67 @@ type IdleRig = {
    *  through the base instead of compounding on a contaminated pose. */
   drivers: Array<{ bone: THREE.Bone; base: THREE.Quaternion }>;
   byName: Map<string, number>;
+  /** Root-translation channel (jump arc): the hip bone, its base local
+   *  position, and the lazily measured world hip→foot height that scales the
+   *  clip's rootY fractions. */
+  hip: THREE.Bone | null;
+  hipBase: THREE.Vector3;
+  foot: THREE.Bone | null;
+  hipHeight: number;
 };
 
 function buildIdle(primary: THREE.SkinnedMesh): IdleRig | null {
   const drivers: IdleRig["drivers"] = [];
   const byName = new Map<string, number>();
   const wanted = new Set<string>();
-  for (const clip of PROC_CLIPS) for (const s of clip.specs) wanted.add(s.name);
+  for (const clip of PROC_CLIPS) for (const s of clip.bones) wanted.add(s.name);
   for (const name of wanted) {
     const bone = primary.skeleton.getBoneByName(name);
     if (!bone) continue;
     byName.set(name, drivers.length);
     drivers.push({ bone, base: bone.quaternion.clone() });
   }
-  return drivers.length ? { drivers, byName } : null;
+  const hip = primary.skeleton.getBoneByName("CC_Base_Hip") ?? null;
+  const foot = primary.skeleton.getBoneByName("CC_Base_L_Foot") ?? null;
+  return drivers.length
+    ? { drivers, byName, hip, hipBase: hip ? hip.position.clone() : new THREE.Vector3(), foot, hipHeight: 0 }
+    : null;
 }
 
 const _idleEuler = new THREE.Euler();
 const _idleQ = new THREE.Quaternion();
+const _rootM = new THREE.Matrix4();
+const _rootA = new THREE.Vector3();
+const _rootB = new THREE.Vector3();
 
-function evalSpecs(
-  specs: Array<{ name: string; comps: IdleComp[] }>,
-  name: string,
-  t: number,
-): [number, number, number] {
-  const spec = specs.find((s) => s.name === name);
-  const out: [number, number, number] = [0, 0, 0];
-  if (!spec) return out;
-  for (const c of spec.comps) {
-    out[c.axis] += (c.base ?? 0) + Math.sin(t * c.speed + c.phase) * c.amp;
-  }
-  return out;
+/** Clip phase for a given wall-clock time and per-clip start stamp. */
+function clipPhase(clip: ProcClip, t: number, t0: number): number {
+  const ph = ((t - t0) / clip.dur) % 1;
+  return ph < 0 ? ph + 1 : ph;
 }
 
 /** Pose the driver bones from base pose + the active clip's offsets, blending
  *  from the previous clip across a switch (per-axis lerp — offsets are small
- *  or monotonic, so euler-space blending stays clean). */
+ *  or monotonic, so euler-space blending stays clean). Also drives the hip's
+ *  world-Y translation channel (rootY), converted into the hip parent's local
+ *  space so bone orientation never matters. */
 function applyIdle(
   idle: IdleRig,
   t: number,
   from: number,
   to: number,
   blend: number,
+  fromT0: number,
+  toT0: number,
 ) {
-  const specsA = PROC_CLIPS[from]?.specs ?? PROC_CLIPS[0].specs;
-  const specsB = PROC_CLIPS[to]?.specs ?? PROC_CLIPS[0].specs;
+  const clipA = PROC_CLIPS[from] ?? PROC_CLIPS[0];
+  const clipB = PROC_CLIPS[to] ?? PROC_CLIPS[0];
+  const phA = clipPhase(clipA, t, fromT0);
+  const phB = clipPhase(clipB, t, toT0);
   idle.byName.forEach((idx, name) => {
     const d = idle.drivers[idx];
-    const a = blend < 1 ? evalSpecs(specsA, name, t) : null;
-    const b = evalSpecs(specsB, name, t);
+    const a = blend < 1 ? evalBone(clipA.bones.find((s) => s.name === name), phA) : null;
+    const b = evalBone(clipB.bones.find((s) => s.name === name), phB);
     const rx = a ? a[0] + (b[0] - a[0]) * blend : b[0];
     const ry = a ? a[1] + (b[1] - a[1]) * blend : b[1];
     const rz = a ? a[2] + (b[2] - a[2]) * blend : b[2];
@@ -806,6 +956,33 @@ function applyIdle(
     _idleQ.setFromEuler(_idleEuler);
     d.bone.quaternion.copy(d.base).multiply(_idleQ);
   });
+
+  // Root translation (jump arc) — world-space Y, scaled by measured hip height.
+  const hip = idle.hip;
+  if (!hip) return;
+  const yA = blend < 1 && clipA.rootY ? trackEval(clipA.rootY, phA) : 0;
+  const yB = clipB.rootY ? trackEval(clipB.rootY, phB) : 0;
+  const yFrac = blend < 1 ? yA + (yB - yA) * blend : yB;
+  if (Math.abs(yFrac) < 1e-4) {
+    hip.position.copy(idle.hipBase);
+    return;
+  }
+  if (idle.hipHeight === 0 && idle.foot) {
+    // Lazy: world matrices are valid once the scene has rendered a frame.
+    hip.updateWorldMatrix(true, false);
+    idle.foot.updateWorldMatrix(true, false);
+    hip.getWorldPosition(_rootA);
+    idle.foot.getWorldPosition(_rootB);
+    idle.hipHeight = Math.max(Math.abs(_rootA.y - _rootB.y), 1e-3);
+  }
+  const worldDy = yFrac * idle.hipHeight;
+  const parent = hip.parent;
+  if (!parent) return;
+  parent.updateWorldMatrix(true, false);
+  _rootM.copy(parent.matrixWorld).invert();
+  _rootA.set(0, worldDy, 0).applyMatrix4(_rootM);
+  _rootB.set(0, 0, 0).applyMatrix4(_rootM);
+  hip.position.copy(idle.hipBase).add(_rootA.sub(_rootB));
 }
 
 // ─── Drag-to-pose IK ────────────────────────────────────────────────────────
