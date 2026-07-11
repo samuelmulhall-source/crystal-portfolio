@@ -1103,19 +1103,31 @@ button, input, textarea { font: inherit; }
   white-space: nowrap;
   opacity: 0;
   visibility: hidden;
-  pointer-events: none;
+  /* Interactivity is gated by `visibility` alone (a visibility:hidden element
+     can't be hit) — NOT pointer-events. With pointer-events:none here, the
+     panel was unhittable the instant the pointer left the tab, so hover users
+     could never CROSS to it and had to click-lock first. */
   transform: translateY(-50%) translateX(8px);
   transition:
-    opacity var(--dur-2) var(--ease-out),
-    transform var(--dur-2) var(--ease-out),
-    visibility 0s var(--dur-2);
+    opacity var(--dur-2) var(--ease-out) 160ms,
+    transform var(--dur-2) var(--ease-out) 160ms,
+    visibility 0s calc(160ms + var(--dur-2));
+}
+/* Invisible hover bridge spanning the tab↔panel gap, so the pointer never
+   crosses dead space (hovering the bridge keeps the parent :hover alive). */
+.specimen-viewer__flyout-panel::after {
+  content: "";
+  position: absolute;
+  left: 100%;
+  top: -0.4rem;
+  bottom: -0.4rem;
+  width: 0.6rem;
 }
 .specimen-viewer__flyout:hover .specimen-viewer__flyout-panel,
 .specimen-viewer__flyout:focus-within .specimen-viewer__flyout-panel,
 .specimen-viewer__flyout.is-open .specimen-viewer__flyout-panel {
   opacity: 1;
   visibility: visible;
-  pointer-events: auto;
   transform: translateY(-50%) translateX(0);
   transition:
     opacity var(--dur-2) var(--ease-out),
