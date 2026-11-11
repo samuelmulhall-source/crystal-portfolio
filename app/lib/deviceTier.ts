@@ -2,7 +2,7 @@
  * Device capability detection — runs once at startup, cached module-level.
  *
  * Tiers:
- *   "low"  — mobile / low RAM / few cores (≤4) / low-end GPU
+ *   "low"  — touch device (phone/tablet) / low RAM / few cores (≤4) / low-end GPU
  *   "mid"  — tablet or mid-range laptop
  *   "high" — desktop with decent GPU
  *
@@ -38,6 +38,11 @@ function detect(): DeviceProfile {
     return { tier: "high", isMobile: false, isSoftware: false, maxDpr: 1.5, smokeSuffix: "", smokeFrames: 50, smokeDpr: 2, smokeEager: 20 };
   }
 
+  // Viewport width is a layout fact, not a capability: a desktop in a narrow or
+  // split-screen window is still a desktop. It is reported (and logged) but must
+  // never lower the tier — only touch input and the hardware below do. (It used
+  // to force "low", which stripped the smoke + WebGL starfield from any window
+  // ≤768px wide, even on a discrete GPU.)
   const isMobile = window.matchMedia("(max-width: 768px)").matches;
   const isTouch = !window.matchMedia("(hover: hover) and (pointer: fine)").matches;
   const cores = navigator.hardwareConcurrency || 4;
@@ -77,7 +82,7 @@ function detect(): DeviceProfile {
 
   // Score: 0-6
   let score = 0;
-  if (!isMobile && !isTouch) score += 2;
+  if (!isTouch) score += 2;
   if (cores >= 8) score += 1;
   if (memory >= 8) score += 1;
   if (gpuTier === "high") score += 2;
@@ -86,7 +91,7 @@ function detect(): DeviceProfile {
 
   let tier: DeviceTier;
   if (isSoftware) tier = "low"; // CPU rendering — force the lightest path
-  else if (isMobile || isTouch || score <= 1) tier = "low";
+  else if (isTouch || score <= 1) tier = "low";
   else if (score <= 3) tier = "mid";
   else tier = "high";
 
@@ -107,7 +112,7 @@ function detect(): DeviceProfile {
     /[?&](debug|fps|q=)/.test(window.location.search)
   ) {
     console.log(
-      `[deviceTier] ${tier} | cores=${cores} mem=${memory}GB gpu=${gpuTier} software=${isSoftware} mobile=${isMobile} dpr=${dpr.toFixed(1)}`
+      `[deviceTier] ${tier} | cores=${cores} mem=${memory}GB gpu=${gpuTier} software=${isSoftware} touch=${isTouch} narrow=${isMobile} dpr=${dpr.toFixed(1)}`
     );
   }
 
