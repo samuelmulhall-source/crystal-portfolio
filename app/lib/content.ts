@@ -3,11 +3,6 @@ import fs from "node:fs";
 import path from "node:path";
 import { z } from "zod";
 
-const LinkSchema = z.object({
-  label: z.string(),
-  href: z.string(),
-});
-
 const MediaVariantSchema = z.object({
   label: z.string(),
   src: z.string(),
@@ -47,6 +42,29 @@ const SpecimenSchema = z.object({
     metalnessMap: z.string().optional(),
     transmissionMap: z.string().optional(),
   }),
+  /** Lit-set presentation: the cyclorama paint and the page field around it.
+   *  Hue measured from the asset's own albedo, lightness fixed (see the lab). */
+  stage: z
+    .object({
+      color: z.string(),
+      field: z.tuple([z.string(), z.string()]),
+      /** Opening view in degrees around the subject (0 = the file's front). */
+      azimuth: z.number().optional(),
+    })
+    .optional(),
+  /** Measured by the live viewer (triangles, PBR maps) so labels can show the
+   *  asset's dimensions before WebGL has loaded. */
+  facts: z.object({ triangles: z.number(), maps: z.number() }).optional(),
+  /** A still of this asset photographed on its lit set — the same camera as
+   *  the live viewer, so it can stand in before WebGL and in thumbnails. */
+  setStill: z
+    .object({
+      src: z.string(),
+      width: z.number(),
+      height: z.number(),
+      thumb: z.string(),
+    })
+    .optional(),
 });
 
 /** One named asset inside a collection entry (e.g. an asset pack) — a
@@ -101,6 +119,20 @@ const WorkEntrySchema = z.object({
     })
     .optional(),
   specimen: SpecimenSchema.optional(),
+  /** Facts read off the hero file itself (pixel size; video timing). */
+  facts: z
+    .object({
+      width: z.number(),
+      height: z.number(),
+      fps: z.number().optional(),
+      frames: z.number().optional(),
+      duration: z.number().optional(),
+      audio: z.boolean().optional(),
+    })
+    .optional(),
+  /** The render's own edge colour (top, bottom) — the field it sits on, so the
+   *  frame continues past the image instead of boxing it. */
+  edgeColors: z.tuple([z.string(), z.string()]).optional(),
   /** Collection entries (asset packs): the named assets users step through.
    *  When present, viewers offer per-asset navigation; `specimen` then acts
    *  as the default/fallback asset. */
@@ -124,7 +156,12 @@ const SiteSettingsSchema = z.object({
     keywords: z.array(z.string()),
     defaultOgImage: z.string(),
   }),
+  /** The ONE contact block every page renders (ContactSection) — single source,
+   *  so the heading, address and voice can't drift between pages. `primary` is
+   *  the email (label = the visible address, href = its mailto:); `secondary`
+   *  is the social fallback. */
   contact: z.object({
+    heading: z.string(),
     primaryLabel: z.string(),
     primaryHref: z.string(),
     secondaryLabel: z.string(),
@@ -152,15 +189,7 @@ const HomeContentSchema = z.object({
     /** Minimal scroll cue label beneath the hero (e.g. "Selected Work"). */
     scrollCue: z.string().optional(),
   }),
-  contact: z.object({
-    heading: z.string(),
-    /** Short honest about/positioning line above the contact actions. */
-    intro: z.string().optional(),
-    /** Tiny mono availability label (e.g. "Available — briefs & roles"). */
-    availability: z.string().optional(),
-    primaryCta: LinkSchema,
-    secondaryCta: LinkSchema,
-  }),
+  // Contact copy lives in site/settings.json (`contact`) — one block, all pages.
 });
 
 export type MediaAsset = z.infer<typeof MediaAssetSchema>;

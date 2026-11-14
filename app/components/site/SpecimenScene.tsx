@@ -9,7 +9,7 @@
  * mode or during SSR.
  */
 
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useLoader, useThree } from "@react-three/fiber";
 import { Environment, Lightformer, OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
@@ -24,6 +24,23 @@ export type TexKey = "map" | "normalMap" | "roughnessMap" | "metalnessMap" | "tr
  *  = ice line-art; the rest show that raw texture map flat on the surface. */
 export type SpecimenChannel = "material" | "wireframe" | TexKey;
 
+/** Opt-in photographic set (lab draft): a seamless lit backdrop + one key light
+ *  that turn with the camera, so the asset reads like a product photograph on
+ *  a real cyclorama. `color` is the backdrop paint; `viewShift` slides the
+ *  framing sideways (fraction of canvas width, + = subject moves right) so a
+ *  full-bleed canvas can leave room for type. Absent → the original studio. */
+export type SpecimenSet = {
+  color: string;
+  viewShift?: number;
+  /** A photograph of this exact set covers the load, so keep the light at
+   *  full instead of bringing it up when the model arrives. */
+  lit?: boolean;
+  /** Opening view, degrees around the subject (0 = the file's front). When
+   *  absent, a three-quarter view onto the model's broad face is chosen from
+   *  its proportions, so flat props never open edge-on. */
+  azimuth?: number;
+};
+
 /** Technical readout computed from the loaded geometry + texture set. */
 export type SpecimenStats = {
   triangles: number;
@@ -32,6 +49,8 @@ export type SpecimenStats = {
   maps: number;
   /** Largest texture dimension in px (e.g. 2048). */
   maxTextureSize: number;
+  /** Bounding-box proportions (x, y, z), normalized so the largest is 1. */
+  proportions?: [number, number, number];
 };
 
 /** Encode a public path so spaces in filenames resolve correctly. */
@@ -67,7 +86,13 @@ function SpecimenModel({
   onPoseable,
   onChannelsDetected,
   setDragLock,
+  set,
+  onGround,
 }: {
+  set?: SpecimenSet;
+  /** Report the asset's floor height (world Y) so a set outside Suspense can
+   *  sit under it before and after the model streams in. */
+  onGround?: (y: number) => void;
   specimen: Specimen;
   channel?: SpecimenChannel;
   /** Which animation clip to play (rigged characters). */
@@ -325,6 +350,7 @@ function SpecimenModel({
         meshes,
         maps: texEntries.length,
         maxTextureSize,
+        proportions: [size.x / maxDim, size.y / maxDim, size.z / maxDim],
       } satisfies SpecimenStats,
     };
   }, [loaded, tex, texList, texEntries, specimen.yOffset, specimen.wireModelPath, channel, isRigged]);
@@ -463,6 +489,7 @@ function SpecimenModel({
   // to a timer so readiness still fires if rAF is throttled (backgrounded tab).
   useEffect(() => {
     onStats?.(stats);
+    onGround?.(groundY);
     let done = false;
     const fire = () => {
       if (done) return;
@@ -475,7 +502,7 @@ function SpecimenModel({
       cancelAnimationFrame(raf);
       clearTimeout(timer);
     };
-  }, [onReady, onStats, stats]);
+  }, [onReady, onStats, onGround, groundY, stats]);
 
   return (
     <>
@@ -491,7 +518,7 @@ function SpecimenModel({
           ) : null}
         </group>
       </group>
-      <ShadowCatcher y={groundY} />
+      {set ? null : <ShadowCatcher y={groundY} />}
       {rigSync && rigSync.poseable && poseMode ? (
         <RigPoser rig={rigSync} handPose={handPose} setDragLock={setDragLock} />
       ) : null}
@@ -545,6 +572,151 @@ function ShadowCatcher({ y }: { y: number }) {
       <shadowMaterial transparent opacity={0.4} color="#000814" />
     </mesh>
   );
+}
+
+/** A round seamless cyclorama — floor, cove and wall turned on a lathe — so
+ *  the set looks the same from every orbit angle. Matte paint; it takes the key
+ *  light's falloff and the asset's real shadow, which is what makes it read as
+ *  a photographed set rather than a flat fill. */
+function Cyclorama({ y, color }: { y: number; color: string }) {
+  const geo = useMemo(() => {
+    const R = 10, r = 3.4, H = 16;
+    const pts: THREE.Vector2[] = [new THREE.Vector2(0.001, 0)];
+    for (let i = 1; i <= 8; i++) pts.push(new THREE.Vector2(((R - r) * i) / 8, 0));
+    for (let i = 1; i <= 16; i++) {
+      const t = (i / 16) * (Math.PI / 2);
+      pts.push(new THREE.Vector2(R - r + r * Math.sin(t), r - r * Math.cos(t)));
+    }
+    pts.push(new THREE.Vector2(R, H));
+    return new THREE.LatheGeometry(pts, 128);
+  }, []);
+  useEffect(() => () => geo.dispose(), [geo]);
+  return (
+    <mesh geometry={geo} position={[0, y, 0]} receiveShadow>
+      {/* envMapIntensity kept low: the image-based light is for the asset's
+          reflections; on the paint it would flatten the falloff to an even wash. */}
+      <meshStandardMaterial color={color} roughness={0.96} metalness={0} envMapIntensity={0.1} side={THREE.DoubleSide} />
+    </mesh>
+  );
+}
+
+/** Product-photography lighting for the set: one soft key that casts the only
+ *  shadow, a background light that pools on the wall behind the subject, a
+ *  cool fill and a rim. The rig turns with the camera (a turntable read: the
+ *  light stays where the photographer put it while you inspect the object). */
+function SetLights({ on, always }: { on: boolean; always?: boolean }) {
+  const all = useRef<THREE.Group>(null);
+  const rig = useRef<THREE.Group>(null);
+  const keyTarget = useMemo(() => new THREE.Object3D(), []);
+  const bgTarget = useMemo(() => new THREE.Object3D(), []);
+  const camera = useThree((st) => st.camera);
+  // Each light's authored intensity, captured once; every frame they are
+  // scaled by `level`, which eases toward 1 when the model is ready and back
+  // to a dim working light while the next one streams in.
+  const base = useRef(new Map<THREE.Light, number>());
+  const level = useRef(always ? 1 : 0.1);
+  useFrame((_, dt) => {
+    if (rig.current) rig.current.rotation.y = Math.atan2(camera.position.x, camera.position.z);
+    const g = all.current;
+    if (!g) return;
+    if (!base.current.size) {
+      g.traverse((o) => {
+        const l = o as THREE.Light;
+        if (l.isLight) base.current.set(l, l.intensity);
+      });
+    }
+    const target = on || always ? 1 : 0.1;
+    level.current += (target - level.current) * (1 - Math.exp(-Math.min(dt, 0.05) * 7));
+    base.current.forEach((b, l) => {
+      l.intensity = b * level.current;
+    });
+  });
+  return (
+    <>
+      <group ref={all}>
+      <ambientLight intensity={0.04} />
+      <hemisphereLight args={["#fff4e6", "#0e0b09", 0.07]} />
+      <group ref={rig}>
+        {/* Key: a soft spot from high front-left. Its cone makes a pool of light
+            around the subject that falls off to dark — the set is lit, not filled. */}
+        <primitive object={keyTarget} position={[0, -0.6, 0]} />
+        <spotLight
+          position={[-2.2, 8, 2.6]}
+          target={keyTarget}
+          angle={0.3}
+          penumbra={1}
+          intensity={6}
+          decay={0}
+          color="#ffe8cc"
+          castShadow
+          shadow-mapSize={[2048, 2048]}
+          shadow-bias={-0.0004}
+          shadow-camera-near={1}
+          shadow-camera-far={20}
+        />
+        {/* Background light: a soft pool on the wall behind the subject. */}
+        <primitive object={bgTarget} position={[0.4, 1.4, -10]} />
+        <spotLight position={[0, 1.2, 2.5]} target={bgTarget} angle={0.3} penumbra={1} intensity={3.4} decay={0} color="#ffdcb8" />
+        {/* Fill and rims are spots aimed at the subject, not directionals —
+            a directional lights the whole floor evenly and kills the falloff. */}
+        <spotLight position={[5, 2, 3]} target={keyTarget} angle={0.42} penumbra={1} intensity={0.9} decay={0} color="#cdd9ff" />
+        <spotLight position={[2.5, 4, -6]} target={keyTarget} angle={0.3} penumbra={1} intensity={3} decay={0} color="#fff1e0" />
+        <spotLight position={[-3.5, 2.5, -6]} target={keyTarget} angle={0.3} penumbra={1} intensity={1.8} decay={0} color="#d9e4ff" />
+      </group>
+      </group>
+      <Environment resolution={256} environmentIntensity={0.8}>
+        <Lightformer intensity={2.2} position={[0, 2.5, 3]} scale={[6, 5, 1]} color="#fff3e4" />
+        <Lightformer intensity={0.8} position={[-4, 1, 2]} scale={[4, 4, 1]} color="#dfe7ff" />
+        <Lightformer intensity={0.5} position={[0, -2, -3]} scale={[6, 4, 1]} color="#8a7b70" />
+        <Lightformer intensity={2.4} position={[-5, 0.5, -1.5]} scale={[1.1, 7, 1]} color="#ffffff" />
+        <Lightformer intensity={2.0} position={[5, 0.5, -1.5]} scale={[1.1, 7, 1]} color="#fff6ea" />
+      </Environment>
+    </>
+  );
+}
+
+/** Puts the camera on the opening view for each asset and makes it the view
+ *  that reset (double-click / 0) returns to. */
+function OpeningView({ controls, azimuth, path }: { controls: React.RefObject<ControlsLike | null>; azimuth: number; path: string }) {
+  useEffect(() => {
+    const c = controls.current as (ControlsLike & { saveState?: () => void }) | null;
+    if (!c) return;
+    const r = c.object.position.distanceTo(c.target) || 4.6;
+    const a = (azimuth * Math.PI) / 180;
+    c.target.set(0, 0, 0);
+    c.object.position.set(Math.sin(a) * r, 0, Math.cos(a) * r);
+    c.update();
+    c.saveState?.();
+  }, [controls, azimuth, path]);
+  return null;
+}
+
+/** Reports the orbit angle as a whole number of degrees, only on change — the
+ *  caller writes it straight to the DOM, so there is no per-frame re-render. */
+function AzimuthReporter({ onAzimuth }: { onAzimuth: (deg: number) => void }) {
+  const camera = useThree((st) => st.camera);
+  const last = useRef(-1);
+  useFrame(() => {
+    const deg = Math.round(((Math.atan2(camera.position.x, camera.position.z) * 180) / Math.PI + 360) % 360);
+    if (deg !== last.current) {
+      last.current = deg;
+      onAzimuth(deg);
+    }
+  });
+  return null;
+}
+
+/** Slide the framing sideways without moving the camera (sub-view offset). */
+function ViewShift({ shift }: { shift: number }) {
+  const camera = useThree((st) => st.camera);
+  const size = useThree((st) => st.size);
+  useEffect(() => {
+    const cam = camera as THREE.PerspectiveCamera;
+    if (!shift || !cam.setViewOffset) return;
+    cam.setViewOffset(size.width, size.height, -shift * size.width, 0, size.width, size.height);
+    return () => cam.clearViewOffset();
+  }, [camera, size.width, size.height, shift]);
+  return null;
 }
 
 // ─── Multi-skeleton sync ─────────────────────────────────────────────────────
@@ -1461,16 +1633,27 @@ function StudioLights() {
       <directionalLight position={[5, 3, 5]} intensity={0.7} color="#f8f8f8" />
       <directionalLight position={[0, 2, 9]} intensity={0.8} color="#f4f4f4" />
       <directionalLight position={[0, -3, -8]} intensity={0.8} color="#a9c8ee" />
-      <directionalLight position={[3, 4, -6]} intensity={0.7} color="#bcd8f5" />
+      {/* Rim pair — one from behind each shoulder. Dark metal has almost no
+          diffuse response, so against the dark stage it read as a silhouette;
+          a rim on BOTH back edges draws the outline in light and separates the
+          asset from the wall without lifting the wall itself. */}
+      <directionalLight position={[3, 4, -6]} intensity={1.5} color="#cfe0f6" />
+      <directionalLight position={[-4, 3, -6]} intensity={1.2} color="#dbe8f8" />
       <directionalLight position={[0, 10, 2]} intensity={0.35} color="#f0f0f0" />
       <pointLight position={[2, 1, 5]} intensity={0.6} color="#ffffff" distance={30} />
       {/* Local procedural environment (no external HDR fetch → keeps the canvas
-          untainted for toDataURL, and removes a CDN dependency on deploy). */}
-      <Environment resolution={256} environmentIntensity={0.55}>
+          untainted for toDataURL, and removes a CDN dependency on deploy).
+          Metals are lit by what they REFLECT, so the environment — not the
+          direct lights — decides whether a dark blade reads: intensity is up
+          from 0.55, and two tall side strips (the product-photography staple)
+          give long edge highlights down blades, hafts and rims. */}
+      <Environment resolution={256} environmentIntensity={0.9}>
         <Lightformer intensity={2.4} position={[0, 2.5, 3]} scale={[6, 5, 1]} color="#ffffff" />
         <Lightformer intensity={1.1} position={[-4, 1, 2]} scale={[4, 4, 1]} color="#cfe6ff" />
         <Lightformer intensity={0.9} position={[4, -1, 1]} scale={[4, 4, 1]} color="#ffffff" />
         <Lightformer intensity={0.7} position={[0, -2, -3]} scale={[6, 4, 1]} color="#9fb8d8" />
+        <Lightformer intensity={2.6} position={[-5, 0.5, -1.5]} scale={[1.1, 7, 1]} color="#ffffff" />
+        <Lightformer intensity={2.2} position={[5, 0.5, -1.5]} scale={[1.1, 7, 1]} color="#eaf3ff" />
       </Environment>
     </>
   );
@@ -1557,7 +1740,16 @@ export default function SpecimenScene({
   onClips,
   onPoseable,
   onChannelsDetected,
+  set,
+  turntable = true,
+  onAzimuth,
 }: {
+  /** Opt-in photographic set (see SpecimenSet). Absent → original studio. */
+  set?: SpecimenSet;
+  /** Idle auto-rotate. Off holds the authored front view (set photography). */
+  turntable?: boolean;
+  /** Camera azimuth in whole degrees (0–359), reported only when it changes. */
+  onAzimuth?: (deg: number) => void;
   specimen: Specimen;
   channel?: SpecimenChannel;
   clipIndex?: number;
@@ -1582,6 +1774,27 @@ export default function SpecimenScene({
   // holds still the moment you move in to inspect it.
   const [hovered, setHovered] = useState(false);
   const controlsRef = useRef<ControlsLike | null>(null);
+  // Lit set only: the floor and lights exist before the model does, so a load
+  // shows an empty, dimly lit set — never a placeholder picture — and the
+  // light comes up when the asset is ready.
+  const [groundY, setGroundY] = useState(-1);
+  const [readyPath, setReadyPath] = useState<string | null>(null);
+  const path = specimen.modelPath;
+  const handleReady = useCallback(() => {
+    setReadyPath(path);
+    onReady?.();
+  }, [path, onReady]);
+  // Opening view: explicit, or a three-quarter view onto the broad face.
+  const [autoAz, setAutoAz] = useState<number | null>(null);
+  const handleStats = useCallback(
+    (s: SpecimenStats) => {
+      const p = s.proportions;
+      if (p) setAutoAz(p[0] < p[2] * 0.6 ? 60 : 330);
+      onStats?.(s);
+    },
+    [onStats],
+  );
+  const openAz = set ? set.azimuth ?? autoAz ?? 0 : null;
 
   return (
     <Canvas
@@ -1603,15 +1816,19 @@ export default function SpecimenScene({
         requestAnimationFrame(() => window.dispatchEvent(new Event("resize")));
       }}
     >
-      <StudioLights />
+      {set ? <SetLights on={readyPath === path} always={set.lit} /> : <StudioLights />}
+      {set ? <Cyclorama y={groundY} color={set.color} /> : null}
+      {set?.viewShift ? <ViewShift shift={set.viewShift} /> : null}
       <Suspense fallback={null}>
         <SpecimenModel
+          set={set}
           specimen={specimen}
           channel={channel}
           clipIndex={clipIndex}
           poseMode={poseMode}
-          onReady={onReady}
-          onStats={onStats}
+          onReady={set ? handleReady : onReady}
+          onGround={set ? setGroundY : undefined}
+          onStats={set ? handleStats : onStats}
           onClips={onClips}
           onPoseable={onPoseable}
           onChannelsDetected={onChannelsDetected}
@@ -1620,6 +1837,8 @@ export default function SpecimenScene({
         />
       </Suspense>
       <KeyboardOrbit controls={controlsRef} />
+      {onAzimuth ? <AzimuthReporter onAzimuth={onAzimuth} /> : null}
+      {openAz !== null ? <OpeningView controls={controlsRef} azimuth={openAz} path={path} /> : null}
       <OrbitControls
         ref={controlsRef as never}
         // Right-drag pans (screen-space), left-drag rotates, wheel zooms — the
@@ -1638,12 +1857,12 @@ export default function SpecimenScene({
         enabled={!dragLock}
         minDistance={1.4}
         maxDistance={7}
-        autoRotate={!hovered && !interacting && !poseMode}
+        autoRotate={turntable && !hovered && !interacting && !poseMode}
         autoRotateSpeed={0.9}
         enableDamping
         dampingFactor={0.08}
-        minPolarAngle={Math.PI * 0.18}
-        maxPolarAngle={Math.PI * 0.82}
+        minPolarAngle={Math.PI * (set ? 0.24 : 0.18)}
+        maxPolarAngle={Math.PI * (set ? 0.52 : 0.82)}
       />
     </Canvas>
   );

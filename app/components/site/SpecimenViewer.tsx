@@ -15,12 +15,14 @@
 
 import dynamic from "next/dynamic";
 import Image from "next/image";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useDisplayMode } from "./DisplayModeProvider";
 import type { Specimen } from "../../lib/content";
 import type { HandPose, SpecimenChannel, SpecimenStats, TexKey } from "./SpecimenScene";
 
 const SpecimenScene = dynamic(() => import("./SpecimenScene"), { ssr: false });
+
+const noopSubscribe = () => () => {};
 
 /** "12403" → "12,403"; mono labels stay compact and tabular. */
 function fmtCount(n: number) {
@@ -129,6 +131,14 @@ export function SpecimenViewer({
   allowZoom?: boolean;
 }) {
   const { effectiveMode } = useDisplayMode();
+  // Touch devices have no right-drag or wheel — the hint names the gestures
+  // that actually exist there (OrbitControls: one finger rotates, two fingers
+  // pinch-zoom + pan). false on the server/first pass, so no hydration mismatch.
+  const touch = useSyncExternalStore(
+    noopSubscribe,
+    () => window.matchMedia("(hover: none), (pointer: coarse)").matches,
+    () => false,
+  );
   const [mounted, setMounted] = useState(false);
   const [sceneReady, setSceneReady] = useState(false);
   const [channel, setChannel] = useState<SpecimenChannel>("material");
@@ -367,9 +377,13 @@ export function SpecimenViewer({
         >
           {poseMode
             ? "Drag the handles to pose the rig"
-            : hintStage === 1
-              ? "Scroll to zoom · right-drag to pan · double-click resets"
-              : "Drag to rotate · right-drag to pan"}
+            : touch
+              ? hintStage === 1
+                ? "Pinch to zoom · two-finger drag to pan"
+                : "Drag to rotate · pinch to zoom"
+              : hintStage === 1
+                ? "Scroll to zoom · right-drag to pan · double-click resets"
+                : "Drag to rotate · right-drag to pan"}
         </span>
       ) : null}
     </div>

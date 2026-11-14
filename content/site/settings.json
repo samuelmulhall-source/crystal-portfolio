@@ -24,10 +24,11 @@
     "defaultOgImage": "/images/og/site-og.jpg"
   },
   "contact": {
-    "primaryLabel": "Message on X",
-    "primaryHref": "https://x.com/multiscatter",
-    "secondaryLabel": "View work",
-    "secondaryHref": "/work",
+    "heading": "Get in touch",
+    "primaryLabel": "multiscatterdesign@gmail.com",
+    "primaryHref": "mailto:multiscatterdesign@gmail.com",
+    "secondaryLabel": "Message on X",
+    "secondaryHref": "https://x.com/multiscatter",
     "availability": "Available — open to freelance briefs, commissions, and full-time roles."
   },
   "social": {

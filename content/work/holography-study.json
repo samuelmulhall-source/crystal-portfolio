@@ -1,7 +1,7 @@
 {
   "slug": "holography-study",
   "title": "Holography Study",
-  "sortOrder": 3,
+  "sortOrder": 4,
   "year": "2026",
   "featured": true,
   "format": "Still",
@@ -26,17 +26,17 @@
   ],
   "thumbnail": {
     "kind": "image",
-    "src": "/Image renders/holography_scaled.webp",
+    "src": "/images/thumbs/holography-study.webp",
     "alt": "Iridescent holography material study",
-    "width": 2048,
-    "height": 1152
+    "width": 960,
+    "height": 540
   },
   "heroMedia": {
     "kind": "image",
     "src": "/Image renders/holography_scaled.webp",
     "alt": "Iridescent holography material study",
-    "width": 2048,
-    "height": 1152
+    "width": 2880,
+    "height": 1620
   },
   "gallery": [
     {
@@ -55,5 +55,13 @@
   "interactive": {
     "available": false,
     "note": "This study is intentionally presented as a still-image reference."
-  }
+  },
+  "facts": {
+    "width": 2880,
+    "height": 1620
+  },
+  "edgeColors": [
+    "#010204",
+    "#010102"
+  ]
 }

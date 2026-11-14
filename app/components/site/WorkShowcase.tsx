@@ -1,11 +1,17 @@
 "use client";
 
 /**
- * WorkShowcase — category-tabbed asset browser.
+ * WorkShowcase — the work, all at once, then one piece at a time.
  *
- * Four categories (Models · Rigged Characters · Video · Images). Selecting a
- * tab shows a typographic info panel on the left and the asset presentation on
- * the right, stepping through that category's slides. Collection entries
+ * Opens on **All**: a wall of every piece in its own colours and proportions,
+ * in curated `sortOrder` (strongest first), so the range reads in one glance.
+ * Picking a tile opens that piece IN PLACE in the stage below the same tabs —
+ * it never navigates to /work/[slug] (standing owner rule).
+ *
+ * The four categories (Models · Rigged Characters · Video · Images) stay as
+ * the organising structure for a growing body of work. Selecting one shows a
+ * typographic info panel on the left and the asset presentation on the right,
+ * stepping through that category's slides. Collection entries
  * (asset packs) expand into one slide per asset, so a pack is browsed inside
  * the same stepping model. Models present the interactive WebGL inspector
  * (poster fallback in reduced/low tiers); video and images present their
@@ -22,6 +28,7 @@ import { DecodeText } from "./DecodeText";
 import { SpecimenViewer } from "./SpecimenViewer";
 import { GlassVideo } from "./GlassVideo";
 import { WORK_FOCUS_EVENT } from "./HeroSpecimenCue";
+import { lenisInstance } from "../SmoothScroll";
 
 // Inlined (not imported from content.ts) so this client component never pulls
 // the node:fs-backed content loader into the browser bundle.
@@ -31,6 +38,10 @@ const TABS: { id: WorkCategory; label: string }[] = [
   { id: "video", label: "Video" },
   { id: "images", label: "Images" },
 ];
+
+/** The showcase view: the All-work wall, or one category's stage. */
+type View = WorkCategory | "all";
+const VIEWS: { id: View; label: string }[] = [{ id: "all", label: "All" }, ...TABS];
 
 function pad(n: number) {
   return String(n).padStart(2, "0");
@@ -54,6 +65,116 @@ function slideThumb(slide: Slide): string {
 
 function slideTitle(slide: Slide): string {
   return slide.asset ? slide.asset.title : slide.entry.title;
+}
+
+/** A still-image slide's own width/height ratio (null for models and video).
+ *  The stage takes this shape, so a wide render isn't letterboxed inside a
+ *  fixed 4:3 box. */
+function stillRatio(slide: Slide): number | null {
+  const { entry } = slide;
+  if (slide.asset || entry.specimen || entry.heroMedia.kind !== "image") return null;
+  const { width, height } = entry.heroMedia;
+  return width && height ? width / height : null;
+}
+
+/** Tile proportions come from the card image; clamped so one extreme ratio
+ *  can't starve or swallow a row of the justified wall. */
+function tileRatio(entry: WorkEntry): number {
+  if (entry.assets?.length) return 4 / 3; // pack mosaic
+  const { width, height } = entry.thumbnail;
+  const ar = width && height ? width / height : 4 / 3;
+  return Math.min(2.2, Math.max(0.7, ar));
+}
+
+/** Split `ratios` (in order) into `k` contiguous rows whose summed ratios are
+ *  as even as possible — the classic linear-partition DP, minimising the
+ *  widest row. Since a justified row's height is width ÷ Σratio, even sums
+ *  mean even row heights. Returns rows of indices. n is a handful of pieces,
+ *  so the O(n²k) table is nothing. */
+function partitionRows(ratios: number[], k: number): number[][] {
+  const n = ratios.length;
+  const all = ratios.map((_, i) => i);
+  if (n === 0) return [];
+  if (k <= 1) return [all];
+  if (k >= n) return all.map((i) => [i]);
+  const prefix = [0];
+  for (const r of ratios) prefix.push(prefix[prefix.length - 1] + r);
+  const cost = Array.from({ length: n + 1 }, () => new Array<number>(k + 1).fill(Infinity));
+  const cut = Array.from({ length: n + 1 }, () => new Array<number>(k + 1).fill(0));
+  for (let i = 1; i <= n; i++) cost[i][1] = prefix[i];
+  for (let j = 2; j <= k; j++) {
+    for (let i = j; i <= n; i++) {
+      for (let x = j - 1; x < i; x++) {
+        const c = Math.max(cost[x][j - 1], prefix[i] - prefix[x]);
+        if (c < cost[i][j]) {
+          cost[i][j] = c;
+          cut[i][j] = x;
+        }
+      }
+    }
+  }
+  const rows: number[][] = [];
+  let end = n;
+  for (let j = k; j >= 1; j--) {
+    const start = j === 1 ? 0 : cut[end][j];
+    rows.unshift(all.slice(start, end));
+    end = start;
+  }
+  return rows;
+}
+
+/** One piece on the All-work wall. A real <button>: it opens the piece in the
+ *  stage in place (no route change). Packs show a 2×2 mosaic of their assets
+ *  so a collection reads as a collection. */
+function WallTile({
+  entry,
+  kind,
+  onOpen,
+}: {
+  entry: WorkEntry;
+  kind: string;
+  onOpen: () => void;
+}) {
+  const pack = entry.assets?.length ? entry.assets.slice(0, 4) : null;
+  return (
+    <button
+      type="button"
+      className="showcase__tile"
+      style={{ "--ar": tileRatio(entry) } as React.CSSProperties}
+      onClick={onOpen}
+      aria-label={`${entry.title} — ${kind}. Open in the viewer.`}
+    >
+      {pack ? (
+        <span className="showcase__tile-mosaic" aria-hidden="true">
+          {pack.map((asset) => (
+            <Image
+              key={asset.id}
+              src={asset.specimen.poster}
+              alt=""
+              width={611}
+              height={457}
+              sizes="(max-width: 560px) 50vw, 20vw"
+            />
+          ))}
+        </span>
+      ) : (
+        <Image
+          className="showcase__tile-img"
+          src={entry.thumbnail.src}
+          alt=""
+          fill
+          sizes="(max-width: 560px) 100vw, (max-width: 960px) 50vw, 34vw"
+        />
+      )}
+      <span className="showcase__tile-caption" aria-hidden="true">
+        <span className="showcase__tile-title">{entry.title}</span>
+        <span className="showcase__tile-kind">
+          {kind}
+          {entry.assets?.length ? ` · ${entry.assets.length} assets` : ""}
+        </span>
+      </span>
+    </button>
+  );
 }
 
 /** Join phrases with a breakable " · " while keeping the words WITHIN each
@@ -117,9 +238,10 @@ function Presentation({
 }
 
 export function WorkShowcase({ groups }: { groups: Record<WorkCategory, WorkEntry[]> }) {
-  const [category, setCategory] = useState<WorkCategory>("models");
+  // Opens on the All-work wall — the whole range before any one piece.
+  const [view, setView] = useState<View>("all");
   const [index, setIndex] = useState(0);
-  const tabRefs = useRef<Partial<Record<WorkCategory, HTMLButtonElement | null>>>({});
+  const tabRefs = useRef<Partial<Record<View, HTMLButtonElement | null>>>({});
 
   // Defer the heavy WebGL viewer until the showcase is near the viewport.
   const sectionRef = useRef<HTMLElement>(null);
@@ -154,7 +276,7 @@ export function WorkShowcase({ groups }: { groups: Record<WorkCategory, WorkEntr
       for (const tab of TABS) {
         const i = toSlides(groups[tab.id]).findIndex((s) => s.entry.slug === slug);
         if (i >= 0) {
-          setCategory(tab.id);
+          setView(tab.id);
           setIndex(i);
           setInView(true); // ensure the presentation mounts, not just the poster
           return;
@@ -204,16 +326,63 @@ export function WorkShowcase({ groups }: { groups: Record<WorkCategory, WorkEntr
     else if (e.key === "Home") { e.preventDefault(); setInfoFr(0.34); }
   }, []);
 
-  const slides = toSlides(groups[category]);
+  const category: WorkCategory | null = view === "all" ? null : view;
+  const slides = category ? toSlides(groups[category]) : [];
   const count = slides.length;
   const idx = count > 0 ? Math.min(index, count - 1) : 0;
   const active = count > 0 ? slides[idx] : null;
-  const label = TABS.find((t) => t.id === category)?.label;
+  const label = VIEWS.find((t) => t.id === view)?.label;
+  const activeRatio = active ? stillRatio(active) : null;
 
-  const selectCategory = useCallback((next: WorkCategory) => {
-    setCategory(next);
+  // Every piece once, in curated order (sortOrder — strongest first), each
+  // tagged with the category it lives in.
+  const wall = TABS.flatMap((tab) =>
+    groups[tab.id].map((entry) => ({ entry, category: tab.id, kind: tab.label })),
+  ).sort((a, b) => a.entry.sortOrder - b.entry.sortOrder);
+
+  // Justified rows: measure the wall, pick a row count from a target row height,
+  // then split the pieces (in order) so the rows are as even as possible — every
+  // row fills the width, no stretched stragglers and no ragged last line. Until
+  // measured (server HTML / first paint) one wrapping row approximates it.
+  const wallRef = useRef<HTMLDivElement>(null);
+  const [wallWidth, setWallWidth] = useState(0);
+  useEffect(() => {
+    const el = wallRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([e]) => setWallWidth(Math.round(e.contentRect.width)));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [view]);
+  const ratios = wall.map((w) => tileRatio(w.entry));
+  const targetRowH = wallWidth < 600 ? 190 : wallWidth < 1000 ? 240 : 310;
+  const rowCount = wallWidth
+    ? Math.round((ratios.reduce((a, b) => a + b, 0) * targetRowH) / wallWidth)
+    : 1;
+  const wallRows = partitionRows(ratios, rowCount);
+
+  const selectView = useCallback((next: View) => {
+    setView(next);
     setIndex(0);
   }, []);
+
+  /** Open one piece from the wall, in place: switch to its category at its
+   *  first slide, and bring the showcase head back into view if the wall had
+   *  been scrolled past it (the stage is shorter than the wall). */
+  const openEntry = (entry: WorkEntry, cat: WorkCategory) => {
+    const i = toSlides(groups[cat]).findIndex((s) => s.entry.slug === entry.slug);
+    setView(cat);
+    setIndex(Math.max(0, i));
+    setInView(true);
+    const el = sectionRef.current;
+    if (!el) return;
+    const top = el.getBoundingClientRect().top;
+    if (top < 0) {
+      // Absolute target from the REAL scroll position — Lenis's own animated
+      // position can lag a native jump (scrollbar drag, keyboard, find-in-page).
+      if (lenisInstance) lenisInstance.scrollTo(window.scrollY + top);
+      else el.scrollIntoView({ behavior: "auto", block: "start" });
+    }
+  };
   const step = (dir: number) => {
     if (count < 2) return;
     setIndex((i) => (Math.min(i, count - 1) + dir + count) % count);
@@ -221,17 +390,17 @@ export function WorkShowcase({ groups }: { groups: Record<WorkCategory, WorkEntr
 
   // APG tabs pattern: arrow keys move focus AND selection (automatic
   // activation); Home/End jump to the first/last tab.
-  const onTabKeyDown = (e: React.KeyboardEvent, current: WorkCategory) => {
-    const order = TABS.map((t) => t.id);
+  const onTabKeyDown = (e: React.KeyboardEvent, current: View) => {
+    const order = VIEWS.map((t) => t.id);
     const pos = order.indexOf(current);
-    let next: WorkCategory | null = null;
+    let next: View | null = null;
     if (e.key === "ArrowRight") next = order[(pos + 1) % order.length];
     else if (e.key === "ArrowLeft") next = order[(pos - 1 + order.length) % order.length];
     else if (e.key === "Home") next = order[0];
     else if (e.key === "End") next = order[order.length - 1];
     if (!next) return;
     e.preventDefault();
-    selectCategory(next);
+    selectView(next);
     tabRefs.current[next]?.focus();
   };
 
@@ -262,9 +431,10 @@ export function WorkShowcase({ groups }: { groups: Record<WorkCategory, WorkEntr
       <div className="showcase__head page-shell">
         <h2 className="showcase__heading">Work</h2>
         <div className="showcase__tabs" role="tablist" aria-label="Work categories">
-          {TABS.map((tab) => {
-            const n = toSlides(groups[tab.id]).length;
-            const isActive = tab.id === category;
+          {VIEWS.map((tab) => {
+            // "All" carries no count — the wall itself is the count.
+            const n = tab.id === "all" ? null : toSlides(groups[tab.id]).length;
+            const isActive = tab.id === view;
             return (
               <button
                 key={tab.id}
@@ -278,23 +448,48 @@ export function WorkShowcase({ groups }: { groups: Record<WorkCategory, WorkEntr
                 aria-controls="showcase-panel"
                 tabIndex={isActive ? 0 : -1}
                 className={`showcase__tab${isActive ? " is-active" : ""}`}
-                onClick={() => selectCategory(tab.id)}
+                onClick={() => selectView(tab.id)}
                 onKeyDown={(e) => onTabKeyDown(e, tab.id)}
               >
                 <span className="showcase__tab-label">{tab.label}</span>
-                <span className="showcase__tab-count">{pad(n)}</span>
+                {n !== null ? <span className="showcase__tab-count">{pad(n)}</span> : null}
               </button>
             );
           })}
         </div>
       </div>
 
+      {view === "all" ? (
+        <div
+          ref={wallRef}
+          className="showcase__wall page-shell"
+          id="showcase-panel"
+          role="tabpanel"
+          aria-labelledby="showcase-tab-all"
+        >
+          {wallRows.map((row, r) => (
+            <div className={`showcase__wall-row${wallWidth ? "" : " is-fallback"}`} key={r}>
+              {row.map((i) => {
+                const { entry, category: cat, kind } = wall[i];
+                return (
+                  <WallTile
+                    key={entry.slug}
+                    entry={entry}
+                    kind={kind}
+                    onOpen={() => openEntry(entry, cat)}
+                  />
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      ) : (
       <div
         ref={stageRef}
         className="showcase__stage page-shell"
         id="showcase-panel"
         role="tabpanel"
-        aria-labelledby={`showcase-tab-${category}`}
+        aria-labelledby={`showcase-tab-${view}`}
         style={
           active
             ? ({ "--col-info": `${infoFr * 2}fr`, "--col-present": `${(1 - infoFr) * 2}fr` } as React.CSSProperties)
@@ -358,7 +553,16 @@ export function WorkShowcase({ groups }: { groups: Record<WorkCategory, WorkEntr
             {/* ── Right: presentation reticle + edge stepping ── */}
             <div className="showcase__present">
               <div
-                className={`showcase__media${category === "video" ? " showcase__media--video" : ""}`}
+                className={`showcase__media${
+                  category === "video"
+                    ? " showcase__media--video"
+                    : activeRatio
+                      ? " showcase__media--still"
+                      : ""
+                }`}
+                style={
+                  activeRatio ? ({ "--media-ar": activeRatio } as React.CSSProperties) : undefined
+                }
                 key={active.entry.slug}
               >
                 <Presentation slide={active} enabled={inView} />
@@ -428,6 +632,7 @@ export function WorkShowcase({ groups }: { groups: Record<WorkCategory, WorkEntr
           </div>
         )}
       </div>
+      )}
     </section>
   );
 }

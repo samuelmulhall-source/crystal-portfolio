@@ -1,7 +1,7 @@
 {
   "slug": "medieval-asset-pack",
   "title": "Medieval Asset Pack",
-  "sortOrder": 6,
+  "sortOrder": 5,
   "year": "2026",
   "featured": false,
   "format": "Game Asset Pack",
@@ -89,6 +89,23 @@
       "roughnessMap": "/models/Weapons/Sword/sword_roughness.webp",
       "metalnessMap": "/models/Weapons/Sword/sword_metallic.webp",
       "transmissionMap": "/models/Weapons/Sword/sword_transmission.webp"
+    },
+    "stage": {
+      "color": "#323c57",
+      "field": [
+        "#101523",
+        "#05070f"
+      ]
+    },
+    "facts": {
+      "triangles": 36469,
+      "maps": 5
+    },
+    "setStill": {
+      "src": "/images/set/sword.webp",
+      "width": 4050,
+      "height": 1350,
+      "thumb": "/images/set/sword-tile.webp"
     }
   },
   "assets": [
@@ -106,6 +123,23 @@
           "roughnessMap": "/models/Weapons/Sword/sword_roughness.webp",
           "metalnessMap": "/models/Weapons/Sword/sword_metallic.webp",
           "transmissionMap": "/models/Weapons/Sword/sword_transmission.webp"
+        },
+        "stage": {
+          "color": "#323c57",
+          "field": [
+            "#101523",
+            "#05070f"
+          ]
+        },
+        "facts": {
+          "triangles": 36469,
+          "maps": 5
+        },
+        "setStill": {
+          "src": "/images/set/sword.webp",
+          "width": 4050,
+          "height": 1350,
+          "thumb": "/images/set/sword-tile.webp"
         }
       }
     },
@@ -121,6 +155,23 @@
           "normalMap": "/models/Weapons/Ornate Dagger/ornate_dagger_normal.webp",
           "roughnessMap": "/models/Weapons/Ornate Dagger/ornate_dagger_roughness.webp",
           "metalnessMap": "/models/Weapons/Ornate Dagger/ornate_dagger_metallic.webp"
+        },
+        "stage": {
+          "color": "#473a34",
+          "field": [
+            "#1b1411",
+            "#0a0605"
+          ]
+        },
+        "facts": {
+          "triangles": 603044,
+          "maps": 4
+        },
+        "setStill": {
+          "src": "/images/set/ornate-dagger.webp",
+          "width": 4050,
+          "height": 1350,
+          "thumb": "/images/set/ornate-dagger-tile.webp"
         }
       }
     },
@@ -136,6 +187,24 @@
           "normalMap": "/models/Weapons/Shield/Shield_normal.webp",
           "roughnessMap": "/models/Weapons/Shield/shield_roughness.webp",
           "metalnessMap": "/models/Weapons/Shield/Shield_metallic.webp"
+        },
+        "stage": {
+          "color": "#463a38",
+          "field": [
+            "#1a1413",
+            "#0a0606"
+          ],
+          "azimuth": 60
+        },
+        "facts": {
+          "triangles": 2116,
+          "maps": 4
+        },
+        "setStill": {
+          "src": "/images/set/shield.webp",
+          "width": 4050,
+          "height": 1350,
+          "thumb": "/images/set/shield-tile.webp"
         }
       }
     },
@@ -150,6 +219,23 @@
           "map": "/models/Weapons/bow/bow_color.webp",
           "normalMap": "/models/Weapons/bow/bow_normal.webp",
           "roughnessMap": "/models/Weapons/bow/bow_roughness.webp"
+        },
+        "stage": {
+          "color": "#443c30",
+          "field": [
+            "#1a150f",
+            "#090704"
+          ]
+        },
+        "facts": {
+          "triangles": 20811,
+          "maps": 3
+        },
+        "setStill": {
+          "src": "/images/set/bow.webp",
+          "width": 4050,
+          "height": 1350,
+          "thumb": "/images/set/bow-tile.webp"
         }
       }
     },
@@ -165,6 +251,23 @@
           "normalMap": "/models/Torch/torch_normal.webp",
           "roughnessMap": "/models/Torch/torch_roughness.webp",
           "metalnessMap": "/models/Torch/torch_metallic.webp"
+        },
+        "stage": {
+          "color": "#3d3d3d",
+          "field": [
+            "#161616",
+            "#070707"
+          ]
+        },
+        "facts": {
+          "triangles": 2828,
+          "maps": 4
+        },
+        "setStill": {
+          "src": "/images/set/torch.webp",
+          "width": 4050,
+          "height": 1350,
+          "thumb": "/images/set/torch-tile.webp"
         }
       }
     }

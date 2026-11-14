@@ -1,7 +1,7 @@
 {
   "slug": "camera-icon",
   "title": "Camera Icon",
-  "sortOrder": 4,
+  "sortOrder": 7,
   "year": "2026",
   "featured": false,
   "format": "Still",
@@ -24,17 +24,17 @@
   ],
   "thumbnail": {
     "kind": "image",
-    "src": "/Image renders/cam_icon_fullscale_medium-dark-lightrim.webp",
+    "src": "/images/thumbs/camera-icon.webp",
     "alt": "Camera icon render with rim lighting",
-    "width": 2048,
-    "height": 1152
+    "width": 960,
+    "height": 960
   },
   "heroMedia": {
     "kind": "image",
     "src": "/Image renders/cam_icon_fullscale_medium-dark-lightrim.webp",
     "alt": "Camera icon render with rim lighting",
-    "width": 2048,
-    "height": 1152
+    "width": 1920,
+    "height": 1920
   },
   "gallery": [
     {
@@ -52,5 +52,13 @@
   },
   "interactive": {
     "available": false
-  }
+  },
+  "facts": {
+    "width": 1920,
+    "height": 1920
+  },
+  "edgeColors": [
+    "#191919",
+    "#0a0a0a"
+  ]
 }

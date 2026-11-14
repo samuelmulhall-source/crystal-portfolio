@@ -10,8 +10,10 @@
  * manual fade is needed) while the text and lantern dissolve out. Past the pin,
  * the page scrolls normally into the work section.
  *
- * Smoke is gated to quality tier ≥ 2; at Lite the hero renders normally with
- * mouse parallax and no smoke.
+ * The scrubbed smoke (canvases + pin) is gated to quality tier ≥ 2. At Lite —
+ * which is every touch device — and under reduced motion, the hero is not
+ * pinned and shows the first smoke frame of each layer as a static CSS
+ * background instead: same composition, no canvas or scroll-jack.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
@@ -52,6 +54,11 @@ function useReducedMotion() {
 // touch later yet still lands exactly as the pin ends — keep the two in sync.
 const INTRO_TAIL = 0.2;
 
+// First frame of each smoke layer (the small mobile encode, ~30–45 KB each),
+// used as plain CSS backgrounds wherever the canvases are not running.
+const STILL_BACK = "/hero/smoke_back_m/01.webp";
+const STILL_FRONT = "/hero/smoke_front_m/01.webp";
+
 /** Nearest already-loaded frame to idx — avoids blank flashes while frames
  *  are still streaming in. */
 function nearestLoaded(
@@ -89,6 +96,10 @@ export function HeroIntro({ children }: { children: React.ReactNode }) {
   const backFrames = useRef<(HTMLImageElement | null)[]>(new Array(TOTAL).fill(null));
   const frontFrames = useRef<(HTMLImageElement | null)[]>(new Array(TOTAL).fill(null));
   const [ready, setReady] = useState(false);
+  // True once the canvases have painted their first frame. Until then the CSS
+  // stills stay mounted, so the swap from still → live smoke has no blank frame.
+  const [drawn, setDrawn] = useState(false);
+  const live = pinned && drawn;
 
   const loadFrame = useCallback(
     (folder: string, index: number, target: (HTMLImageElement | null)[]): Promise<HTMLImageElement> =>
@@ -165,6 +176,7 @@ export function HeroIntro({ children }: { children: React.ReactNode }) {
     let lastDrawIdx = -1; // last integer frame drawn
     let lastCp = -1;      // last playback progress applied to content
     let lastT = performance.now();
+    let announced = false; // first-paint handshake with the CSS stills
     const MIN_FPS = 42;   // locked playback floor (frames/sec)
     const CATCHUP = 6;    // extra rate for big scroll jumps
     const resize = () => {
@@ -250,6 +262,10 @@ export function HeroIntro({ children }: { children: React.ReactNode }) {
         if (bframe) drawCover(bctx, bframe, 1);
         fctx.clearRect(0, 0, fc.width, fc.height);
         if (fframe) drawCover(fctx, fframe, 1);
+        if (!announced && bframe && fframe) {
+          announced = true;
+          setDrawn(true); // retire the CSS stills — the canvases now carry the smoke
+        }
       }
     };
 
@@ -265,8 +281,21 @@ export function HeroIntro({ children }: { children: React.ReactNode }) {
       className={`hero-intro${pinned ? " is-pinned" : ""}${pinned && !ready ? " is-loading" : ""}`}
     >
       <div ref={stageRef} className="hero-intro__stage">
+        {/* Static hero (server HTML, Lite tier — i.e. phones — and reduced
+            motion): the first frame of each smoke layer as a plain CSS
+            background. No canvas, no rAF, no scroll-jack — but the lantern
+            still stands in the cloud bank, so the signature image is not a
+            desktop-only privilege. The pinned canvases replace these in the
+            same position once the full tier mounts. */}
         {pinned ? (
           <canvas ref={backRef} className="hero-intro__smoke hero-intro__smoke--back" aria-hidden="true" />
+        ) : null}
+        {!live ? (
+          <div
+            className="hero-intro__smoke hero-intro__smoke--back hero-intro__smoke--still"
+            style={{ backgroundImage: `url(${STILL_BACK})` }}
+            aria-hidden="true"
+          />
         ) : null}
         <div className="hero-intro__content">
           {!pinned ? <HeroParallax /> : null}
@@ -274,6 +303,13 @@ export function HeroIntro({ children }: { children: React.ReactNode }) {
         </div>
         {pinned ? (
           <canvas ref={frontRef} className="hero-intro__smoke hero-intro__smoke--front" aria-hidden="true" />
+        ) : null}
+        {!live ? (
+          <div
+            className="hero-intro__smoke hero-intro__smoke--front hero-intro__smoke--still"
+            style={{ backgroundImage: `url(${STILL_FRONT})` }}
+            aria-hidden="true"
+          />
         ) : null}
       </div>
     </section>

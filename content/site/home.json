@@ -10,17 +10,5 @@
       "poster": "/hero/lantern-hero.webp",
       "alt": "Soulbound Lantern — emissive glass and metal study, looping"
     }
-  },
-  "contact": {
-    "heading": "Let's build something",
-    "availability": "Available — briefs & roles",
-    "primaryCta": {
-      "label": "Get in touch",
-      "href": "https://x.com/multiscatter"
-    },
-    "secondaryCta": {
-      "label": "Review work",
-      "href": "/work"
-    }
   }
 }

@@ -1,7 +1,7 @@
 {
   "slug": "rubia-rigged-character",
   "title": "Rubia",
-  "sortOrder": 7,
+  "sortOrder": 6,
   "year": "2026",
   "featured": false,
   "format": "Rigged Character",
@@ -47,6 +47,23 @@
     "wireModelPath": "/Rigged Characters/rubia_wire.glb",
     "poster": "/images/posters/rubia.webp",
     "rigged": true,
-    "textures": {}
+    "textures": {},
+    "stage": {
+      "color": "#57312f",
+      "field": [
+        "#23100f",
+        "#0f0504"
+      ]
+    },
+    "facts": {
+      "triangles": 218402,
+      "maps": 0
+    },
+    "setStill": {
+      "src": "/images/set/rubia.webp",
+      "width": 4050,
+      "height": 1350,
+      "thumb": "/images/set/rubia-tile.webp"
+    }
   }
 }

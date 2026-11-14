@@ -15,6 +15,7 @@
 
 import { useSyncExternalStore } from "react";
 import dynamic from "next/dynamic";
+import { usePathname } from "next/navigation";
 import StaticStarfield from "./StaticStarfield";
 import { useQuality } from "./QualityProvider";
 
@@ -49,6 +50,10 @@ export default function EnhancementLayers() {
   const isClient = useIsClient();
   const reducedMotion = useReducedMotion();
   const { tier } = useQuality();
+  // Design drafts under /lab bring their own full-frame stage — no starfield,
+  // smoke or custom cursor underneath them.
+  const pathname = usePathname();
+  if (pathname?.startsWith("/lab")) return null;
 
   if (!isClient) {
     return (

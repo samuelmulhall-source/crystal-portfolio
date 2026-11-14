@@ -1,7 +1,7 @@
 {
   "slug": "evening-fishing",
   "title": "Evening Fishing",
-  "sortOrder": 2,
+  "sortOrder": 3,
   "year": "2026",
   "featured": true,
   "format": "Motion",
@@ -31,7 +31,7 @@
     "src": "/images/posters/evening-fishing.webp",
     "alt": "Evening Fishing poster with a deep blue dusk horizon",
     "width": 1280,
-    "height": 720
+    "height": 1280
   },
   "heroMedia": {
     "kind": "video",
@@ -55,5 +55,17 @@
   "interactive": {
     "available": false,
     "note": "Presented as rendered motion and stills — final pixels from the production file."
-  }
+  },
+  "facts": {
+    "width": 1080,
+    "height": 1080,
+    "fps": 24,
+    "frames": 259,
+    "duration": 10.79,
+    "audio": true
+  },
+  "edgeColors": [
+    "#14120c",
+    "#0d0c08"
+  ]
 }

@@ -31,7 +31,7 @@
     "src": "/images/posters/soulbound-lantern.webp",
     "alt": "Soulbound Lantern presentation poster with cold blue lighting",
     "width": 1280,
-    "height": 720
+    "height": 1248
   },
   "heroMedia": {
     "kind": "video",
@@ -55,5 +55,16 @@
   "interactive": {
     "available": false,
     "note": "Presented as rendered motion — final pixels from the production file."
-  }
+  },
+  "facts": {
+    "width": 1080,
+    "height": 1080,
+    "fps": 24,
+    "frames": 1368,
+    "duration": 57
+  },
+  "edgeColors": [
+    "#031220",
+    "#275780"
+  ]
 }

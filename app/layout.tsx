@@ -1,39 +1,17 @@
 import type { Metadata } from "next";
-import { Archivo, IBM_Plex_Mono } from "next/font/google";
 import localFont from "next/font/local";
 import "./globals.css";
 import { DisplayModeProvider } from "./components/site/DisplayModeProvider";
 import { DisplayModeScript } from "./components/site/DisplayModeScript";
-import { QualityProvider } from "./components/site/QualityProvider";
-import EnhancementLayers from "./components/site/EnhancementLayers";
 import ConsoleFilter from "./components/ConsoleFilter";
-import GlassRefraction from "./components/GlassRefraction";
-import SmoothScroll from "./components/SmoothScroll";
 import FpsMeter from "./components/site/FpsMeter";
 import { getSiteSettings } from "./lib/content";
 
-// Body / UI typeface — Archivo (clean modern grotesque).
-const archivo = Archivo({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-archivo",
-  display: "swap",
-});
-
-// Hero wordmark — VTKS Trunkset (self-hosted display, subset to A-Z/a-z/0-9
-// as woff2: 274 KB ttf → 117 KB; it renders exactly one word).
-const displayFont = localFont({
-  src: "./fonts/vtks-trunkset-subset.woff2",
-  variable: "--font-display",
-  display: "swap",
-});
-
-const plexMono = IBM_Plex_Mono({
-  subsets: ["latin"],
-  weight: ["400", "500"],
-  variable: "--font-plex-mono",
-  display: "swap",
-});
+// Geist (Vercel, SIL OFL 1.1), self-hosted — no font CDN at runtime or build.
+// Serif Triangle: titles and the wordmark. Sans: text. Mono: figures only.
+const serif = localFont({ src: "./fonts/geist/GeistSerif-Triangle.woff2", variable: "--lit-serif", display: "swap" });
+const sans = localFont({ src: "./fonts/geist/Geist-Variable.woff2", variable: "--lit-sans", weight: "100 900", display: "swap" });
+const mono = localFont({ src: "./fonts/geist/GeistMono-Variable.woff2", variable: "--lit-mono", weight: "100 900", display: "swap" });
 
 const siteSettings = getSiteSettings();
 
@@ -100,7 +78,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${archivo.variable} ${displayFont.variable} ${plexMono.variable}`}
+      className={`${serif.variable} ${sans.variable} ${mono.variable}`}
       suppressHydrationWarning
     >
       <body>
@@ -108,7 +86,6 @@ export default function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: structuredData }}
         />
-        <GlassRefraction />
         <DisplayModeScript
           enhancedMinDeviceMemory={siteSettings.qualityPresets.enhancedMinDeviceMemory}
           enhancedMinHardwareConcurrency={siteSettings.qualityPresets.enhancedMinHardwareConcurrency}
@@ -117,14 +94,9 @@ export default function RootLayout({
           enhancedMinDeviceMemory={siteSettings.qualityPresets.enhancedMinDeviceMemory}
           enhancedMinHardwareConcurrency={siteSettings.qualityPresets.enhancedMinHardwareConcurrency}
         >
-          <QualityProvider>
-            <ConsoleFilter />
-            <EnhancementLayers />
-            <SmoothScroll>
-              {children}
-            </SmoothScroll>
-            <FpsMeter />
-          </QualityProvider>
+          <ConsoleFilter />
+          {children}
+          <FpsMeter />
         </DisplayModeProvider>
       </body>
     </html>

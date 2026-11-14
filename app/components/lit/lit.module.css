@@ -1,0 +1,264 @@
+/* The site — "lit, not styled". Colour comes from the work; this sheet only
+   sets type, spacing and motion.
+
+   Type: four sizes — display (serif), title (serif), text (sans), figure (mono,
+   numbers only). Spacing: one scale, s1–s8. */
+
+.blank { position: fixed; inset: 0; background: #0e0d0c; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.root {
+  --cream: #f1e9dc;
+  --c2: rgba(241, 233, 220, 0.76);
+  --c3: rgba(241, 233, 220, 0.56);
+  --hair: rgba(241, 233, 220, 0.22);
+  --serif: var(--lit-serif), Georgia, serif;
+  --sans: var(--lit-sans), system-ui, sans-serif;
+  --mono: var(--lit-mono), ui-monospace, monospace;
+  --t-display: 400 clamp(44px, 4.6vw, 80px) / 0.95 var(--serif);
+  --t-title: 400 19px / 1.3 var(--serif);
+  --t-text: 400 14px / 1.55 var(--sans);
+  --t-fig: 450 11px / 1.4 var(--mono);
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px; --s7: 48px; --s8: 72px;
+  --m: clamp(20px, 3.4vw, 56px);
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  overflow: hidden;
+  background: linear-gradient(180deg, var(--f1), var(--f2));
+  color: var(--cream);
+  font: var(--t-text);
+  -webkit-font-smoothing: antialiased;
+  font-kerning: normal;
+}
+:where(.root) :where(button) { font: inherit; color: inherit; background: none; border: 0; padding: 0; margin: 0; cursor: pointer; text-align: inherit; }
+:where(.root) :where(a) { color: inherit; text-decoration: none; }
+.root :focus-visible { outline: 1px solid var(--cream); outline-offset: 4px; box-shadow: none; }
+
+.fig { font: var(--t-fig); font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
+
+/* ── top bar ── */
+.bar { position: fixed; z-index: 5; top: 0; left: var(--m); right: var(--m); height: 88px; display: flex; align-items: center; gap: var(--s6); transition: opacity 200ms var(--ease); }
+.isAlone .bar { opacity: 0; pointer-events: none; }
+.wm { font: var(--t-title); font-size: 21px; letter-spacing: -0.01em; color: var(--cream); white-space: nowrap; }
+/* The wordmark's i is a dotless ı plus its own triangle, so the triangle can
+   catch light: on hover a thin spectrum runs across it — the one colour in the
+   site's own chrome, and a nod to the name. */
+.wmI { position: relative; display: inline-block; }
+.tittle {
+  position: absolute; left: 50%; top: 0.245em; width: 0.165em; height: 0.13em; transform: translateX(-50%);
+  background: currentColor; clip-path: polygon(50% 0, 100% 100%, 0 100%);
+  background-size: 400% 100%;
+}
+.wm:hover .tittle, .wm:focus-visible .tittle {
+  background-image: linear-gradient(100deg, #f1e9dc 0%, #ff7a6b 30%, #ffd36b 40%, #7dffc0 50%, #6bc8ff 60%, #b98bff 70%, #f1e9dc 100%);
+  animation: glint 900ms var(--ease) both;
+}
+@keyframes glint { from { background-position: 100% 0; } to { background-position: 0 0; } }
+
+.cats { display: flex; gap: var(--s5); margin-left: var(--s5); }
+.cat { position: relative; display: inline-flex; align-items: baseline; gap: 6px; padding: 10px 0; font: var(--t-text); color: var(--c3); white-space: nowrap; transition: color 160ms var(--ease); }
+.count { font: var(--t-fig); font-variant-numeric: tabular-nums; opacity: 0.85; }
+.cat:hover { color: var(--c2); }
+.cat[aria-current] { color: var(--cream); }
+.cat::after { content: ""; position: absolute; left: 0; right: 0; bottom: 4px; height: 1px; background: var(--cream); transform: scaleX(0); transform-origin: left; transition: transform 220ms var(--ease); }
+.cat[aria-current]::after { transform: scaleX(1); }
+.reach { margin-left: auto; display: flex; align-items: baseline; gap: var(--s4); font: var(--t-text); white-space: nowrap; }
+.mail { color: var(--cream); padding-bottom: 2px; border-bottom: 1px solid var(--c3); transition: border-color 160ms var(--ease); }
+.mail:hover { border-bottom-color: var(--cream); }
+.copyBtn { min-width: 4.5em; color: var(--c3); transition: color 140ms var(--ease); }
+.copyBtn:hover { color: var(--cream); }
+
+/* ── stage + the exposure change between pieces ── */
+.stage { position: fixed; inset: 0; z-index: 1; }
+.out .stage { animation: lift calc(120ms * var(--slow, 1)) cubic-bezier(0.5, 0, 1, 1) forwards; }
+.in .stage { animation: develop calc(300ms * var(--slow, 1)) var(--ease) both; }
+@keyframes lift { to { opacity: 0; filter: brightness(1.5) saturate(0.85); } }
+@keyframes develop { from { opacity: 0; filter: brightness(1.5) saturate(0.85); } to { opacity: 1; filter: none; } }
+
+/* ── index: the catalogue, one piece lit at a time ── */
+/* The room's light: one layer per piece, the newest fades in over the last. */
+.fieldLayer { position: fixed; inset: 0; z-index: 0; pointer-events: none; animation: ixIn calc(320ms * var(--slow, 1)) var(--ease) both; }
+
+.index { position: absolute; inset: 0; display: grid; grid-template-columns: var(--m) minmax(320px, 34rem) minmax(0, 1fr) var(--m); grid-template-rows: 96px minmax(0, 1fr) 76px; }
+.indexCol { position: relative; z-index: 2; grid-column: 2; grid-row: 2; display: flex; flex-direction: column; justify-content: center; min-height: 0; }
+.intro { margin: 0; max-width: 30ch; color: var(--c3); }
+.indexCol > .intro { position: absolute; top: 0; left: 0; }
+.list { list-style: none; margin: 0; padding: 0; }
+.item { display: grid; grid-template-columns: 2.75rem 1fr; align-items: baseline; width: 100%; padding: 1px 0; text-align: left; color: rgba(241, 233, 220, 0.3); transition: color calc(200ms * var(--slow, 1)) var(--ease); }
+.item .fig { color: inherit; }
+.item[aria-current] { color: var(--cream); }
+.itemTitle { font: var(--t-display); font-size: clamp(34px, 3.3vw, 56px); line-height: 1.07; letter-spacing: -0.02em; }
+.readout { min-height: 3.4em; margin-top: var(--s5); padding-left: 2.75rem; }
+.readout p { margin: 0; color: var(--c2); }
+.readout .fig { margin-top: var(--s1); color: var(--c3); }
+
+.ixLayer { pointer-events: none; }
+.ixIn { animation: ixIn calc(260ms * var(--slow, 1)) var(--ease) both; }
+.ixOut { animation: ixOut calc(260ms * var(--slow, 1)) var(--ease) forwards; }
+@keyframes ixIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes ixOut { from { opacity: 1; } to { opacity: 0; } }
+/* 3D: the set photograph, full bleed and framed exactly as on its page. */
+.ixSet { position: fixed; inset: 0; z-index: 0; overflow: hidden; }
+/* Stills and video: in the same place and size their page gives them. */
+.ixWork { position: relative; z-index: 1; grid-column: 3; grid-row: 2; min-width: 0; min-height: 0; margin-left: clamp(28px, 4vw, 80px); container-type: size; display: grid; place-items: center; }
+.ixWork .fit { cursor: default; }
+
+.plist { display: none; }
+
+/* ── piece ── */
+.frame { position: absolute; inset: 0; z-index: 0; display: grid; }
+.side { grid-template-columns: var(--m) minmax(300px, 25rem) minmax(0, 1fr) var(--m); grid-template-rows: 96px minmax(0, 1fr) 76px; }
+.side .work { grid-column: 3; grid-row: 2; margin-left: clamp(28px, 4vw, 80px); }
+.side .copy { grid-column: 2; grid-row: 2; align-self: end; }
+.wide { grid-template-columns: minmax(var(--m), 1fr) var(--colw) minmax(var(--m), 1fr); grid-template-rows: 96px minmax(0, 1fr) auto 76px; }
+.wide .work { grid-column: 2; grid-row: 2; }
+.wide .copy { grid-column: 2; grid-row: 3; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 30rem); column-gap: var(--s7); align-items: end; padding-top: var(--s6); }
+
+/* The work box is always exactly the work's own aspect (container units), so
+   the image is never letterboxed inside an element and can morph cleanly. */
+.work { position: relative; min-width: 0; min-height: 0; container-type: size; display: grid; place-items: center; }
+.fitBox { position: relative; display: block; width: min(100cqw, calc(100cqh * var(--ar))); aspect-ratio: var(--ar); }
+.fit { position: relative; display: block; width: 100%; height: 100%; cursor: zoom-in; }
+.fit video, .layerImg { position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: cover; }
+.full { opacity: 0; transition: opacity calc(360ms * var(--slow, 1)) var(--ease); }
+.on { opacity: 1; }
+
+/* Alone: the type steps away and the work takes the whole screen. */
+.copy, .foot { transition: opacity calc(200ms * var(--slow, 1)) var(--ease); }
+.alone .work { position: fixed; inset: 0; z-index: 4; margin: 0; padding: clamp(16px, 2.6vw, 44px); }
+.alone .fit { cursor: zoom-out; }
+.alone .copy, .alone .foot { opacity: 0; pointer-events: none; }
+.aloneHint { position: fixed; right: var(--m); bottom: 26px; font: var(--t-fig); letter-spacing: 0.02em; color: var(--c3); }
+
+/* The label: museum-object order — title, year · discipline, note, then the
+   facts (Role, Made with, Dimensions). Figures are the only monospace. */
+.copy { min-width: 0; }
+.idx { display: flex; align-items: baseline; gap: var(--s3); margin: 0 0 var(--s5); color: var(--c3); }
+.title { margin: 0; font: var(--t-display); letter-spacing: -0.022em; color: var(--cream); text-wrap: balance; }
+.what { margin: var(--s4) 0 0; color: var(--c2); }
+.copyBody { margin-top: var(--s6); }
+.wide .copyBody { margin-top: 0; }
+.sum { margin: 0; max-width: 40ch; color: var(--c2); text-wrap: pretty; }
+.label { display: grid; grid-template-columns: 5.5rem 1fr; gap: var(--s2) var(--s4); margin: var(--s5) 0 0; }
+.label dt { color: var(--c3); }
+.label dd { margin: 0; color: var(--c2); }
+.label dd.fig { padding-top: 2px; }
+
+.assets { list-style: none; margin: var(--s5) 0 0; padding: 0; display: grid; gap: 0; }
+.assets button { display: flex; align-items: baseline; gap: var(--s3); padding: 3px 0; font: var(--t-title); color: var(--c3); transition: color 140ms var(--ease); }
+.assets button:hover { color: var(--c2); }
+.assets button[aria-current] { color: var(--cream); }
+
+/* One control style: text, 32 px tall, a hairline under the active one. */
+.row { display: flex; flex-wrap: wrap; gap: 0 var(--s4); margin: var(--s3) 0 0; }
+.ctl { position: relative; display: inline-flex; align-items: center; min-height: 32px; color: var(--c3); white-space: nowrap; transition: color 140ms var(--ease); }
+.ctl::after { content: ""; position: absolute; left: 0; right: 0; bottom: 6px; height: 1px; background: currentColor; transform: scaleX(0); transform-origin: left; transition: transform 200ms var(--ease); }
+.ctl:hover { color: var(--c2); }
+.ctl[aria-pressed="true"] { color: var(--cream); }
+.ctl[aria-pressed="true"]::after { transform: scaleX(1); }
+.ctl:disabled { opacity: 0.4; cursor: default; }
+
+.transport { margin-top: var(--s5); }
+.tline { display: flex; align-items: center; gap: var(--s3); }
+.glyph { flex: 0 0 32px; height: 32px; display: grid; place-items: center; margin-left: -9px; border-radius: 50%; color: var(--cream); transition: background-color 140ms var(--ease); }
+.glyph:hover { background-color: rgba(241, 233, 220, 0.08); }
+.glyph svg { width: 11px; height: 11px; fill: currentColor; }
+.track {
+  position: relative; flex: 1 1 auto; height: 32px; cursor: pointer; touch-action: none;
+  background-image: linear-gradient(90deg, var(--hair) 1px, transparent 1px);
+  background-size: calc(100% / var(--ticks)) 7px; background-repeat: repeat-x; background-position: 0 50%;
+}
+.track::before { content: ""; position: absolute; left: 0; right: 0; top: calc(50% - 0.5px); height: 1px; background: var(--hair); }
+.fill { position: absolute; left: 0; right: 0; top: calc(50% - 0.5px); height: 1px; background: var(--cream); transform: scaleX(0); transform-origin: left; }
+.time { flex: 0 0 auto; color: var(--c2); }
+
+/* ── the lit set (3D): full bleed behind the type ── */
+.set { position: fixed; inset: 0; z-index: -1; overflow: hidden; }
+.setCanvas { position: absolute; inset: 0; animation: setIn 420ms var(--ease) both; }
+@keyframes setIn { from { opacity: 0; } to { opacity: 1; } }
+/* A photograph of the same set from the same camera: full height, centred on
+   the subject exactly where the live view puts it, so the hand-over is a
+   cross-fade between identical frames. */
+.setStill { position: absolute; top: 0; height: 100%; width: auto; max-width: none; left: calc(50% + var(--shift) * 100%); transform: translateX(-50%); pointer-events: none; transition: opacity calc(360ms * var(--slow, 1)) var(--ease); }
+.gone { opacity: 0; }
+.setBox { position: absolute; top: 0; height: 100%; aspect-ratio: 4 / 3; left: calc(50% + var(--shift) * 100%); transform: translateX(-50%); pointer-events: none; }
+.setFallback { position: absolute; top: 12%; right: 6%; width: 60%; height: 76%; max-width: none; object-fit: contain; }
+.inspect { margin-top: var(--s2); }
+.pending { visibility: hidden; }
+.hint { display: flex; align-items: baseline; gap: var(--s4); margin: var(--s2) 0 0; color: var(--c3); }
+.hint .fig { min-width: 6ch; color: var(--c2); }
+
+/* ── footer: where you are, what's either side ── */
+.foot { position: relative; grid-column: 2 / -2; grid-row: -2; align-self: center; display: flex; align-items: center; gap: var(--s6); min-width: 0; color: var(--c3); }
+.wide .foot { grid-column: 2; }
+.back { display: inline-flex; align-items: center; gap: var(--s2); min-height: 32px; color: var(--c2); white-space: nowrap; transition: color 140ms var(--ease); }
+.back svg { width: 11px; height: 11px; fill: none; stroke: currentColor; stroke-width: 1; }
+.back:hover { color: var(--cream); }
+.pos { display: inline-flex; align-items: baseline; gap: var(--s3); white-space: nowrap; }
+.steps { margin-left: auto; display: flex; align-items: center; gap: var(--s5); min-width: 0; }
+.stepBtn { display: inline-flex; align-items: baseline; gap: var(--s2); min-height: 32px; font: var(--t-title); color: var(--c2); white-space: nowrap; transition: color 140ms var(--ease); }
+.stepBtn:hover { color: var(--cream); }
+.ticks { display: inline-flex; align-items: center; height: 32px; }
+.ticks > button { position: relative; width: 11px; height: 32px; display: grid; place-items: center; }
+.ticks > button::before { content: ""; width: 1px; height: 10px; background: var(--c3); transition: height 180ms var(--ease), background-color 180ms var(--ease); }
+.ticks > button:hover::before { height: 14px; background: var(--c2); }
+.ticks > button[aria-current]::before { height: 20px; background: var(--cream); }
+/* Hover a tick: a small proof of that piece, so the strip is a map, not a code. */
+.peek { position: absolute; left: 50%; bottom: calc(100% + 10px); width: 136px; transform: translate(-50%, 4px); opacity: 0; pointer-events: none; transition: opacity 160ms var(--ease), transform 160ms var(--ease); }
+.peek img { display: block; width: 100%; object-fit: cover; background: #050505; }
+.peek span { display: block; margin-top: 6px; text-align: center; white-space: nowrap; color: var(--cream); }
+.ticks > button:hover .peek, .ticks > button:focus-visible .peek { opacity: 1; transform: translate(-50%, 0); }
+
+.phoneReach { display: none; }
+
+/* ── film grain: one still tile, the shared stock. It sits UNDER the stage, so
+   it lives in the field around the work and never touches the owner's pixels. */
+.grain { position: fixed; inset: 0; z-index: 0; pointer-events: none; background-image: var(--grain); background-size: 192px; }
+
+/* ── phone: the same frames, stacked; the page scrolls ── */
+@media (max-width: 760px) {
+  .root { position: relative; inset: auto; min-height: 100svh; overflow: visible; }
+  .bar { position: relative; left: auto; right: auto; height: auto; padding: 18px 20px 0; flex-wrap: wrap; gap: var(--s3) var(--s5); }
+  .cats { order: 3; flex: 1 1 100%; margin: 0; gap: var(--s5); overflow-x: auto; scrollbar-width: none; }
+  .bar .reach { display: none; }
+  .stage { position: relative; inset: auto; }
+  .plist { position: relative; display: grid; gap: 44px; padding: 22px 20px 44px; }
+  .plist .intro { max-width: 34ch; }
+  .pcard { display: block; width: 100%; text-align: left; }
+  .pcardImg { position: relative; display: block; aspect-ratio: var(--ar); overflow: hidden; background: #050505; }
+  .pcardImg img { position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: cover; }
+  .pcardCap { display: flex; align-items: baseline; gap: var(--s3); margin-top: var(--s3); }
+  .pcardCap .fig { color: var(--c3); }
+  .pcardTitle { font: var(--t-title); color: var(--cream); }
+  .pcardKind { margin-left: auto; color: var(--c3); }
+  .frame { position: relative; inset: auto; display: block; padding: 0 20px 28px; }
+  .root { overflow-x: clip; }
+  .side .work, .wide .work { margin: 18px -20px 0; container-type: inline-size; }
+  .fitBox { width: 100%; }
+  .alone .work { margin: 0; padding: 0; container-type: size; }
+  .alone .fitBox { width: min(100cqw, calc(100cqh * var(--ar))); }
+  .is3d { padding-top: 66svh; }
+  .set { position: absolute; z-index: 0; inset: 0 0 auto; height: 64svh; }
+  .copy { margin-top: var(--s6); }
+  .wide .copy { display: block; }
+  .wide .copyBody { margin-top: var(--s5); }
+  .label { grid-template-columns: 5.75rem 1fr; }
+  .foot { margin-top: var(--s7); flex-wrap: wrap; gap: var(--s4); }
+  .steps { margin-left: 0; }
+  .stepName, .peek { display: none; }
+  .phoneReach { display: block; padding: 4px 20px 32px; }
+  .phoneReach .reach { margin: 0; flex-wrap: wrap; row-gap: var(--s2); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .out .stage, .in .stage, .setCanvas { animation: none; }
+  .wm:hover .tittle { animation: none; }
+}
+
+/* ── not found ── */
+.nf { position: absolute; inset: 0; display: grid; align-content: center; justify-items: start; padding: 0 var(--m); }
+.nf .title { max-width: 14ch; }
+.nf .sum { margin-top: var(--s5); }
+.nf a { display: inline-block; margin-top: var(--s6); padding-bottom: 2px; border-bottom: 1px solid var(--c3); color: var(--cream); }
+.nf a:hover { border-bottom-color: var(--cream); }
