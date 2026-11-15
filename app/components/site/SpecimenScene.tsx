@@ -39,6 +39,11 @@ export type SpecimenSet = {
    *  absent, a three-quarter view onto the model's broad face is chosen from
    *  its proportions, so flat props never open edge-on. */
   azimuth?: number;
+  /** Film grain on the backdrop, matching the page's grain: the same tile
+   *  (`src`), the same on-screen size, the same blending. Only the set takes it
+   *  — the model is drawn in front and stays clean. `scale` multiplies the
+   *  tile size (1 = the page's 128 CSS px). */
+  grain?: { src: string; scale?: number };
 };
 
 /** Technical readout computed from the loaded geometry + texture set. */
@@ -484,6 +489,27 @@ function SpecimenModel({
     (window as unknown as { __rig?: THREE.SkinnedMesh }).__rig = rigSync.primary;
   }, [rigSync]);
 
+  // Release this model's GPU memory when it's replaced (asset switch) or the
+  // viewer unmounts. The loader keeps the parsed model cached; three re-uploads
+  // disposed geometry/textures automatically if the model is shown again.
+  // Keyed on the loaded files (not the per-channel rebuild), so switching a
+  // texture channel never forces a re-upload.
+  useEffect(
+    () => () => {
+      loaded.forEach((root) =>
+        root.traverse((o) => {
+          const mesh = o as THREE.Mesh;
+          if (!mesh.isMesh) return;
+          mesh.geometry?.dispose();
+          const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+          mats.forEach((mat) => mat?.dispose());
+        }),
+      );
+      texList.forEach((t) => t.dispose());
+    },
+    [loaded, texList],
+  );
+
   // Signal readiness once the model is mounted (assets resolved via Suspense).
   // Defer one frame so the canvas paints before the poster fades, but fall back
   // to a timer so readiness still fires if rAF is throttled (backgrounded tab).
@@ -578,7 +604,7 @@ function ShadowCatcher({ y }: { y: number }) {
  *  the set looks the same from every orbit angle. Matte paint; it takes the key
  *  light's falloff and the asset's real shadow, which is what makes it read as
  *  a photographed set rather than a flat fill. */
-function Cyclorama({ y, color }: { y: number; color: string }) {
+function Cyclorama({ y, color, grain }: { y: number; color: string; grain?: SpecimenSet["grain"] }) {
   const geo = useMemo(() => {
     const R = 10, r = 3.4, H = 16;
     const pts: THREE.Vector2[] = [new THREE.Vector2(0.001, 0)];
@@ -591,11 +617,128 @@ function Cyclorama({ y, color }: { y: number; color: string }) {
     return new THREE.LatheGeometry(pts, 128);
   }, []);
   useEffect(() => () => geo.dispose(), [geo]);
+
+  // ── Grain on the backdrop ──
+  // Screen-space, like the page's CSS grain: the tile is sampled by pixel
+  // position (gl_FragCoord), sized to 128 CSS px × dpr, and mixed over the
+  // final sRGB colour with the tile's own alpha — the same compositing the
+  // browser does for the page. A second, offset layer is the "live" grain
+  // that rises and jumps on page actions (the page's lit:boil events).
+  const gl = useThree((st) => st.gl);
+  // Shader uniforms live in a ref (mutated every frame, outside render).
+  const uRef = useRef<{
+    uGrain: { value: THREE.Texture | null };
+    uGrainPx: { value: number };
+    uLive: { value: number };
+    uOff: { value: THREE.Vector2 };
+    uOn: { value: number };
+  } | null>(null);
+  const getU = useCallback(() => {
+    if (!uRef.current) {
+      uRef.current = {
+        uGrain: { value: null },
+        uGrainPx: { value: 128 },
+        uLive: { value: 0 },
+        uOff: { value: new THREE.Vector2(0, 0) },
+        uOn: { value: 0 },
+      };
+    }
+    return uRef.current;
+  }, []);
+  useEffect(() => {
+    if (!grain?.src) return;
+    const uniforms = getU();
+    const t = new THREE.TextureLoader().load(encodeURI(grain.src), () => (uniforms.uOn.value = 1));
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.magFilter = THREE.NearestFilter;
+    t.minFilter = THREE.NearestFilter;
+    t.generateMipmaps = false;
+    t.colorSpace = THREE.NoColorSpace; // raw values: mixed in output (sRGB) space, as CSS does
+    uniforms.uGrain.value = t;
+    return () => {
+      uniforms.uOn.value = 0;
+      t.dispose();
+    };
+  }, [grain?.src, getU]);
+  const live = useRef({ level: 0, target: 0, until: 0, settle: 0, step: 0 });
+  useEffect(() => {
+    const quiet = () =>
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches || window.matchMedia("(prefers-reduced-transparency: reduce)").matches;
+    const on = (e: Event) => {
+      if (quiet()) return;
+      const { ms = 420, soft = false } = (e as CustomEvent<{ ms?: number; soft?: boolean }>).detail ?? {};
+      const l = live.current;
+      l.until = Math.max(l.until, performance.now() + ms);
+      l.target = Math.max(soft ? 0.38 : 0.7, performance.now() < l.until && l.target > 0 ? l.target : 0);
+    };
+    window.addEventListener("lit:boil", on);
+    return () => window.removeEventListener("lit:boil", on);
+  }, []);
+  // The page's grain jumps between six offsets ~12 times a second; so does this.
+  const OFFS = useMemo(() => [[0, 0], [-41, 23], [29, -57], [-73, -11], [53, 67], [-17, 89]], []);
+  useFrame((_, dt) => {
+    const uniforms = getU();
+    const scale = grain?.scale ?? 1;
+    uniforms.uGrainPx.value = 128 * gl.getPixelRatio() * scale;
+    const l = live.current;
+    const now = performance.now();
+    if (now > l.until) l.target = 0;
+    // rise ~200 ms, settle ~760 ms (as the CSS layer's transitions)
+    const k = l.target > l.level ? 12 : 3.2;
+    l.level += (l.target - l.level) * (1 - Math.exp(-Math.min(dt, 0.05) * k));
+    uniforms.uLive.value = l.level < 0.004 ? 0 : l.level;
+    if (l.level > 0.004 && now - l.settle > 83) {
+      l.settle = now;
+      l.step = (l.step + 1) % OFFS.length;
+      const [ox, oy] = OFFS[l.step];
+      uniforms.uOff.value.set(ox / 128, oy / 128);
+    }
+  });
+  const contrastMore = useMemo(() => typeof window !== "undefined" && window.matchMedia("(prefers-contrast: more)").matches, []);
+  const onBeforeCompile = useCallback(
+    (shader: THREE.WebGLProgramParametersWithUniforms) => {
+      Object.assign(shader.uniforms, getU());
+      shader.fragmentShader = shader.fragmentShader
+        .replace(
+          "void main() {",
+          `uniform sampler2D uGrain;
+uniform float uGrainPx;
+uniform float uLive;
+uniform vec2 uOff;
+uniform float uOn;
+void main() {`,
+        )
+        .replace(
+          "#include <colorspace_fragment>",
+          `#include <colorspace_fragment>
+if (uOn > 0.5) {
+  vec2 gUv = gl_FragCoord.xy / uGrainPx;
+  vec4 g0 = texture2D(uGrain, gUv);
+  gl_FragColor.rgb = mix(gl_FragColor.rgb, g0.rgb, g0.a);
+  if (uLive > 0.0) {
+    vec4 g1 = texture2D(uGrain, gUv + uOff + vec2(0.4765, 0.2890));
+    gl_FragColor.rgb = mix(gl_FragColor.rgb, g1.rgb, g1.a * uLive);
+  }
+}`,
+        );
+    },
+    [getU],
+  );
+  const useGrain = !!grain?.src && !contrastMore;
+
   return (
     <mesh geometry={geo} position={[0, y, 0]} receiveShadow>
       {/* envMapIntensity kept low: the image-based light is for the asset's
           reflections; on the paint it would flatten the falloff to an even wash. */}
-      <meshStandardMaterial color={color} roughness={0.96} metalness={0} envMapIntensity={0.1} side={THREE.DoubleSide} />
+      <meshStandardMaterial
+        key={useGrain ? "grain" : "plain"}
+        color={color}
+        roughness={0.96}
+        metalness={0}
+        envMapIntensity={0.1}
+        side={THREE.DoubleSide}
+        onBeforeCompile={useGrain ? onBeforeCompile : undefined}
+      />
     </mesh>
   );
 }
@@ -710,12 +853,18 @@ function AzimuthReporter({ onAzimuth }: { onAzimuth: (deg: number) => void }) {
 function ViewShift({ shift }: { shift: number }) {
   const camera = useThree((st) => st.camera);
   const size = useThree((st) => st.size);
-  useEffect(() => {
+  const cur = useRef(shift);
+  // Ease toward the target framing (e.g. centring the subject when the label
+  // steps away) instead of jumping; writes the view offset only while moving.
+  useFrame((_, dt) => {
     const cam = camera as THREE.PerspectiveCamera;
-    if (!shift || !cam.setViewOffset) return;
-    cam.setViewOffset(size.width, size.height, -shift * size.width, 0, size.width, size.height);
-    return () => cam.clearViewOffset();
-  }, [camera, size.width, size.height, shift]);
+    if (!cam.setViewOffset) return;
+    const d = shift - cur.current;
+    if (Math.abs(d) < 0.0005 && cam.view?.enabled) return;
+    cur.current += d * (1 - Math.exp(-Math.min(dt, 0.05) * 9));
+    cam.setViewOffset(size.width, size.height, -cur.current * size.width, 0, size.width, size.height);
+  });
+  useEffect(() => () => (camera as THREE.PerspectiveCamera).clearViewOffset?.(), [camera]);
   return null;
 }
 
@@ -1780,6 +1929,14 @@ export default function SpecimenScene({
   const [groundY, setGroundY] = useState(-1);
   const [readyPath, setReadyPath] = useState<string | null>(null);
   const path = specimen.modelPath;
+  // On the lit set, hold the opening (front) view for a beat after the model
+  // appears — it matches the set photograph — before the turntable starts.
+  const [spinPath, setSpinPath] = useState<string | null>(null);
+  useEffect(() => {
+    if (!set || readyPath !== path) return;
+    const t = setTimeout(() => setSpinPath(path), 1200);
+    return () => clearTimeout(t);
+  }, [set, readyPath, path]);
   const handleReady = useCallback(() => {
     setReadyPath(path);
     onReady?.();
@@ -1817,8 +1974,8 @@ export default function SpecimenScene({
       }}
     >
       {set ? <SetLights on={readyPath === path} always={set.lit} /> : <StudioLights />}
-      {set ? <Cyclorama y={groundY} color={set.color} /> : null}
-      {set?.viewShift ? <ViewShift shift={set.viewShift} /> : null}
+      {set ? <Cyclorama y={groundY} color={set.color} grain={set.grain} /> : null}
+      {set && set.viewShift !== undefined ? <ViewShift shift={set.viewShift} /> : null}
       <Suspense fallback={null}>
         <SpecimenModel
           set={set}
@@ -1857,7 +2014,7 @@ export default function SpecimenScene({
         enabled={!dragLock}
         minDistance={1.4}
         maxDistance={7}
-        autoRotate={turntable && !hovered && !interacting && !poseMode}
+        autoRotate={turntable && (!set || spinPath === path) && !hovered && !interacting && !poseMode}
         autoRotateSpeed={0.9}
         enableDamping
         dampingFactor={0.08}

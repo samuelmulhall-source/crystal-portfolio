@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import { DisplayModeProvider } from "./components/site/DisplayModeProvider";
@@ -48,6 +48,16 @@ export const metadata: Metadata = {
     creator: siteSettings.social.xHandle,
     images: [siteSettings.seo.defaultOgImage],
   },
+};
+
+// viewport-fit=cover lets the phone layout use the full screen; the layout pads
+// itself with the safe-area insets. The theme colour is updated live to the
+// lit piece's light by the showcase.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#0e0d0c",
 };
 
 // JSON-LD — machine-readable identity for search/preview cards. Person (the

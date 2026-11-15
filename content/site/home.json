@@ -1,7 +1,10 @@
 {
+  "intro": "3D generalist and technical artist — models, rigged characters, video and still renders.",
   "hero": {
     "title": "Multiscatter",
-    "capabilities": ["3D Generalist & Technical Artist"],
+    "capabilities": [
+      "3D Generalist & Technical Artist"
+    ],
     "scrollCue": "Selected Work",
     "featuredSlug": "soulbound-lantern",
     "video": {

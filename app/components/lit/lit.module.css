@@ -8,19 +8,27 @@
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 .root {
+  /* Colour key: the cream type takes ~8% of the room's light. Neutrals drift
+     toward the complement of what surrounds them (simultaneous contrast);
+     tinting them toward the surround keeps the cream reading as the same warm
+     white in every room — and gives each room one shared colour. */
   --cream: #f1e9dc;
+  --cream: color-mix(in oklab, #f1e9dc 92%, var(--room-l, #f1e9dc));
   --c2: rgba(241, 233, 220, 0.76);
+  --c2: color-mix(in oklab, var(--cream) 76%, transparent);
   --c3: rgba(241, 233, 220, 0.56);
+  --c3: color-mix(in oklab, var(--cream) 56%, transparent);
   --hair: rgba(241, 233, 220, 0.22);
+  --hair: color-mix(in oklab, var(--cream) 22%, transparent);
   --serif: var(--lit-serif), Georgia, serif;
   --sans: var(--lit-sans), system-ui, sans-serif;
   --mono: var(--lit-mono), ui-monospace, monospace;
-  --t-display: 400 clamp(44px, 4.6vw, 80px) / 0.95 var(--serif);
+  --t-display: 400 clamp(40px, min(4.6vw, 7.6vh), 80px) / 0.95 var(--serif);
   --t-title: 400 19px / 1.3 var(--serif);
   --t-text: 400 14px / 1.55 var(--sans);
   --t-fig: 450 11px / 1.4 var(--mono);
   --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px; --s7: 48px; --s8: 72px;
-  --m: clamp(20px, 3.4vw, 56px);
+  --m: max(clamp(20px, 3.4vw, 56px), calc((100vw - 2200px) / 2));
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
   position: fixed;
   inset: 0;
@@ -42,33 +50,87 @@
 .bar { position: fixed; z-index: 5; top: 0; left: var(--m); right: var(--m); height: 88px; display: flex; align-items: center; gap: var(--s6); transition: opacity 200ms var(--ease); }
 .isAlone .bar { opacity: 0; pointer-events: none; }
 .wm { font: var(--t-title); font-size: 21px; letter-spacing: -0.01em; color: var(--cream); white-space: nowrap; }
-/* The wordmark's i is a dotless ı plus its own triangle, so the triangle can
-   catch light: on hover a thin spectrum runs across it — the one colour in the
-   site's own chrome, and a nod to the name. */
+/* The wordmark's i is a dotless ı plus its own triangle — a prism. On hover a
+   thin band of dispersed light passes through the letters, and as it reaches
+   the i the triangle lifts and holds the spectrum, glowing. The only colour
+   in the site's own chrome, and a nod to the name. */
+/* A narrow, softened band (a sheen, not RGB): the gradient is 3× the text's
+   width, and 85% → 15% is exactly the band's crossing, left to right. */
+.wmText {
+  background: linear-gradient(100deg, var(--cream) 0 47%, #ffd2c4 48.4%, #fff1c2 49.3%, #d2ffe6 50%, #c9e9ff 50.7%, #e2d4ff 51.6%, var(--cream) 53% 100%);
+  background-size: 300% 100%; background-position: 85% 0;
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.wm:hover .wmText, .wm:focus-visible .wmText, .wm[data-intro] .wmText { animation: sweep 560ms cubic-bezier(0.45, 0, 0.35, 1) both; }
+@keyframes sweep { from { background-position: 85% 0; } to { background-position: 15% 0; } }
 .wmI { position: relative; display: inline-block; }
 .tittle {
-  position: absolute; left: 50%; top: 0.245em; width: 0.165em; height: 0.13em; transform: translateX(-50%);
-  background: currentColor; clip-path: polygon(50% 0, 100% 100%, 0 100%);
-  background-size: 400% 100%;
+  position: absolute; left: 50%; top: 0.245em; width: 0.165em; height: 0.13em;
+  transform: translateX(-50%); transform-origin: 50% 100%;
+  filter: drop-shadow(0 0 0 rgba(255, 214, 160, 0));
+  transition: transform 260ms var(--ease), filter 320ms var(--ease);
+}
+.tittle::before, .tittle::after {
+  content: ""; position: absolute; inset: 0; clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+.tittle::before { background: var(--cream); }
+.tittle::after {
+  background: linear-gradient(115deg, #ff8a73, #ffd56e 35%, #8dffc6 55%, #74c9ff 75%, #b994ff);
+  opacity: 0; transition: opacity 240ms var(--ease);
 }
 .wm:hover .tittle, .wm:focus-visible .tittle {
-  background-image: linear-gradient(100deg, #f1e9dc 0%, #ff7a6b 30%, #ffd36b 40%, #7dffc0 50%, #6bc8ff 60%, #b98bff 70%, #f1e9dc 100%);
-  animation: glint 900ms var(--ease) both;
+  transform: translate(-50%, -0.09em) scale(1.45);
+  filter: drop-shadow(0 0 0.14em rgba(255, 214, 160, 0.85)) drop-shadow(0 0 0.32em rgba(140, 200, 255, 0.45));
+  transition-delay: 200ms; /* as the sheen reaches the i */
 }
-@keyframes glint { from { background-position: 100% 0; } to { background-position: 0 0; } }
+.wm:hover .tittle::after, .wm:focus-visible .tittle::after { opacity: 1; transition-delay: 220ms; }
+.wm[data-intro] .tittle { transform: translate(-50%, -0.09em) scale(1.45); filter: drop-shadow(0 0 0.14em rgba(255, 214, 160, 0.85)) drop-shadow(0 0 0.32em rgba(140, 200, 255, 0.45)); transition-delay: 200ms; }
+.wm[data-intro] .tittle::after { opacity: 1; transition-delay: 220ms; }
 
 .cats { display: flex; gap: var(--s5); margin-left: var(--s5); }
 .cat { position: relative; display: inline-flex; align-items: baseline; gap: 6px; padding: 10px 0; font: var(--t-text); color: var(--c3); white-space: nowrap; transition: color 160ms var(--ease); }
 .count { font: var(--t-fig); font-variant-numeric: tabular-nums; opacity: 0.85; }
 .cat:hover { color: var(--c2); }
 .cat[aria-current] { color: var(--cream); }
-.cat::after { content: ""; position: absolute; left: 0; right: 0; bottom: 4px; height: 1px; background: var(--cream); transform: scaleX(0); transform-origin: left; transition: transform 220ms var(--ease); }
+.cat::after { content: ""; position: absolute; left: 0; right: 0; bottom: 4px; height: 1px; background: var(--accent, var(--cream)); transform: scaleX(0); transform-origin: left; transition: transform 220ms var(--ease); }
 .cat[aria-current]::after { transform: scaleX(1); }
-.reach { margin-left: auto; display: flex; align-items: baseline; gap: var(--s4); font: var(--t-text); white-space: nowrap; }
-.mail { color: var(--cream); padding-bottom: 2px; border-bottom: 1px solid var(--c3); transition: border-color 160ms var(--ease); }
-.mail:hover { border-bottom-color: var(--cream); }
-.copyBtn { min-width: 4.5em; color: var(--c3); transition: color 140ms var(--ease); }
+/* On a piece reached through All: its own category, marked more quietly. */
+.catHere { color: var(--c2); }
+.catHere::after { transform: scaleX(1); background: var(--c3); height: 1px; opacity: 0.6; }
+.reach { margin-left: auto; display: flex; align-items: baseline; gap: var(--s5); font: var(--t-text); white-space: nowrap; }
+/* "Email" until reached for: the link widens to the address (widths measured
+   in JS: --wl / --wa), the word rolls up and out, the address rolls in, and
+   Copy slides out beside it. Grows leftward — the group is right-aligned. */
+.mailGroup { display: inline-flex; align-items: baseline; }
+.mail {
+  position: relative; display: inline-block; overflow: hidden; vertical-align: bottom;
+  width: var(--wl, auto); padding-bottom: 2px; border-bottom: 1px solid var(--c3); color: var(--cream);
+  transition: width 340ms var(--ease), border-color 200ms var(--ease);
+}
+.mailLabel, .mailAddr { display: block; white-space: nowrap; transition: transform 340ms var(--ease), opacity 260ms var(--ease); }
+.mailAddr { position: absolute; left: 0; top: 0; transform: translateY(110%); opacity: 0; }
+.copyBtn {
+  max-width: 0; margin-left: 0; overflow: hidden; opacity: 0; transform: translateX(-6px); color: var(--c3);
+  transition: max-width 340ms var(--ease), margin-left 340ms var(--ease), transform 340ms var(--ease), opacity 220ms var(--ease), color 140ms var(--ease);
+}
 .copyBtn:hover { color: var(--cream); }
+.mailGroup:hover .mail, .mailGroup:focus-within .mail, .reachOpen .mail { width: var(--wa, auto); border-bottom-color: var(--cream); }
+.mailGroup:hover .mailLabel, .mailGroup:focus-within .mailLabel, .reachOpen .mailLabel { transform: translateY(-110%); opacity: 0; }
+.mailGroup:hover .mailAddr, .mailGroup:focus-within .mailAddr, .reachOpen .mailAddr { transform: none; opacity: 1; }
+.mailGroup:hover .copyBtn, .mailGroup:focus-within .copyBtn, .reachOpen .copyBtn { max-width: 6em; margin-left: var(--s4); opacity: 1; transform: none; transition-delay: 0s, 0s, 60ms, 80ms, 0s; }
+/* touch screens and the phone footer: no hover to reach with — always open */
+@media (hover: none) {
+  .mail { width: var(--wa, auto); }
+  .mailLabel { transform: translateY(-110%); opacity: 0; }
+  .mailAddr { transform: none; opacity: 1; }
+  .copyBtn { max-width: 6em; margin-left: var(--s4); opacity: 1; transform: none; }
+}
+.justCopied .mail { border-bottom-color: var(--cream); animation: copied 900ms var(--ease); }
+@keyframes copied { 0% { text-shadow: 0 0 0 rgba(241, 233, 220, 0); } 30% { text-shadow: 0 0 12px rgba(241, 233, 220, 0.55); } 100% { text-shadow: 0 0 0 rgba(241, 233, 220, 0); } }
+.reachFull .mail { width: var(--wa, auto); }
+.reachFull .mailLabel { transform: translateY(-110%); opacity: 0; }
+.reachFull .mailAddr { transform: none; opacity: 1; }
+.reachFull .copyBtn { max-width: 6em; margin-left: var(--s4); opacity: 1; transform: none; }
 
 /* ── stage + the exposure change between pieces ── */
 .stage { position: fixed; inset: 0; z-index: 1; }
@@ -76,23 +138,79 @@
 .in .stage { animation: develop calc(300ms * var(--slow, 1)) var(--ease) both; }
 @keyframes lift { to { opacity: 0; filter: brightness(1.5) saturate(0.85); } }
 @keyframes develop { from { opacity: 0; filter: brightness(1.5) saturate(0.85); } to { opacity: 1; filter: none; } }
+/* A live 3D set isn't run through a CSS filter (costly on a WebGL layer, and it
+   can flash): it just fades. */
+.out .stage:has(.set) { animation-name: liftPlain; }
+.in .stage:has(.set) { animation-name: developPlain; }
+@keyframes liftPlain { to { opacity: 0; } }
+@keyframes developPlain { from { opacity: 0; } to { opacity: 1; } }
 
 /* ── index: the catalogue, one piece lit at a time ── */
 /* The room's light: one layer per piece, the newest fades in over the last. */
-.fieldLayer { position: fixed; inset: 0; z-index: 0; pointer-events: none; animation: ixIn calc(320ms * var(--slow, 1)) var(--ease) both; }
+/* The room. A deep wall (--rs, shadow) with shaped light (--rl) falling where
+   the work hangs (--px/--py, set per layout below). Gradients interpolate in
+   OKLab (smooth, no muddy midpoint); the grain on top dithers any banding.
+   The darkest values frame the edges, and the type lives in that shadow. */
+.fieldLayer {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background-color: var(--rs);
+  background-image: radial-gradient(ellipse 50vw 64vh at var(--px) var(--py), var(--rl) 0%, color-mix(in oklab, var(--rl) 48%, var(--rs)) 40%, var(--rs) 100%);
+  background-image: radial-gradient(in oklab ellipse 50vw 64vh at var(--px) var(--py), var(--rl) 0%, color-mix(in oklab, var(--rl) 48%, var(--rs)) 40%, var(--rs) 100%);
+  animation: ixIn calc(460ms * var(--slow, 1)) var(--ease) calc(70ms * var(--slow, 1)) both;
+}
+/* Light rising from below the work — firelight on the wall. */
+.fieldLayer[data-shape="low"] {
+  background-image: radial-gradient(ellipse 58vw 52vh at var(--px) calc(var(--py) + 34vh), var(--rl) 0%, color-mix(in oklab, var(--rl) 42%, var(--rs)) 44%, var(--rs) 100%);
+  background-image: radial-gradient(in oklab ellipse 58vw 52vh at var(--px) calc(var(--py) + 34vh), var(--rl) 0%, color-mix(in oklab, var(--rl) 42%, var(--rs)) 44%, var(--rs) 100%);
+}
+/* A raking sweep from the upper right, with a softer pool where the work hangs. */
+.fieldLayer[data-shape="rake"] {
+  background-image:
+    radial-gradient(ellipse 40vw 52vh at var(--px) var(--py), color-mix(in oklab, var(--rl) 55%, transparent) 0%, transparent 100%),
+    linear-gradient(222deg, var(--rl) 0%, color-mix(in oklab, var(--rl) 40%, var(--rs)) 34%, var(--rs) 72%);
+  background-image:
+    radial-gradient(in oklab ellipse 40vw 52vh at var(--px) var(--py), color-mix(in oklab, var(--rl) 55%, transparent) 0%, transparent 100%),
+    linear-gradient(in oklab 222deg, var(--rl) 0%, color-mix(in oklab, var(--rl) 40%, var(--rs)) 34%, var(--rs) 72%);
+}
+/* A horizon band: a flat, bright glow at the work's lower third, with a wider
+   soft haze around it — the light of a horizon the work stands against. */
+.fieldLayer[data-shape="horizon"] {
+  background-image:
+    radial-gradient(ellipse 60vw 11vh at var(--px) calc(var(--py) + 11vh), var(--rl) 0%, color-mix(in oklab, var(--rl) 35%, transparent) 55%, transparent 100%),
+    radial-gradient(ellipse 72vw 46vh at var(--px) calc(var(--py) + 9vh), color-mix(in oklab, var(--rl) 38%, var(--rs)) 0%, var(--rs) 100%);
+  background-image:
+    radial-gradient(in oklab ellipse 60vw 11vh at var(--px) calc(var(--py) + 11vh), var(--rl) 0%, color-mix(in oklab, var(--rl) 35%, transparent) 55%, transparent 100%),
+    radial-gradient(in oklab ellipse 72vw 46vh at var(--px) calc(var(--py) + 9vh), color-mix(in oklab, var(--rl) 38%, var(--rs)) 0%, var(--rs) 100%);
+}
+/* Where the light falls, per layout (the work's position). */
+.root { --px: 68%; --py: 50%; }
+.root:has(.side) { --px: 66%; --py: 48%; }
+.root:has(.wide) { --px: 50%; --py: 38%; }
 
-.index { position: absolute; inset: 0; display: grid; grid-template-columns: var(--m) minmax(320px, 34rem) minmax(0, 1fr) var(--m); grid-template-rows: 96px minmax(0, 1fr) 76px; }
+/* The accent: the work's own hue, on a few small marks only. Registered so it
+   eases between pieces instead of snapping. */
+@property --accent { syntax: "<color>"; inherits: true; initial-value: #f1e9dc; }
+@property --room-l { syntax: "<color>"; inherits: true; initial-value: #f1e9dc; }
+.root { transition: --accent 420ms var(--ease), --room-l 420ms var(--ease); }
+.item[aria-current] .fig, .idx .fig, .assets button[aria-current] .fig { color: var(--accent); }
+
+.index { position: absolute; inset: 0; display: grid; grid-template-columns: var(--m) minmax(320px, auto) minmax(0, 1fr) var(--m); grid-template-rows: 96px minmax(0, 1fr) 76px; }
 .indexCol { position: relative; z-index: 2; grid-column: 2; grid-row: 2; display: flex; flex-direction: column; justify-content: center; min-height: 0; }
 .intro { margin: 0; max-width: 30ch; color: var(--c3); }
 .indexCol > .intro { position: absolute; top: 0; left: 0; }
 .list { list-style: none; margin: 0; padding: 0; }
-.item { display: grid; grid-template-columns: 2.75rem 1fr; align-items: baseline; width: 100%; padding: 1px 0; text-align: left; color: rgba(241, 233, 220, 0.3); transition: color calc(200ms * var(--slow, 1)) var(--ease); }
+.item { display: grid; grid-template-columns: 2.75rem 1fr; align-items: baseline; width: 100%; padding: 1px 0; text-align: left; color: color-mix(in oklab, var(--cream) 44%, transparent); transition: color calc(200ms * var(--slow, 1)) var(--ease); }
 .item .fig { color: inherit; }
 .item[aria-current] { color: var(--cream); }
-.itemTitle { font: var(--t-display); font-size: clamp(34px, 3.3vw, 56px); line-height: 1.07; letter-spacing: -0.02em; }
+.item:not([aria-current]):not(:disabled):hover { color: var(--c2); }
+/* Filtered out by a category: further back, not interactive. */
+.itemOut { color: color-mix(in oklab, var(--cream) 16%, transparent); cursor: default; }
+.item { transition: color calc(200ms * var(--slow, 1)) var(--ease), opacity 200ms var(--ease); }
+.itemTitle { font: var(--t-display); font-size: clamp(32px, min(3.3vw, 6vh), 64px); line-height: 1.07; letter-spacing: -0.02em; white-space: nowrap; }
 .readout { min-height: 3.4em; margin-top: var(--s5); padding-left: 2.75rem; }
 .readout p { margin: 0; color: var(--c2); }
 .readout .fig { margin-top: var(--s1); color: var(--c3); }
+.openHint { margin-top: var(--s4) !important; color: var(--c3) !important; font-size: 12.5px; }
 
 .ixLayer { pointer-events: none; }
 .ixIn { animation: ixIn calc(260ms * var(--slow, 1)) var(--ease) both; }
@@ -104,6 +222,9 @@
 /* Stills and video: in the same place and size their page gives them. */
 .ixWork { position: relative; z-index: 1; grid-column: 3; grid-row: 2; min-width: 0; min-height: 0; margin-left: clamp(28px, 4vw, 80px); container-type: size; display: grid; place-items: center; }
 .ixWork .fit { cursor: default; }
+/* The lit picture opens its piece too. */
+.openable { pointer-events: auto; cursor: pointer; }
+.setBox.openable { cursor: pointer; }
 
 .plist { display: none; }
 
@@ -111,7 +232,8 @@
 .frame { position: absolute; inset: 0; z-index: 0; display: grid; }
 .side { grid-template-columns: var(--m) minmax(300px, 25rem) minmax(0, 1fr) var(--m); grid-template-rows: 96px minmax(0, 1fr) 76px; }
 .side .work { grid-column: 3; grid-row: 2; margin-left: clamp(28px, 4vw, 80px); }
-.side .copy { grid-column: 2; grid-row: 2; align-self: end; }
+.side .copy { grid-column: 2; grid-row: 2; align-self: end; max-height: 100%; overflow-y: auto; scrollbar-width: none; }
+.side .copy::-webkit-scrollbar { display: none; }
 .wide { grid-template-columns: minmax(var(--m), 1fr) var(--colw) minmax(var(--m), 1fr); grid-template-rows: 96px minmax(0, 1fr) auto 76px; }
 .wide .work { grid-column: 2; grid-row: 2; }
 .wide .copy { grid-column: 2; grid-row: 3; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 30rem); column-gap: var(--s7); align-items: end; padding-top: var(--s6); }
@@ -120,6 +242,20 @@
    the image is never letterboxed inside an element and can morph cleanly. */
 .work { position: relative; min-width: 0; min-height: 0; container-type: size; display: grid; place-items: center; }
 .fitBox { position: relative; display: block; width: min(100cqw, calc(100cqh * var(--ar))); aspect-ratio: var(--ar); }
+/* A hung work casts a soft shadow on the wall, away from the room's light —
+   it grounds the rectangle in the room's light instead of floating on it.
+   Drawn on the wall (outside the picture), never over the owner's pixels. */
+.fitBox::after {
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  box-shadow:
+    calc(var(--shx, 0) * 6px) calc(var(--shy, 1) * 10px) 22px rgba(0, 0, 0, 0.42),
+    calc(var(--shx, 0) * 22px) calc(var(--shy, 1) * 36px) 80px rgba(0, 0, 0, 0.5);
+  transition: box-shadow 420ms var(--ease);
+}
+.root[data-light="low"] .fitBox::after { --shx: 0; --shy: -1; }
+.root[data-light="rake"] .fitBox::after { --shx: -0.8; --shy: 0.8; }
+.root[data-light="horizon"] .fitBox::after { --shx: 0; --shy: -0.5; }
+.alone .fitBox::after { opacity: 0.6; }
 .fit { position: relative; display: block; width: 100%; height: 100%; cursor: zoom-in; }
 .fit video, .layerImg { position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: cover; }
 .full { opacity: 0; transition: opacity calc(360ms * var(--slow, 1)) var(--ease); }
@@ -130,7 +266,22 @@
 .alone .work { position: fixed; inset: 0; z-index: 4; margin: 0; padding: clamp(16px, 2.6vw, 44px); }
 .alone .fit { cursor: zoom-out; }
 .alone .copy, .alone .foot { opacity: 0; pointer-events: none; }
-.aloneHint { position: fixed; right: var(--m); bottom: 26px; font: var(--t-fig); letter-spacing: 0.02em; color: var(--c3); }
+/* Alone: a small caption — title, place, keys — that fades after 2 s of
+   stillness and returns with any movement. */
+.aloneCap {
+  position: fixed; z-index: 6; left: var(--m); right: var(--m); bottom: 22px; margin: 0;
+  display: flex; align-items: baseline; gap: var(--s4); color: var(--c2); pointer-events: none;
+  transition: opacity 500ms var(--ease);
+}
+.aloneCap span:first-child { font: var(--t-title); font-size: 16px; color: var(--cream); }
+.aloneCap span:last-child { margin-left: auto; color: var(--c3); }
+.root[data-idle] .aloneCap { opacity: 0; }
+/* 3D alone: the set lives inside the label column, so the column itself stays
+   visible and only its words step away; the model centres on its set and
+   still takes drags. */
+.is3d.alone .copy { opacity: 1; pointer-events: none; }
+.is3d.alone .copyHead, .is3d.alone .copyBody > :not(.set) { opacity: 0; transition: opacity calc(200ms * var(--slow, 1)) var(--ease); }
+.is3d.alone .set { pointer-events: auto; }
 
 /* The label: museum-object order — title, year · discipline, note, then the
    facts (Role, Made with, Dimensions). Figures are the only monospace. */
@@ -150,6 +301,10 @@
 .assets button { display: flex; align-items: baseline; gap: var(--s3); padding: 3px 0; font: var(--t-title); color: var(--c3); transition: color 140ms var(--ease); }
 .assets button:hover { color: var(--c2); }
 .assets button[aria-current] { color: var(--cream); }
+.assetMeta { margin-left: var(--s3); color: var(--c3); opacity: 0; transform: translateX(-4px); transition: opacity 180ms var(--ease), transform 180ms var(--ease); }
+.assets button:hover .assetMeta, .assets button:focus-visible .assetMeta { opacity: 1; transform: none; }
+/* When a model or video can't load, the label says so plainly. */
+.mediaNote { position: absolute; left: 12px; bottom: 10px; z-index: 2; font: var(--t-text); font-size: 12.5px; color: var(--c2); }
 
 /* One control style: text, 32 px tall, a hairline under the active one. */
 .row { display: flex; flex-wrap: wrap; gap: 0 var(--s4); margin: var(--s3) 0 0; }
@@ -157,8 +312,10 @@
 .ctl::after { content: ""; position: absolute; left: 0; right: 0; bottom: 6px; height: 1px; background: currentColor; transform: scaleX(0); transform-origin: left; transition: transform 200ms var(--ease); }
 .ctl:hover { color: var(--c2); }
 .ctl[aria-pressed="true"] { color: var(--cream); }
-.ctl[aria-pressed="true"]::after { transform: scaleX(1); }
+.ctl[aria-pressed="true"]::after { transform: scaleX(1); background: var(--accent, currentColor); }
 .ctl:disabled { opacity: 0.4; cursor: default; }
+.sound { gap: 7px; }
+.sound svg { width: 14px; height: 12px; fill: currentColor; }
 
 .transport { margin-top: var(--s5); }
 .tline { display: flex; align-items: center; gap: var(--s3); }
@@ -171,7 +328,7 @@
   background-size: calc(100% / var(--ticks)) 7px; background-repeat: repeat-x; background-position: 0 50%;
 }
 .track::before { content: ""; position: absolute; left: 0; right: 0; top: calc(50% - 0.5px); height: 1px; background: var(--hair); }
-.fill { position: absolute; left: 0; right: 0; top: calc(50% - 0.5px); height: 1px; background: var(--cream); transform: scaleX(0); transform-origin: left; }
+.fill { position: absolute; left: 0; right: 0; top: calc(50% - 0.5px); height: 1px; background: var(--accent, var(--cream)); transform: scaleX(0); transform-origin: left; }
 .time { flex: 0 0 auto; color: var(--c2); }
 
 /* ── the lit set (3D): full bleed behind the type ── */
@@ -200,11 +357,11 @@
 .steps { margin-left: auto; display: flex; align-items: center; gap: var(--s5); min-width: 0; }
 .stepBtn { display: inline-flex; align-items: baseline; gap: var(--s2); min-height: 32px; font: var(--t-title); color: var(--c2); white-space: nowrap; transition: color 140ms var(--ease); }
 .stepBtn:hover { color: var(--cream); }
-.ticks { display: inline-flex; align-items: center; height: 32px; }
-.ticks > button { position: relative; width: 11px; height: 32px; display: grid; place-items: center; }
+.ticks { display: inline-flex; align-items: center; height: 32px; margin: 0 -6px; }
+.ticks > button { position: relative; width: 24px; height: 32px; display: grid; place-items: center; }
 .ticks > button::before { content: ""; width: 1px; height: 10px; background: var(--c3); transition: height 180ms var(--ease), background-color 180ms var(--ease); }
 .ticks > button:hover::before { height: 14px; background: var(--c2); }
-.ticks > button[aria-current]::before { height: 20px; background: var(--cream); }
+.ticks > button[aria-current]::before { height: 20px; background: var(--accent, var(--cream)); }
 /* Hover a tick: a small proof of that piece, so the strip is a map, not a code. */
 .peek { position: absolute; left: 50%; bottom: calc(100% + 10px); width: 136px; transform: translate(-50%, 4px); opacity: 0; pointer-events: none; transition: opacity 160ms var(--ease), transform 160ms var(--ease); }
 .peek img { display: block; width: 100%; object-fit: cover; background: #050505; }
@@ -212,10 +369,67 @@
 .ticks > button:hover .peek, .ticks > button:focus-visible .peek { opacity: 1; transform: translate(-50%, 0); }
 
 .phoneReach { display: none; }
+.ptop { display: none; }
+
+/* The keys overlay ("?"): quiet type on a dark scrim, dismissed with a click. */
+.help {
+  position: fixed; inset: 0; z-index: 20; display: grid; place-items: center;
+  background: rgba(8, 7, 6, 0.72); animation: ixIn 200ms var(--ease) both; cursor: pointer;
+}
+.help dl { display: grid; gap: 10px; margin: 0; padding: var(--s6) var(--s7); }
+.help dl > div { display: grid; grid-template-columns: 5.5rem 1fr; align-items: baseline; gap: var(--s4); }
+.help dt { color: var(--cream); }
+.help dd { margin: 0; color: var(--c2); }
 
 /* ── film grain: one still tile, the shared stock. It sits UNDER the stage, so
    it lives in the field around the work and never touches the owner's pixels. */
-.grain { position: fixed; inset: 0; z-index: 0; pointer-events: none; background-image: var(--grain); background-size: 192px; }
+.grain {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none; background-image: var(--grain); background-size: 128px;
+  /* Grain reads heavier in the shadows than in the light, as on film. */
+  -webkit-mask-image: radial-gradient(ellipse 50vw 64vh at var(--px) var(--py), rgba(0, 0, 0, 0.55) 0%, #000 85%);
+  mask-image: radial-gradient(ellipse 50vw 64vh at var(--px) var(--py), rgba(0, 0, 0, 0.55) 0%, #000 85%);
+}
+/* The base grain never moves. A second, live layer (oversized so it can be
+   translated — compositor-only, no repaint) rises on an action, runs like
+   film through a gate, and keeps running while it settles: it never stops
+   dead. data-boil = "full" | "soft"; data-run keeps it moving while fading. */
+.grain::after {
+  content: ""; position: absolute; inset: -128px; background-image: var(--grain); background-size: 128px;
+  opacity: 0; transition: opacity 760ms cubic-bezier(0.25, 0.1, 0.25, 1);
+  animation: grainRun 0.5s steps(1) infinite paused;
+}
+.grain[data-run]::after { animation-play-state: running; }
+.grain[data-boil="full"]::after { opacity: 0.7; transition: opacity 200ms cubic-bezier(0.3, 0, 0.2, 1); }
+.grain[data-boil="soft"]::after { opacity: 0.38; transition: opacity 240ms cubic-bezier(0.3, 0, 0.2, 1); }
+@keyframes grainRun {
+  0% { transform: translate3d(0, 0, 0); } 17% { transform: translate3d(-41px, 23px, 0); } 33% { transform: translate3d(29px, -57px, 0); }
+  50% { transform: translate3d(-73px, -11px, 0); } 67% { transform: translate3d(53px, 67px, 0); } 83% { transform: translate3d(-17px, 89px, 0); }
+}
+/* Local grain: a soft patch of live grain around a mouse pointer that's over
+   something clickable — the stock stirs where you're about to act. */
+.grainLocal {
+  position: fixed; inset: -128px; z-index: 0; pointer-events: none;
+  background-image: var(--grain); background-size: 128px;
+  -webkit-mask-image: radial-gradient(circle 150px at calc(var(--mx, -999px) + 128px) calc(var(--my, -999px) + 128px), #000 0%, rgba(0, 0, 0, 0.5) 45%, transparent 100%);
+  mask-image: radial-gradient(circle 150px at calc(var(--mx, -999px) + 128px) calc(var(--my, -999px) + 128px), #000 0%, rgba(0, 0, 0, 0.5) 45%, transparent 100%);
+  opacity: 0; transition: opacity 600ms var(--ease);
+  animation: grainLocal 0.6s steps(1) infinite paused;
+}
+.grainLocal[data-near] { opacity: 0.55; animation-play-state: running; transition-duration: 260ms; }
+@keyframes grainLocal {
+  0% { background-position: 0 0; } 25% { background-position: 37px -29px; } 50% { background-position: -53px 41px; } 75% { background-position: 19px 67px; }
+}
+
+/* ── short windows (laptops at 720–800 px tall): the label tightens ── */
+@media (max-height: 820px) and (min-width: 761px) {
+  .idx { margin-bottom: var(--s3); }
+  .what { margin-top: var(--s2); }
+  .copyBody { margin-top: var(--s5); }
+  .label { margin-top: var(--s4); gap: 4px var(--s4); }
+  .assets { margin-top: var(--s4); }
+  .assets button { padding: 0; font-size: 17px; }
+  .row { margin-top: var(--s2); }
+}
 
 /* ── phone: the same frames, stacked; the page scrolls ── */
 @media (max-width: 760px) {
@@ -224,15 +438,20 @@
   .cats { order: 3; flex: 1 1 100%; margin: 0; gap: var(--s5); overflow-x: auto; scrollbar-width: none; }
   .bar .reach { display: none; }
   .stage { position: relative; inset: auto; }
-  .plist { position: relative; display: grid; gap: 44px; padding: 22px 20px 44px; }
-  .plist .intro { max-width: 34ch; }
-  .pcard { display: block; width: 100%; text-align: left; }
-  .pcardImg { position: relative; display: block; aspect-ratio: var(--ar); overflow: hidden; background: #050505; }
+  .index { display: none; }
+  .onIndex { background: #0e0d0c; }
+  .onIndex .fieldLayer { display: none; }
+  /* The phone index fits on one screen: a catalogue of rows, each a small
+     proof of the piece beside its title. Tap opens it. */
+  .plist { position: relative; display: grid; gap: 0; padding: 20px 20px 28px; }
+  .plist .intro { max-width: 34ch; margin-bottom: var(--s4); }
+  .pcard { display: grid; grid-template-columns: 84px 1fr; align-items: center; gap: var(--s4); width: 100%; padding: 6px 0; text-align: left; }
+  .pcardImg { position: relative; display: block; width: 84px; aspect-ratio: 4 / 3; overflow: hidden; background: #050505; }
   .pcardImg img { position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: cover; }
-  .pcardCap { display: flex; align-items: baseline; gap: var(--s3); margin-top: var(--s3); }
-  .pcardCap .fig { color: var(--c3); }
-  .pcardTitle { font: var(--t-title); color: var(--cream); }
-  .pcardKind { margin-left: auto; color: var(--c3); }
+  .pcardCap { display: grid; gap: 2px; min-width: 0; }
+  .pcardTitle { font: var(--t-title); font-size: 22px; line-height: 1.15; color: var(--cream); }
+  .pcardKind { display: flex; align-items: baseline; gap: var(--s2); color: var(--c3); font-size: 13px; }
+  .pcard:active .pcardTitle { color: var(--c2); }
   .frame { position: relative; inset: auto; display: block; padding: 0 20px 28px; }
   .root { overflow-x: clip; }
   .side .work, .wide .work { margin: 18px -20px 0; container-type: inline-size; }
@@ -250,10 +469,42 @@
   .stepName, .peek { display: none; }
   .phoneReach { display: block; padding: 4px 20px 32px; }
   .phoneReach .reach { margin: 0; flex-wrap: wrap; row-gap: var(--s2); }
+  .grainLocal { display: none; }
+  .root, .root:has(.side), .root:has(.wide) { --px: 50%; --py: 24%; }
+  .ptop { display: inline-flex; align-items: center; gap: var(--s2); min-height: 40px; margin: 6px 0 0; color: var(--c2); }
+  .is3d .ptop { position: absolute; z-index: 2; top: 0; left: 20px; }
+  .cats { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); padding-right: 28px; }
+  .bar { padding-top: calc(18px + env(safe-area-inset-top)); padding-left: calc(20px + env(safe-area-inset-left)); padding-right: calc(20px + env(safe-area-inset-right)); }
+  .phoneReach { padding-bottom: calc(32px + env(safe-area-inset-bottom)); }
+  .frame { touch-action: pan-y; padding-bottom: calc(28px + env(safe-area-inset-bottom)); }
+  /* 3D on phones: a vertical drag scrolls the page, a sideways drag turns the model. */
+  .setCanvas canvas { touch-action: pan-y !important; }
+  .pcard { border-radius: 2px; transition: background-color 120ms var(--ease), transform 120ms var(--ease); -webkit-tap-highlight-color: transparent; }
+  .pcard:active { background-color: rgba(241, 233, 220, 0.06); transform: scale(0.992); }
+  .aloneCap { bottom: calc(14px + env(safe-area-inset-bottom)); }
+  .aloneCap span:last-child { display: none; }
+}
+/* short phones (SE-size): the index rows tighten so all seven still fit */
+@media (max-width: 760px) and (max-height: 700px) {
+  .plist { padding-top: 14px; }
+  .plist .intro { margin-bottom: var(--s2); }
+  .pcard { grid-template-columns: 68px 1fr; padding: 4px 0; }
+  .pcardImg { width: 68px; }
+  .pcardTitle { font-size: 19px; }
+}
+@media (prefers-contrast: more) {
+  .root { --c2: rgba(241, 233, 220, 0.9); --c3: rgba(241, 233, 220, 0.78); }
+  .item { color: rgba(241, 233, 220, 0.7); }
+  .grain, .grainLocal { display: none; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .grain::after, .grainLocal { display: none; }
+  .help { background: #0e0d0c; }
 }
 @media (prefers-reduced-motion: reduce) {
   .out .stage, .in .stage, .setCanvas { animation: none; }
-  .wm:hover .tittle { animation: none; }
+  .wm:hover .wmText, .wm:focus-visible .wmText { animation: none; }
+  .grain::after, .grainLocal { display: none; }
 }
 
 /* ── not found ── */

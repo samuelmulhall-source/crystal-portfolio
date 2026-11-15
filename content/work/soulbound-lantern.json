@@ -66,5 +66,11 @@
   "edgeColors": [
     "#031220",
     "#275780"
-  ]
+  ],
+  "room": {
+    "shadow": "#000415",
+    "light": "#662700",
+    "accent": "#75c8fc",
+    "shape": "low"
+  }
 }

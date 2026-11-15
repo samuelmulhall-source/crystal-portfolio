@@ -50,3 +50,6 @@ next-env.d.ts
 # look-dev prototypes — never committed or deployed
 /public/lab/
 /app/lab/
+
+# pre-ship check screenshots (scripts/check-site.mjs)
+/.check/

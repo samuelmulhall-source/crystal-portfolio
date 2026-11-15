@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import LitShowcase from "../../components/lit/LitShowcase";
-import { getSiteSettings, getWorkEntries, getWorkEntryBySlug } from "../../lib/content";
+import { getHomeContent, getSiteSettings, getWorkEntries, getWorkEntryBySlug } from "../../lib/content";
 import { getLitPieces } from "../../lib/lit-pieces";
 
 type WorkPageProps = {
@@ -62,6 +62,27 @@ export default async function WorkDetailPage({ params }: WorkPageProps) {
     image: `${site.deployment.siteUrl}${entry.seo.ogImage}`,
     url: `${site.deployment.siteUrl}/work/${entry.slug}`,
     dateCreated: entry.created ?? entry.year,
+    artform: entry.category ?? (entry.specimen ? "3D model" : entry.heroMedia.kind === "video" ? "Video" : "Digital image"),
+    ...(entry.facts ? { width: `${entry.facts.width} px`, height: `${entry.facts.height} px` } : {}),
+    associatedMedia: entry.specimen
+      ? (entry.assets?.length ? entry.assets.map((a) => a.specimen) : [entry.specimen]).map((sp) => ({
+          "@type": "3DModel",
+          contentUrl: `${site.deployment.siteUrl}${encodeURI(sp.modelPath)}`,
+          encodingFormat: sp.modelPath.toLowerCase().endsWith(".glb") ? "model/gltf-binary" : "application/octet-stream",
+        }))
+      : entry.heroMedia.kind === "video" || entry.gallery.some((g) => g.kind === "video")
+        ? {
+            "@type": "VideoObject",
+            name: entry.title,
+            contentUrl: `${site.deployment.siteUrl}${encodeURI((entry.gallery.find((g) => g.kind === "video") ?? entry.heroMedia).src)}`,
+            thumbnailUrl: `${site.deployment.siteUrl}${entry.seo.ogImage}`,
+            ...(entry.facts?.duration ? { duration: `PT${Math.round(entry.facts.duration)}S` } : {}),
+          }
+        : {
+            "@type": "ImageObject",
+            contentUrl: `${site.deployment.siteUrl}${encodeURI(entry.heroMedia.src)}`,
+            ...(entry.facts ? { width: entry.facts.width, height: entry.facts.height } : {}),
+          },
     creator: {
       "@type": "Person",
       name: site.brand.name,
@@ -77,6 +98,8 @@ export default async function WorkDetailPage({ params }: WorkPageProps) {
         email={site.contact.primaryLabel}
         emailHref={site.contact.primaryHref}
         xHref={site.social.xUrl}
+        intro={getHomeContent().intro}
+        titles={{ default: site.seo.defaultTitle, template: site.seo.titleTemplate }}
         start={{ view: "frame", slug: entry.slug }}
       />
     </>

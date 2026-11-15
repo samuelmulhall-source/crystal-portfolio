@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import LitShowcase from "../components/lit/LitShowcase";
-import { getSiteSettings } from "../lib/content";
+import { getHomeContent, getSiteSettings } from "../lib/content";
 import { getLitPieces } from "../lib/lit-pieces";
 
 const site = getSiteSettings();
@@ -9,7 +9,8 @@ export const metadata: Metadata = {
   title: "Work",
   description: "Models, rigged characters, video and image work — see everything at once or browse by category.",
   alternates: {
-    canonical: `${site.deployment.siteUrl}/work`,
+    // Same page as "/" — point search engines at the one address.
+    canonical: site.deployment.siteUrl,
   },
   openGraph: {
     images: [site.seo.defaultOgImage],
@@ -24,6 +25,8 @@ export default function WorkPage() {
       email={site.contact.primaryLabel}
       emailHref={site.contact.primaryHref}
       xHref={site.social.xUrl}
+      intro={getHomeContent().intro}
+        titles={{ default: site.seo.defaultTitle, template: site.seo.titleTemplate }}
       start={{ view: "sheet" }}
     />
   );

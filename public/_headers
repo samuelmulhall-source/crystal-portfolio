@@ -24,15 +24,19 @@
 /draco/*
   Cache-Control: public, max-age=2592000
 
-# Hero smoke frame sequences are effectively static art — 30 days.
-/hero/smoke_back/*
-  Cache-Control: public, max-age=2592000
-/hero/smoke_back_m/*
-  Cache-Control: public, max-age=2592000
-/hero/smoke_front/*
-  Cache-Control: public, max-age=2592000
-/hero/smoke_front_m/*
-  Cache-Control: public, max-age=2592000
+# Site images (posters, thumbnails, set photographs, sized stills, grain):
+# replaced in place when re-rendered, so not immutable — a day in the browser,
+# a week of stale-while-revalidate.
+/images/*
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+
+# The owner's renders and videos (spaced directory names, percent-encoded).
+/Image%20renders/*
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+/Video%20renders/*
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+/Rigged%20Characters/*
+  Cache-Control: public, max-age=3600, stale-while-revalidate=86400
 
 # JS/CSS chunks from Next.js are content-hashed — safe to cache forever.
 /_next/static/*

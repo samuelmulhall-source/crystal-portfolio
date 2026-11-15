@@ -49,11 +49,12 @@
     "rigged": true,
     "textures": {},
     "stage": {
-      "color": "#57312f",
+      "color": "#00383a",
       "field": [
-        "#23100f",
-        "#0f0504"
-      ]
+        "#002021",
+        "#000304"
+      ],
+      "accent": "#fd736d"
     },
     "facts": {
       "triangles": 218402,

@@ -50,6 +50,8 @@ const SpecimenSchema = z.object({
       field: z.tuple([z.string(), z.string()]),
       /** Opening view in degrees around the subject (0 = the file's front). */
       azimuth: z.number().optional(),
+      /** The interface accent while this asset is shown — its own hue, vivid. */
+      accent: z.string().optional(),
     })
     .optional(),
   /** Measured by the live viewer (triangles, PBR maps) so labels can show the
@@ -133,6 +135,18 @@ const WorkEntrySchema = z.object({
   /** The render's own edge colour (top, bottom) — the field it sits on, so the
    *  frame continues past the image instead of boxing it. */
   edgeColors: z.tuple([z.string(), z.string()]).optional(),
+  /** The room this piece sits in (scripts/make-rooms.mjs): a deep wall in the
+   *  complement of the work's hue — `shadow` at the edges, `light` where the
+   *  light falls — and an `accent` in the work's own hue for small marks.
+   *  `shape` is the light's character: pool | low | rake. */
+  room: z
+    .object({
+      shadow: z.string(),
+      light: z.string(),
+      accent: z.string(),
+      shape: z.enum(["pool", "low", "rake", "horizon"]).optional(),
+    })
+    .optional(),
   /** Collection entries (asset packs): the named assets users step through.
    *  When present, viewers offer per-asset navigation; `specimen` then acts
    *  as the default/fallback asset. */
@@ -180,6 +194,8 @@ const SiteSettingsSchema = z.object({
 });
 
 const HomeContentSchema = z.object({
+  /** One line on the index saying who this is (the site has no hero). */
+  intro: z.string().optional(),
   hero: z.object({
     title: z.string(),
     featuredSlug: z.string(),

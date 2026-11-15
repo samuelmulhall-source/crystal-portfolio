@@ -91,11 +91,12 @@
       "transmissionMap": "/models/Weapons/Sword/sword_transmission.webp"
     },
     "stage": {
-      "color": "#323c57",
+      "color": "#4c351d",
       "field": [
-        "#101523",
-        "#05070f"
-      ]
+        "#2e1a05",
+        "#060200"
+      ],
+      "accent": "#96b6fe"
     },
     "facts": {
       "triangles": 36469,
@@ -125,11 +126,12 @@
           "transmissionMap": "/models/Weapons/Sword/sword_transmission.webp"
         },
         "stage": {
-          "color": "#323c57",
+          "color": "#4c351d",
           "field": [
-            "#101523",
-            "#05070f"
-          ]
+            "#2e1a05",
+            "#060200"
+          ],
+          "accent": "#96b6fe"
         },
         "facts": {
           "triangles": 36469,
@@ -157,11 +159,12 @@
           "metalnessMap": "/models/Weapons/Ornate Dagger/ornate_dagger_metallic.webp"
         },
         "stage": {
-          "color": "#473a34",
+          "color": "#153244",
           "field": [
-            "#1b1411",
-            "#0a0605"
-          ]
+            "#041d2c",
+            "#000306"
+          ],
+          "accent": "#f5b483"
         },
         "facts": {
           "triangles": 603044,
@@ -189,12 +192,13 @@
           "metalnessMap": "/models/Weapons/Shield/Shield_metallic.webp"
         },
         "stage": {
-          "color": "#463a38",
+          "color": "#09353e",
           "field": [
-            "#1a1413",
-            "#0a0606"
+            "#001f26",
+            "#000305"
           ],
-          "azimuth": 60
+          "azimuth": 60,
+          "accent": "#f5a88b"
         },
         "facts": {
           "triangles": 2116,
@@ -221,11 +225,12 @@
           "roughnessMap": "/models/Weapons/bow/bow_roughness.webp"
         },
         "stage": {
-          "color": "#443c30",
+          "color": "#2a2c48",
           "field": [
-            "#1a150f",
-            "#090704"
-          ]
+            "#17182f",
+            "#020206"
+          ],
+          "accent": "#ebc57d"
         },
         "facts": {
           "triangles": 20811,
@@ -253,11 +258,12 @@
           "metalnessMap": "/models/Torch/torch_metallic.webp"
         },
         "stage": {
-          "color": "#3d3d3d",
+          "color": "#4e2b1c",
           "field": [
-            "#161616",
-            "#070707"
-          ]
+            "#301408",
+            "#070201"
+          ],
+          "accent": "#f2ca8d"
         },
         "facts": {
           "triangles": 2828,
