@@ -50,10 +50,24 @@ that came out of that, in the owner's terms:
   Copy slides out (owner's request). Touch screens and the phone footer always show the
   full address. X sits beside it. Copy comes from `content/site/settings.json`.
 - Asset packs (`assets[]`) show one asset at a time on a shared lit set, with a numbered
-  asset list in the label; the index shows the pack's cover asset (`PACK_COVER` in
-  `app/lib/lit-pieces.ts`).
+  asset list in the label; the index shows the pack's cover asset (the entry's `cover`
+  field, an asset id; default the first).
+- The index list scales its titles with the number of pieces (`--n`) so it stays one
+  screen; past what fits at 22 px it scrolls, with soft edges, keeping the lit title in
+  view. Phones show up to 8 pieces on one screen, then scroll as compact rows.
 
 ## Content
+- **New work goes through the asset tool**, never hand-built JSON: `npm run asset -- add
+  <file>` (still, MP4, FBX + maps, or GLB) copies it in, measures it, makes thumbnails,
+  sizes, share image, poster, room / set paint and set photograph, and writes a **draft**
+  entry. `status` shows what's stale or missing (with the fixing command), `derive`
+  re-measures, `room` shows and writes the colour rules' room, `shoot` photographs 3D
+  sets, `publish` takes a draft live. Guide: `docs/adding-work.md`; code:
+  `scripts/asset.mjs` + `scripts/lib/` (media probe, colour, room engine, derive, CDP
+  browser, static server — `check-site.mjs` shares the last two).
+- Drafts (`draft: true`) show in `next dev` and in `SHOW_DRAFTS=1` builds (what `shoot`
+  uses), never in a production build. `CONTENT_DIR=<folder>` points a build at another
+  content folder (review and stress tests) — use it instead of adding test entries here.
 - Work entries live in `content/work/*.json`; global config in `content/site/`. The Zod
   schema is `app/lib/content.ts`; `app/lib/lit-pieces.ts` shapes entries for the
   showcase. Adding/editing an entry must require **no component edits**.
@@ -61,10 +75,20 @@ that came out of that, in the owner's terms:
   audio), `edgeColors` (the render's own top/bottom edge colours — the field it sits in),
   and per 3D asset `specimen.stage` (set paint + field, measured from the asset's own
   albedo; optional opening `azimuth`), `specimen.facts` (tris/maps from the live viewer),
-  `specimen.setStill` (a photograph of the asset on its lit set, `/images/set/`).
-- Set photographs are shot from the live viewer with `?still=1` (front view held, no
-  framing shift) at 2700×900 @1.5×, saved as `<id>.webp` + a 4:3 `<id>-tile.webp`. Re-shoot
-  when a model, its materials or its set change.
+  `specimen.setStill` (a photograph of the asset on its lit set, `/images/set/`),
+  `specimen.extraTextures` (the second model's own maps incl. `alphaMap` — e.g. the
+  sword's grip wrap; without them it wears the main model's material).
+- A GLB with no maps listed keeps its own embedded materials (like a rigged character);
+  FBX props always get the listed PBR set.
+- Set photographs: `npm run asset -- shoot [slug] [--asset id]` — the live viewer with
+  `?still=1` (front view held, no framing shift) at 2700×900 @1.5×, software WebGL, saved
+  as `<id>.webp` (q74 — keeps the backdrop grain; WebP smooths it away below ~q66) + a
+  480×360 `<id>-tile.webp` (cards and peeks). Re-shoot when a model, its maps or its set
+  paint change (`status` flags it). `--out <dir>` shoots elsewhere and changes nothing in
+  the project (review before replacing). The set is at full light from the first frame in
+  `?still=1`: the light's ease advances per rendered frame, and software WebGL draws only
+  a few before the capture, so eased sets photographed under-lit, by a machine-dependent
+  amount.
 - The one-line introduction on the index is `content/site/home.json` → `intro`.
 - Write for external evaluation, not internal lore. **Never invent** clients, metrics, or
   collaboration details. When information is missing, leave it out (e.g. Rubia has no
@@ -148,11 +172,13 @@ that came out of that, in the owner's terms:
   pass before shipping — then **`npm run check:site`** (scripts/check-site.mjs): serves
   out/, drives headless Edge/Chrome through 1280×720, 1440×900, 1920×1080, 2560×1080 and
   two phones, plus no-JS, and fails on labels under the top bar, overlapping title/note,
-  wrapped index titles, sideways overflow, a phone index that doesn't fit one screen,
-  empty server HTML, or script errors. Screenshots land in .check/ (git-ignored). Its
-  checks must find the elements they measure — a selector that matches nothing fails.
-- Stills have smaller renditions for phones (`node scripts/make-sizes.mjs` →
-  public/images/sized/, picked up automatically by srcset). Re-run when a still changes.
+  wrapped index titles, the intro running into the titles, sideways overflow, a phone
+  index that doesn't fit one screen (≤ 8 pieces; more must be compact rows), empty
+  server HTML, or script errors. It loads the first published still, 3D piece and video
+  from content. Screenshots land in .check/ (git-ignored). Its checks must find the
+  elements they measure — a selector that matches nothing fails.
+- Stills have smaller renditions for phones (public/images/sized/, picked up
+  automatically by srcset) — `npm run asset -- derive <slug>` makes them.
 
 ## Hard-won gotchas (don't relearn these)
 - Global `img { max-width: 100% }`-style rules break oversized layers — set
@@ -175,6 +201,76 @@ that came out of that, in the owner's terms:
   under 820 px tall; index titles never wrap.
 - Icons: `app/icon.png`, `app/apple-icon.png`, `app/favicon.ico` (a cream Geist Serif "M").
   Share images for 3D pieces are cut from their set photographs (1200×630).
+- **Rubia's skin lives on the twist bones.** Upperarm / Forearm / Thigh / Calf carry zero
+  weight; each limb's skin is on `<Seg>Twist01` (at the joint) and `<Seg>Twist02` (its child,
+  mid-segment); the elbow/knee "ShareBone"s are unweighted. `driveTwists` (`TWIST_SPECS` in
+  SpecimenScene) grades every limb's roll across them each frame after the motion or pose —
+  never hand-set twist bones in a motion. Measured: idle forearm roll 0.31 / 1.0 /
+  1.55 rad elbow→mid→wrist (undriven, the elbow end took the full 1.2 and sheared).
+- **Posing (CC rigs) is analytic two-bone IK** (`HumanPoser`): bend only on the measured
+  hinge (`JOINT_LIMITS`), keeping the joint's existing swing; aim; roll to a pole (built
+  from each joint's own bend direction, measured when posing starts, tilted knees-up /
+  elbows-down — so entering Pose or the first grab changes nothing). It starts from
+  `STAND` (the motions' standing pose, feet on their marks), keeps feet pinned and level, and has hips (reach 0.62–0.995 of leg length),
+  chest (spine lean, held relative to the hips, 0.7 rad cone) and gaze handles; `poseKey`
+  = Reset. Nothing passes through the body: `measureBody` builds proxies from the skinned
+  vertices at bind (torso capsule, pelvis and helmet spheres, thigh/calf/arm capsules);
+  hand targets are pushed out of them, an elbow that would enter one rolls away
+  (`rollClear`), elbow/knee flex is capped from measured limb thickness, feet stay on the
+  floor and ≥0.7× their rest separation apart, and look/lean have per-direction limits.
+  `LegacyPoser` (CCD) remains for rigs without CC names.
+- **Rigged characters use dual-quaternion skinning** (`enableDQS`): `skeleton.update` packs
+  each bone's (real, dual) quaternion and uniform scale into the skeleton's own bone
+  texture (texel 3 `.w` = 0 marks that layout; matrices → every patched shader falls back to
+  linear blending); materials and the shadow depth/distance materials are patched in
+  `onBeforeCompile`. Needs uniform bone scale (checked). Rubia's thin shoulder web when the
+  arm is raised and the pinched elbows/knees were linear-blend artefacts — the rig has no
+  weighted correctives. CPU-side skinning (raycasts, bounds) stays linear.
+- **Motions are anatomical** (`app/components/site/rig-motion.ts`): channels in the body's own
+  frame, in degrees — `arm.R.elev/plane/rot` (0 = hanging; plane 0 = out to the side, 90 = in
+  front; rot + = external), `elbow.R`, `pron.R`, `wrist.R.flex/dev`, `clav.R.elev/prot`,
+  `spine.flex/side/twist` and `neck.*` (shared down each chain), `leg.R.flex/abd/rot`,
+  `knee.R`, `ankle.R.flex/inv`, `hips.x/y/z` (hip heights) / `pitch/roll/yaw`, `hand.R`
+  (grip 0 open · 1 rest · 2 fist), `wave.R`, `toes.R` (curl, + down) / `toeSpread.R`, and per foot
+  `contact`, `heel` (lift about the ball, degrees) and `lift` (hip heights). `buildMotionRig` measures every axis from the bind
+  (root space); arms are posed relative to the chest as it is now; the shoulder rhythm is part of
+  the pose. Keys `[seconds, value]`, monotone cubic, absent channels = `STAND`. Wave and Jump
+  play once and hand back to Idle (`onMotionEnd` resets the label). After the motion each
+  frame: `lockFeet` (contact / heel / lift per foot), eyes, the twist driver. Measure for the
+  drivers in the hips' parent space, never in world units (the model joins its scaled group
+  later — the resting gaze once converged ~1 body height away).
+- Motion rules learnt the hard way: a planted leg must keep a bend (release a foot by ~93% leg
+  stretch) — a straight leg has no knee direction and the thigh spins ~25° in a frame; a jump
+  keeps its feet on IK through the air (lifted), never switching to keyed legs and back; eyes
+  reset to their sockets every frame (≤ 24° of aim, a viewer > 60° off is let go); arms stay
+  ≤ ~115° raised and the waving forearm leans out (the helmet is wide); knees ≈ 60° max (the
+  greave rims sit on the hinge).
+- Rubia's feet have three long toes; the rig's BigToe1 / MidToe1 / PinkyToe1 run root → tip along
+  them (Index/Ring toe bones are unused). The eye bones pivot at the eyeball centres (they sat on
+  the front surface and the eyes slid in the goggles).
+- **Rubia's hands**: three fingers and a thumb (Index, Mid, Pinky — no Ring bones). The hand model
+  (`applyHand`) uses anatomical axes measured at load (the index's local Z is 15–20° off its real
+  curl axis). Presets open / rest / fist / wave were solved against the mesh in the Blender hand
+  lab (`scripts/rig/`): the fist's fingertips just meet the palm (thick fingers — they close less
+  than a real hand) and its thumb lies across the curled index and middle. The grip blends them
+  on a monotone cubic.
+- **Skin-weight fixes are made in Blender, on the GLB** (`scripts/rig/fix_rubia_rig.py`, README
+  there): import with `bone_heuristic='BLENDER'` (keeps every bone frame exactly), export with the
+  original settings, then `glb-compare.mjs` against the shipped file. Hand weights are geometric
+  (`reskin_hands.py`) — never Blender's automatic weights on this GLB: the mesh is split along UV
+  seams and heat weights crack the fingers open there. The measured review: `docs/rubia-rig-review.md`.
+- Rig QA (`?debug`): `window.__rig`, `__pose` (camera, handles, `drive(key, x, y, z)` /
+  `release()` — no mouse needed; real CDP drags take ~90 s each under software WebGL),
+  `__clipAt = seconds` (freeze the current motion at that moment, no return to Idle), `__orbit` (the orbit
+  controls, for framing close-ups), `__twistOff` and `__lbs` (A/B the twist driver and
+  linear skinning). Click the label's buttons with `el.click()` or a tall viewport — at
+  700×500 the motion row sits below the fold and a CDP click lands on nothing. For REVIEW,
+  launch headless Edge with `webgl: false` — that is the hardware GPU, ~100× faster than the
+  software renderer (which only set photography needs, for repeatable pixels).
+- `?a=N` selects a pack's asset — 0 (the first) included; only a missing `a` means "the
+  cover". (`a=0` once fell through to the cover, so shared sword links opened the dagger.)
+- Never chain a destructive or writing tool command after a `cd` with `;` — if the `cd`
+  fails it runs in the wrong project. Pin the tool with `ASSET_ROOT=<path>` instead.
 - Field-QA URL flags are sanctioned, read-only, and never affect content: `?fps`/`?debug`,
   `?displayMode=reduced`, `?slow=N` (all transitions N× slower, for review), `?still=1`
   (set-photography mode for the 3D viewer).

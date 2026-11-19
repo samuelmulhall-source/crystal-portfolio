@@ -198,7 +198,14 @@
 .indexCol { position: relative; z-index: 2; grid-column: 2; grid-row: 2; display: flex; flex-direction: column; justify-content: center; min-height: 0; }
 .intro { margin: 0; max-width: 30ch; color: var(--c3); }
 .indexCol > .intro { position: absolute; top: 0; left: 0; }
-.list { list-style: none; margin: 0; padding: 0; }
+/* The titles scale with how many there are, so the index stays one screen;
+   past what fits at the smallest size the list scrolls (the readout stays). */
+/* Centred, with room above for the intro (absolutely placed, up to 3 lines). */
+.listWrap { display: flex; flex-direction: column; min-height: 0; max-height: calc(100% - 140px); }
+.list { list-style: none; margin: 0; padding: 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; }
+.list::-webkit-scrollbar { display: none; }
+/* Only when it scrolls: the edges soften, so the cut reads as "more". */
+.list[data-over] { mask-image: linear-gradient(transparent, #000 1.1em, #000 calc(100% - 1.1em), transparent); padding-block: 0.5em; }
 .item { display: grid; grid-template-columns: 2.75rem 1fr; align-items: baseline; width: 100%; padding: 1px 0; text-align: left; color: color-mix(in oklab, var(--cream) 44%, transparent); transition: color calc(200ms * var(--slow, 1)) var(--ease); }
 .item .fig { color: inherit; }
 .item[aria-current] { color: var(--cream); }
@@ -206,7 +213,7 @@
 /* Filtered out by a category: further back, not interactive. */
 .itemOut { color: color-mix(in oklab, var(--cream) 16%, transparent); cursor: default; }
 .item { transition: color calc(200ms * var(--slow, 1)) var(--ease), opacity 200ms var(--ease); }
-.itemTitle { font: var(--t-display); font-size: clamp(32px, min(3.3vw, 6vh), 64px); line-height: 1.07; letter-spacing: -0.02em; white-space: nowrap; }
+.itemTitle { font: var(--t-display); font-size: clamp(22px, min(3.3vw, 6vh, (100vh - 440px) / var(--n, 7) / 1.07), 64px); line-height: 1.07; letter-spacing: -0.02em; white-space: nowrap; }
 .readout { min-height: 3.4em; margin-top: var(--s5); padding-left: 2.75rem; }
 .readout p { margin: 0; color: var(--c2); }
 .readout .fig { margin-top: var(--s1); color: var(--c3); }
@@ -287,6 +294,9 @@
    facts (Role, Made with, Dimensions). Figures are the only monospace. */
 .copy { min-width: 0; }
 .idx { display: flex; align-items: baseline; gap: var(--s3); margin: 0 0 var(--s5); color: var(--c3); }
+/* Unpublished entries (development only) say so beside their category. */
+.draft { color: var(--accent); }
+.readout .draft { margin-left: var(--s3); }
 .title { margin: 0; font: var(--t-display); letter-spacing: -0.022em; color: var(--cream); text-wrap: balance; }
 .what { margin: var(--s4) 0 0; color: var(--c2); }
 .copyBody { margin-top: var(--s6); }

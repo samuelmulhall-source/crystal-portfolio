@@ -90,6 +90,12 @@
       "metalnessMap": "/models/Weapons/Sword/sword_metallic.webp",
       "transmissionMap": "/models/Weapons/Sword/sword_transmission.webp"
     },
+    "extraTextures": {
+      "map": "/models/Weapons/Sword/Sword_grip_color.webp",
+      "normalMap": "/models/Weapons/Sword/Sword_grip_normal.webp",
+      "roughnessMap": "/models/Weapons/Sword/Sword_grip_roughness.webp",
+      "alphaMap": "/models/Weapons/Sword/Sword_grip_alpha.webp"
+    },
     "stage": {
       "color": "#4c351d",
       "field": [
@@ -109,6 +115,7 @@
       "thumb": "/images/set/sword-tile.webp"
     }
   },
+  "cover": "ornate-dagger",
   "assets": [
     {
       "id": "sword",
@@ -125,6 +132,12 @@
           "metalnessMap": "/models/Weapons/Sword/sword_metallic.webp",
           "transmissionMap": "/models/Weapons/Sword/sword_transmission.webp"
         },
+        "extraTextures": {
+          "map": "/models/Weapons/Sword/Sword_grip_color.webp",
+          "normalMap": "/models/Weapons/Sword/Sword_grip_normal.webp",
+          "roughnessMap": "/models/Weapons/Sword/Sword_grip_roughness.webp",
+          "alphaMap": "/models/Weapons/Sword/Sword_grip_alpha.webp"
+        },
         "stage": {
           "color": "#4c351d",
           "field": [
@@ -135,7 +148,7 @@
         },
         "facts": {
           "triangles": 36469,
-          "maps": 5
+          "maps": 9
         },
         "setStill": {
           "src": "/images/set/sword.webp",

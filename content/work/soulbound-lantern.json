@@ -61,7 +61,8 @@
     "height": 1080,
     "fps": 24,
     "frames": 1368,
-    "duration": 57
+    "duration": 57,
+    "audio": false
   },
   "edgeColors": [
     "#031220",

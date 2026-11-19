@@ -50,6 +50,10 @@ export type LitPiece = {
   seoTitle?: string;
   /** Stills: smaller renditions for srcset ("url 1280w, url 1920w"). */
   srcset?: string;
+  /** Not published yet (only seen in development). */
+  draft?: boolean;
+  /** Stills and video: a 256 px card for the phone catalogue (else the tile). */
+  card?: string;
 };
 
 type Seq = "all" | WorkCategory;
@@ -237,8 +241,11 @@ function readNav(pieces: LitPiece[], start: LitStart | undefined, search: string
   // (the index honours a category too: ?v=sheet&c=video shows it filtered)
   const slug = fromQuery && has(q.get("p")) ? (q.get("p") as string) : has(start?.slug) ? (start?.slug as string) : pieces[0].slug;
   const piece = pieces.find((p) => p.slug === slug);
-  const a = Number(q.get("a"));
-  const asset = fromQuery && a ? a : piece?.cover ?? 0;
+  // ?a=N picks an asset of a pack — 0 (the first) included; else its cover.
+  const raw = q.get("a");
+  const count = piece?.media.kind === "model" ? piece.media.assets.length : 1;
+  const a = raw !== null && /^\d+$/.test(raw) ? Math.min(Number(raw), count - 1) : null;
+  const asset = fromQuery && a !== null ? a : piece?.cover ?? 0;
   return { view, seq, slug, asset, fromUrl: true };
 }
 
@@ -913,7 +920,7 @@ function PhoneIndex({ pieces, seq, intro, onOpen }: { pieces: LitPiece[]; seq: S
               {/* Desktop never downloads the phone list's pictures. */}
               <picture>
                 <source media="(min-width: 761px)" srcSet={BLANK} />
-                <img src={enc(p.tile.src)} alt="" loading="lazy" decoding="async" />
+                <img src={enc(p.card ?? p.tile.src)} alt="" loading="lazy" decoding="async" />
               </picture>
             </span>
             <span className={st.pcardCap}>
@@ -934,6 +941,19 @@ function DeskIndex({ pieces, seq, intro, hot, setHot, engaged, onOpen, layers, h
   // Hover intent: sweeping the pointer down the list doesn't flash every piece
   // — a title lights its piece once the pointer rests on it (~70 ms).
   const intentT = useRef(0);
+  const listRef = useRef<HTMLOListElement>(null);
+  // A long index scrolls (titles shrink with the count first): keep the lit
+  // title in view as ↑/↓ move through it.
+  useEffect(() => {
+    listRef.current?.querySelector("[aria-current]")?.scrollIntoView({ block: "nearest" });
+  }, [hot]);
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => el.toggleAttribute("data-over", el.scrollHeight > el.clientHeight + 1));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   const intent = useMemo(
     () => ({
       enter: (slug: string) => {
@@ -952,8 +972,8 @@ function DeskIndex({ pieces, seq, intro, hot, setHot, engaged, onOpen, layers, h
       ))}
       <div className={st.indexCol}>
         {intro ? <p className={st.intro}>{intro}</p> : null}
-        <div>
-          <ol className={st.list}>
+        <div className={st.listWrap}>
+          <ol ref={listRef} className={st.list} style={{ "--n": pieces.length } as CSSProperties}>
             {pieces.map((p) => {
               const outOf = seq !== "all" && p.cat !== seq;
               return (
@@ -977,7 +997,8 @@ function DeskIndex({ pieces, seq, intro, hot, setHot, engaged, onOpen, layers, h
           </ol>
           <div className={st.readout} aria-live="polite">
             <p>
-              {CAT_LABEL[hot.cat]} · {hot.discipline}
+              {[CAT_LABEL[hot.cat], hot.discipline].filter(Boolean).join(" · ")}
+              {hot.draft ? <span className={st.draft}>Draft</span> : null}
             </p>
             <p className={st.fig}>
               {hot.media.kind === "model" && hot.media.assets.length > 1
@@ -1198,14 +1219,13 @@ function Frame({
           <p className={st.idx}>
             <span className={st.fig}>{pad(piece.no)}</span>
             {CAT_LABEL[piece.cat]}
+            {piece.draft ? <span className={st.draft}>Draft</span> : null}
           </p>
           <h1 className={st.title}>{piece.title}</h1>
-          <p className={st.what}>
-            {piece.year} · {piece.discipline}
-          </p>
+          <p className={st.what}>{[piece.year, piece.discipline].filter(Boolean).join(" · ")}</p>
         </div>
         <div className={st.copyBody}>
-          <p className={st.sum}>{asst?.summary ?? piece.summary}</p>
+          {asst?.summary || piece.summary ? <p className={st.sum}>{asst?.summary || piece.summary}</p> : null}
           <dl className={st.label}>
             {piece.role.length ? (
               <>
@@ -1525,6 +1545,13 @@ class SceneBoundary extends Component<{ children: ReactNode; onFail: () => void 
   }
 }
 
+/** The rig's motions as offered in the label: Idle first, the bind pose last. */
+const MOTION_LABEL: Record<string, string> = { Idle: "Idle", Wave: "Wave", "Look Around": "Look around", Jump: "Jump", "A Pose": "A-pose" };
+function motionOrder(names: string[]): string[] {
+  const rank = (n: string) => (n === "Idle" ? 0 : n === "A Pose" ? 2 : 1);
+  return [...names].sort((a, b) => rank(a) - rank(b));
+}
+
 function SetView({ asset, rigged, phone, alone, onAlone }: { asset: LitAsset; rigged: boolean; phone: boolean; alone: boolean; onAlone: () => void }) {
   const [failedPath, setFailedPath] = useState<string | null>(null);
   const { effectiveMode } = useDisplayMode();
@@ -1538,6 +1565,8 @@ function SetView({ asset, rigged, phone, alone, onAlone }: { asset: LitAsset; ri
   const [poseable, setPoseable] = useState(false);
   const [poseMode, setPoseMode] = useState(false);
   const [hand, setHand] = useState<HandPose>("rest");
+  const [clipNames, setClipNames] = useState<string[]>([]);
+  const [poseKey, setPoseKey] = useState(0);
   const [channel, setChannel] = useState<SpecimenChannel>("material");
   const [detected, setDetected] = useState<TexKey[]>([]);
   const az = useRef<HTMLSpanElement>(null);
@@ -1557,6 +1586,7 @@ function SetView({ asset, rigged, phone, alone, onAlone }: { asset: LitAsset; ri
     if (stillMode) (window as unknown as { __litReady?: string }).__litReady = sp.modelPath;
   }, [stillMode, sp.modelPath]);
   const onClips = useCallback((names: string[]) => {
+    setClipNames(names);
     const k = names.indexOf("Idle");
     if (k > 0) setClipIndex(k);
   }, []);
@@ -1569,7 +1599,10 @@ function SetView({ asset, rigged, phone, alone, onAlone }: { asset: LitAsset; ri
     },
     [stillMode, sp.modelPath],
   );
-  const texIds: TexKey[] = rigged ? detected : (Object.keys(TEX_LABEL) as TexKey[]).filter((k) => sp.textures[k as keyof Specimen["textures"]]);
+  // Models that carry their own materials (rigged characters, GLB props with
+  // no maps listed) report their maps once loaded; others list them in content.
+  const ownMats = rigged || (/\.(glb|gltf)$/i.test(sp.modelPath) && !Object.values(sp.textures).some(Boolean));
+  const texIds: TexKey[] = ownMats ? detected : (Object.keys(TEX_LABEL) as TexKey[]).filter((k) => sp.textures[k as keyof Specimen["textures"]]);
   const channels: { id: SpecimenChannel; label: string }[] = [
     { id: "material", label: "Shaded" },
     ...texIds.map((k) => ({ id: k as SpecimenChannel, label: TEX_LABEL[k] ?? k })),
@@ -1586,7 +1619,11 @@ function SetView({ asset, rigged, phone, alone, onAlone }: { asset: LitAsset; ri
     () => ({
       color: sp.stage?.color ?? "#3a3633",
       viewShift: shift,
-      lit: !!still && !stillMode,
+      // Full light from the start when a photograph covers the load — and when
+      // taking that photograph: the light's ease advances per rendered frame,
+      // and software WebGL renders only a few before the capture, so an eased
+      // set photographs under-lit (by however many frames the machine drew).
+      lit: !!still || stillMode,
       azimuth: sp.stage?.azimuth,
       // The page's grain continues onto the set's backdrop (never the model).
       grain: { src: "/images/grain.png" },
@@ -1608,10 +1645,12 @@ function SetView({ asset, rigged, phone, alone, onAlone }: { asset: LitAsset; ri
               clipIndex={clipIndex}
               poseMode={poseMode}
               handPose={hand}
+              poseKey={poseKey}
               allowZoom
               onReady={onReady}
               onStats={onStats}
               onClips={onClips}
+              onMotionEnd={setClipIndex}
               onPoseable={setPoseable}
               onChannelsDetected={setDetected}
               onAzimuth={onAz}
@@ -1642,27 +1681,48 @@ function SetView({ asset, rigged, phone, alone, onAlone }: { asset: LitAsset; ri
             </button>
           </p>
           {rigged ? (
-            <p className={st.row}>
-              <button type="button" className={st.ctl} aria-pressed={!poseMode} onClick={() => setPoseMode(false)}>
-                Animate
-              </button>
-              <button type="button" className={st.ctl} aria-pressed={poseMode} disabled={!poseable} onClick={() => setPoseMode(true)}>
-                Pose
-              </button>
-              {poseMode
-                ? (["open", "rest", "fist"] as HandPose[]).map((h) => (
-                    <button key={h} type="button" className={st.ctl} aria-pressed={hand === h} onClick={() => setHand(h)}>
-                      {h[0].toUpperCase() + h.slice(1)} hand
+            <>
+              <p className={st.row}>
+                <button type="button" className={st.ctl} aria-pressed={!poseMode} onClick={() => setPoseMode(false)}>
+                  Animate
+                </button>
+                <button type="button" className={st.ctl} aria-pressed={poseMode} disabled={!poseable} onClick={() => setPoseMode(true)}>
+                  Pose
+                </button>
+              </p>
+              {/* Animate: the rig's motions (Idle first, the bind pose last).
+                  Pose: hand presets and a fresh start. */}
+              <p className={st.row}>
+                {poseMode ? (
+                  <>
+                    {(["open", "rest", "fist"] as HandPose[]).map((h) => (
+                      <button key={h} type="button" className={st.ctl} aria-pressed={hand === h} onClick={() => setHand(h)}>
+                        {h[0].toUpperCase() + h.slice(1)} hand
+                      </button>
+                    ))}
+                    <button type="button" className={st.ctl} onClick={() => setPoseKey((k) => k + 1)}>
+                      Reset
+                    </button>
+                  </>
+                ) : (
+                  motionOrder(clipNames).map((name) => (
+                    <button key={name} type="button" className={st.ctl} aria-pressed={clipNames[clipIndex] === name} onClick={() => setClipIndex(clipNames.indexOf(name))}>
+                      {MOTION_LABEL[name] ?? name}
                     </button>
                   ))
-                : null}
-            </p>
+                )}
+              </p>
+            </>
           ) : null}
           <p className={st.hint}>
             <span className={st.fig}>
               Az <span ref={az}>0°</span>
             </span>
-            {poseMode ? "Drag the handles to pose the rig" : touch ? "Drag to turn · pinch to zoom" : "Drag to turn · scroll to zoom · double-click resets"}
+            {poseMode
+              ? "Drag a ring: hands, feet, hips, chest, gaze"
+              : touch
+                ? "Drag to turn · pinch to zoom"
+                : "Drag to turn · scroll to zoom · double-click resets"}
           </p>
         </div>
       ) : null}

@@ -13,7 +13,8 @@
     "build": "node scripts/check-asset-sizes.mjs && node scripts/validate-content.mjs && next build",
     "start": "next start",
     "lint": "eslint",
-    "check:site": "node scripts/check-site.mjs"
+    "check:site": "node scripts/check-site.mjs",
+    "asset": "node scripts/asset.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.5.0",

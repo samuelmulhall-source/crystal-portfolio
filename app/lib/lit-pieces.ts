@@ -3,7 +3,7 @@ import path from "node:path";
 import type { LitPiece } from "../components/lit/LitShowcase";
 import { getWorkCategory, getWorkEntries } from "./content";
 
-/** Smaller renditions made by scripts/make-sizes.mjs, if present. */
+/** Smaller renditions made by `npm run asset -- derive`, if present. */
 function srcsetFor(slug: string): string | undefined {
   const parts = [1280, 1920]
     .filter((w) => fs.existsSync(path.join(process.cwd(), "public/images/sized", `${slug}-${w}.webp`)))
@@ -11,9 +11,10 @@ function srcsetFor(slug: string): string | undefined {
   return parts.length ? parts.join(", ") : undefined;
 }
 
-// The asset whose set photograph stands for an asset pack in the index — the
-// one whose materials read best. Falls back to the pack's first asset.
-const PACK_COVER = "ornate-dagger";
+/** The phone catalogue's small card (256 px), if derive has made one. */
+function cardFor(slug: string): string | undefined {
+  return fs.existsSync(path.join(process.cwd(), "public/images/thumbs", `${slug}-card.webp`)) ? `/images/thumbs/${slug}-card.webp` : undefined;
+}
 
 /** Every work entry, shaped for the showcase. Reads content/work/*.json only —
  *  adding or editing an entry needs no component change. */
@@ -30,6 +31,7 @@ export function getLitPieces(): LitPiece[] {
       role: e.role,
       tools: e.tools,
       seoTitle: e.seo.title,
+      draft: e.draft || undefined,
     };
     // Fallback room for entries without one: the render's own edge colour.
     const edge = e.edgeColors ?? ["#0b0b0b", "#050505"];
@@ -41,7 +43,8 @@ export function getLitPieces(): LitPiece[] {
         summary: a.summary,
         specimen: a.specimen,
       }));
-      const coverIdx = Math.max(0, assets.findIndex((a) => a.id === PACK_COVER));
+      // The asset that stands for the pack in the index (content `cover`).
+      const coverIdx = Math.max(0, assets.findIndex((a) => a.id === e.cover));
       const cover = assets[coverIdx];
       const still = cover.specimen.setStill;
       return {
@@ -64,6 +67,7 @@ export function getLitPieces(): LitPiece[] {
         ...base,
         media: { kind: "video", src: video.src, poster, w: f.width, h: f.height, fps: f.fps, frames: f.frames ?? 0, dur: f.duration ?? 0, audio: !!f.audio },
         tile: { src: poster, ar: f.width / f.height },
+        card: cardFor(e.slug),
         field,
         room,
       } satisfies LitPiece;
@@ -77,6 +81,7 @@ export function getLitPieces(): LitPiece[] {
       field,
       room,
       srcset: srcsetFor(e.slug),
+      card: cardFor(e.slug),
     } satisfies LitPiece;
   });
 }

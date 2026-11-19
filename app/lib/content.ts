@@ -30,6 +30,18 @@ const SpecimenSchema = z.object({
    *  triangulated). Lazy-loaded when the Wire channel is selected; shown as a
    *  hidden-line view over the depth-only model. */
   wireModelPath: z.string().optional(),
+  /** The second model's own maps, when it has its own UV layout — e.g. a
+   *  sword's grip wrap with a cut-out alpha. Without them it wears the main
+   *  model's material. */
+  extraTextures: z
+    .object({
+      map: z.string().optional(),
+      normalMap: z.string().optional(),
+      roughnessMap: z.string().optional(),
+      metalnessMap: z.string().optional(),
+      alphaMap: z.string().optional(),
+    })
+    .optional(),
   /** Vertical framing nudge applied after auto-centering (world units). */
   yOffset: z.number().optional(),
   /** Rigged character: keep the model's own materials, clone skeleton-safe,
@@ -147,6 +159,13 @@ const WorkEntrySchema = z.object({
       shape: z.enum(["pool", "low", "rake", "horizon"]).optional(),
     })
     .optional(),
+  /** Not yet published: shown by `next dev` and by SHOW_DRAFTS=1 builds (the
+   *  set photographer), never by a production build. Written by
+   *  `npm run asset -- add`; cleared by `npm run asset -- publish`. */
+  draft: z.boolean().optional(),
+  /** Asset packs: the id of the asset whose set photograph stands for the pack
+   *  in the index (the one whose materials read best). Defaults to the first. */
+  cover: z.string().optional(),
   /** Collection entries (asset packs): the named assets users step through.
    *  When present, viewers offer per-asset navigation; `specimen` then acts
    *  as the default/fallback asset. */
@@ -215,7 +234,9 @@ export type WorkEntry = z.infer<typeof WorkEntrySchema>;
 export type SiteSettings = z.infer<typeof SiteSettingsSchema>;
 export type HomeContent = z.infer<typeof HomeContentSchema>;
 
-const CONTENT_ROOT = path.join(process.cwd(), "content");
+// CONTENT_DIR points a build at another content folder (review builds,
+// tests); the default is the repository's content/.
+const CONTENT_ROOT = process.env.CONTENT_DIR ? path.resolve(process.env.CONTENT_DIR) : path.join(process.cwd(), "content");
 
 function readJson<T>(filePath: string, schema: z.ZodSchema<T>): T {
   const raw = fs.readFileSync(filePath, "utf8");
@@ -230,12 +251,17 @@ export const getHomeContent = cache(() =>
   readJson(path.join(CONTENT_ROOT, "site", "home.json"), HomeContentSchema),
 );
 
+/** Drafts show while developing and in SHOW_DRAFTS=1 builds; never in a
+ *  production build (what Cloudflare deploys). */
+export const showDrafts = process.env.NODE_ENV !== "production" || process.env.SHOW_DRAFTS === "1";
+
 export const getWorkEntries = cache(() => {
   const workDir = path.join(CONTENT_ROOT, "work");
   return fs
     .readdirSync(workDir)
     .filter((file) => file.endsWith(".json"))
     .map((file) => readJson(path.join(workDir, file), WorkEntrySchema))
+    .filter((entry) => showDrafts || !entry.draft)
     .sort((a, b) => a.sortOrder - b.sortOrder);
 });
 
